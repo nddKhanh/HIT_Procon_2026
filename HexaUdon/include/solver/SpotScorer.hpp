@@ -5,6 +5,7 @@
 #include "solver/PathFinder.hpp"
 #include <vector>
 #include <set>
+#include <array>
 
 /**
  * @brief Chấm điểm & chọn Spot tốt nhất cho xe Patrol.
@@ -14,6 +15,18 @@
  */
 class SpotScorer {
 public:
+    using SpotRank = std::array<int, 6>;
+
+    static SpotRank rankSpot(
+        int brand,
+        int distanceSteps,
+        const std::set<int>& matchBrands,
+        const std::set<int>& dailyBrands,
+        int remainingStock,
+        int brandSpotCount,
+        int fuelCost
+    );
+
     /**
      * @brief Chấm điểm 1 Spot cụ thể.
      * @param brand            Mã loại udon của Spot
@@ -27,6 +40,16 @@ public:
         int distanceSteps,
         const std::set<int>& collectedBrands,
         int remainingStock
+    );
+
+    static int scoreSpot(
+        int brand,
+        int distanceSteps,
+        const std::set<int>& collectedBrands,
+        int remainingStock,
+        int brandSpotCount,
+        int fuelCost,
+        int fuelRemaining
     );
 
     /**
@@ -45,6 +68,8 @@ public:
         int stepsRemaining,
         const std::set<int>& visitedToday,
         const std::vector<int>& remainingStock,
-        const std::set<int>& collectedBrands
+        const std::set<int>& matchBrands,
+        const std::set<int>& dailyBrands,
+        const std::set<int>& claimedSpots = {}
     );
 };

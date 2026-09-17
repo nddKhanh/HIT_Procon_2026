@@ -1,11 +1,12 @@
 #!/bin/bash
 CXX=g++
-CXXFLAGS="-std=c++17 -Iinclude -Ithird_party"
-CORE_SRC="src/io/JsonReader.cpp src/io/JsonWriter.cpp src/map/Map.cpp src/solver/ActionValidator.cpp src/solver/PathFinder.cpp src/solver/Solver.cpp"
+CXXFLAGS="-std=c++17 -IHexaUdon/include -IHexaUdon/third_party"
+CORE_SRC="HexaUdon/src/io/JsonReader.cpp HexaUdon/src/io/JsonWriter.cpp HexaUdon/src/io/DiaryWriter.cpp HexaUdon/src/map/Map.cpp HexaUdon/src/solver/ActionValidator.cpp HexaUdon/src/solver/PathFinder.cpp HexaUdon/src/solver/SpotScorer.cpp HexaUdon/src/solver/PatrolPlanner.cpp HexaUdon/src/solver/SupplyPlanner.cpp HexaUdon/src/solver/MoveSimulator.cpp HexaUdon/src/solver/Solver.cpp HexaUdon/src/api/GameApiClient.cpp HexaUdon/src/api/HttpClient.cpp"
+LDFLAGS="-lwininet"
 
 if [ "$1" == "test" ]; then
     echo "[BUILDING & RUNNING UNIT TESTS]..."
-    $CXX $CXXFLAGS tests/test_all.cpp $CORE_SRC -o test_all
+    $CXX $CXXFLAGS HexaUdon/tests/test_all.cpp $CORE_SRC $LDFLAGS -o test_all
     if [ $? -eq 0 ]; then
         ./test_all
     fi
@@ -15,7 +16,7 @@ elif [ "$1" == "clean" ]; then
     echo "Done!"
 else
     echo "[BUILDING MAIN EXECUTABLE] HexaUdon..."
-    $CXX $CXXFLAGS src/main.cpp $CORE_SRC -o HexaUdon
+    $CXX $CXXFLAGS HexaUdon/src/main.cpp $CORE_SRC $LDFLAGS -o HexaUdon
     if [ $? -eq 0 ]; then
         echo "[SUCCESS] HexaUdon created successfully!"
     fi

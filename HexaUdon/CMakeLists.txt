@@ -11,10 +11,15 @@ include_directories(
 
 # Collect core source files (excluding main.cpp)
 file(GLOB_RECURSE CORE_SOURCES
+    "src/api/*.cpp"
     "src/io/*.cpp"
     "src/map/*.cpp"
     "src/solver/*.cpp"
 )
+
+if(WIN32)
+    link_libraries(wininet)
+endif()
 
 # Executable chính
 add_executable(HexaUdon src/main.cpp ${CORE_SOURCES})

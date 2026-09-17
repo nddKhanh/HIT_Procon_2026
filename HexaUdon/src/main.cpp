@@ -185,6 +185,8 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
         // Submit
         if (api.submitActions(matchId, actions)) {
             std::cout << "  -> DA GUI THANH CONG!\n\n";
+            if (usedFallback) solver.discardLastPlan();
+            else solver.commitLastPlan();
             if (!DiaryWriter::writeDay(
                     "diary", matchId, state.day, daySteps,
                     config, state, map, solver, actions, usedFallback)) {
@@ -232,13 +234,17 @@ int runStdinMode() {
     for (size_t day = 0; day < config.daySteps.size(); ++day) {
         GameState state = JsonReader::readGameState();
         auto actions = solver.solve(config, state, map);
+        bool usedFallback = false;
 
         if (!ActionValidator::validate(config, state, actions, map)) {
             std::cerr << "[WARNING] Day " << day << " invalid! Using fallback.\n";
             actions = solver.createFallbackActions(config, state);
+            usedFallback = true;
         }
 
         JsonWriter::writeActions(actions);
+        if (usedFallback) solver.discardLastPlan();
+        else solver.commitLastPlan();
     }
 
     return 0;

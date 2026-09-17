@@ -37,6 +37,12 @@ public:
         Map& map
     );
 
+    /** Commit brands from the most recently generated plan after server acceptance. */
+    void commitLastPlan();
+
+    /** Discard the most recently generated plan without changing confirmed state. */
+    void discardLastPlan();
+
     /**
      * @brief Fallback: tất cả xe đứng yên cả ngày (kế hoạch an toàn)
      */
@@ -71,6 +77,9 @@ public:
 private:
     // === Trạng thái xuyên trận ===
     std::set<int> collectedBrandsTotal_;   // Brand đã thu thập toàn trận
+    std::set<int> pendingBrandsTotal_;     // Candidate result, committed only after acceptance
+    bool hasPendingPlan_ = false;
+    std::set<int> claimedSpots_; // Exclusive daily reservations per upgrade_plan.md.
     int currentDay_ = -1;
 
     // === Trạng thái hàng ngày (reset mỗi ngày) ===

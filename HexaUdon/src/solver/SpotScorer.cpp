@@ -1,77 +1,75 @@
 #include "solver/SpotScorer.hpp"
 #include <climits>
 
-// =============================================================================
-// Chấm điểm 1 Spot cụ thể
-// =============================================================================
+SpotScorer::SpotRank SpotScorer::rankSpot(int brand, int distanceSteps,
+    const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
+    int remainingStock, int brandSpotCount, int fuelCost) {
+    if (remainingStock <= 0) return {-1, -1, -1, -1, INT_MIN, INT_MIN};
+    int rarity = brandSpotCount == 1 ? 2 : brandSpotCount == 2 ? 1 : 0;
+    return {
+        matchBrands.count(brand) ? 0 : 1,
+        dailyBrands.count(brand) ? 0 : 1,
+        1,
+        rarity,
+        -distanceSteps,
+        -fuelCost
+    };
+}
 
-int SpotScorer::scoreSpot(
-    int brand,
-    int distanceSteps,
-    const std::set<int>& collectedBrands,
-    int remainingStock
-) {
+int SpotScorer::scoreSpot(int brand, int distanceSteps,
+    const std::set<int>& collectedBrands, int remainingStock) {
+    return scoreSpot(brand, distanceSteps, collectedBrands, remainingStock,
+                     0, 0, INT_MAX);
+}
+
+int SpotScorer::scoreSpot(int brand, int distanceSteps,
+    const std::set<int>& collectedBrands, int remainingStock,
+    int brandSpotCount, int fuelCost, int fuelRemaining) {
     if (remainingStock <= 0) return -1;
 
-    int score = 0;
-
-    // Brand diversity: massive bonus for new brand types (Tiêu chí 1 quan trọng nhất)
-    if (collectedBrands.find(brand) == collectedBrands.end()) {
-        score += 1000;
-    }
-
-    // Distance penalty: closer is better
+    int score = collectedBrands.count(brand) ? 0 : 5000;
+    if (brandSpotCount == 1) score += 500;
+    else if (brandSpotCount == 2) score += 200;
+    if (remainingStock == 1) score += 300;
+    else if (remainingStock == 2) score += 100;
     score -= distanceSteps;
-
+    if (fuelRemaining > 0 && fuelCost * 2 > fuelRemaining) {
+        score -= 500 + (fuelCost * 100 / fuelRemaining);
+    }
     return score;
 }
 
-// =============================================================================
-// Tìm Spot tốt nhất trong tất cả Spot trên bản đồ
-// =============================================================================
-
-int SpotScorer::findBestSpot(
-    Position currentPos,
-    const GameConfig& config,
-    const Map& map,
-    int fuelRemaining,
-    int stepsRemaining,
-    const std::set<int>& visitedToday,
-    const std::vector<int>& remainingStock,
-    const std::set<int>& collectedBrands
-) {
+int SpotScorer::findBestSpot(Position currentPos, const GameConfig& config,
+    const Map& map, int fuelRemaining, int stepsRemaining,
+    const std::set<int>& visitedToday, const std::vector<int>& remainingStock,
+    const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
+    const std::set<int>& claimedSpots) {
     int bestSpot = -1;
-    int bestScore = -1;
-    int bestCost = INT_MAX;
+    std::array<int, 3> bestRank = {INT_MIN, INT_MIN, INT_MIN};
 
     for (size_t si = 0; si < config.spots.size(); ++si) {
-        // Lọc 1: Đã ghé hôm nay chưa?
-        if (visitedToday.count(static_cast<int>(si))) continue;
+        if (claimedSpots.count(static_cast<int>(si)) ||
+            visitedToday.count(static_cast<int>(si)) ||
+            si >= remainingStock.size() || remainingStock[si] <= 0) continue;
 
-        // Lọc 2: Còn hàng không?
-        if (remainingStock[si] <= 0) continue;
-
-        // Lọc 3: Có đến được không? (Dijkstra)
         Position spotPos = map.posToCoordinate(config.spots[si].pos);
-        auto path = PathFinder::findPath(currentPos, spotPos, map, fuelRemaining);
-        if (!path.found) continue;
-        if (path.totalSteps > stepsRemaining) continue;
+        auto path = PathFinder::findPath(currentPos, spotPos, map, fuelRemaining, 1.0);
+        if (!path.found || path.totalSteps > stepsRemaining) continue;
 
-        // Chấm điểm
-        int score = scoreSpot(
-            config.spots[si].brand,
-            path.totalSteps,
-            collectedBrands,
-            remainingStock[si]
-        );
+        int brandSpotCount = 0;
+        for (const auto& spot : config.spots) {
+            if (spot.brand == config.spots[si].brand) ++brandSpotCount;
+        }
+        int score = scoreSpot(config.spots[si].brand, path.totalSteps,
+            matchBrands, remainingStock[si], brandSpotCount,
+            path.totalFuel, fuelRemaining);
+        std::array<int, 3> rank = {score,
+            dailyBrands.count(config.spots[si].brand) ? 0 : 1, -path.totalSteps};
 
-        // So sánh: điểm cao hơn thắng, bằng điểm thì gần hơn thắng
-        if (score > bestScore || (score == bestScore && path.totalSteps < bestCost)) {
-            bestScore = score;
-            bestCost = path.totalSteps;
+        if (rank > bestRank) {
+            bestRank = rank;
             bestSpot = static_cast<int>(si);
         }
     }
-
     return bestSpot;
 }

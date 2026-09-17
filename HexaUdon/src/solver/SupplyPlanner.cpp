@@ -10,17 +10,45 @@
 
 int SupplyPlanner::findTargetPatrol(
     const std::vector<Agent>& agents,
-    int excludeIdx
+    int excludeIdx,
+    const GameConfig& config,
+    const Map& map,
+    const std::set<int>& collectedBrands,
+    const std::vector<int>& remainingStock,
+    Position supplyPos
 ) {
     int bestIdx = -1;
-    int lowestFuel = INT_MAX;
+    int bestScore = INT_MIN;
 
     for (size_t i = 0; i < agents.size(); ++i) {
         if (static_cast<int>(i) == excludeIdx) continue;
         if (agents[i].kind != 0) continue; // Chỉ xét xe Patrol
 
-        if (agents[i].fuel < lowestFuel) {
-            lowestFuel = agents[i].fuel;
+        int fuelPercent = config.fuelLimit > 0
+            ? agents[i].fuel * 100 / config.fuelLimit : 100;
+        int fuelUrgency = fuelPercent <= 10 ? 500
+            : fuelPercent <= 25 ? 400
+            : fuelPercent <= 50 ? 300
+            : fuelPercent <= 75 ? 100 : 0;
+
+        Position patrolPos = map.posToCoordinate(agents[i].pos);
+        int spotsInRange = 0;
+        bool hasNewBrandNearby = false;
+        for (size_t si = 0; si < config.spots.size(); ++si) {
+            if (si >= remainingStock.size() || remainingStock[si] <= 0) continue;
+            auto route = PathFinder::findPath(patrolPos,
+                map.posToCoordinate(config.spots[si].pos), map, agents[i].fuel, 1.0);
+            if (!route.found) continue;
+            ++spotsInRange;
+            hasNewBrandNearby |= !collectedBrands.count(config.spots[si].brand);
+        }
+
+        auto supplyRoute = PathFinder::findPath(supplyPos, patrolPos, map);
+        if (!supplyRoute.found) continue;
+        int score = fuelUrgency + (hasNewBrandNearby ? 600 : 0)
+            + 50 * spotsInRange - 10 * supplyRoute.totalSteps;
+        if (score > bestScore) {
+            bestScore = score;
             bestIdx = static_cast<int>(i);
         }
     }
@@ -44,7 +72,9 @@ std::vector<int> SupplyPlanner::planDay(
     int& plannedTargetSpot,
     Position& plannedTargetPos,
     std::vector<int>& plannedStepSpots,
-    std::vector<Position>& plannedStepPositions
+    std::vector<Position>& plannedStepPositions,
+    const std::set<int>& collectedBrands,
+    const std::vector<int>& remainingStock
 ) {
     plannedTargetPatrol = -1;
     plannedTargetSpot = -1;
@@ -53,7 +83,9 @@ std::vector<int> SupplyPlanner::planDay(
     plannedStepPositions.assign(daySteps, plannedTargetPos);
 
     // Tìm xe Patrol cần cứu
-    int targetPatrol = findTargetPatrol(allAgents, supplyIdx);
+    Position agentPos = map.posToCoordinate(supplyAgent.pos);
+    int targetPatrol = findTargetPatrol(allAgents, supplyIdx, config, map,
+                                        collectedBrands, remainingStock, agentPos);
 
     if (targetPatrol < 0) {
         // Không tìm thấy xe Patrol → đứng yên cả ngày
@@ -81,7 +113,6 @@ std::vector<int> SupplyPlanner::planDay(
     std::fill(plannedStepPositions.begin(), plannedStepPositions.end(), plannedTargetPos);
 
     // Tìm đường đến điểm hẹn
-    Position agentPos = map.posToCoordinate(supplyAgent.pos);
     auto pathResult = PathFinder::findPath(agentPos, targetPos, map, INT_MAX);
 
     if (!pathResult.found) {

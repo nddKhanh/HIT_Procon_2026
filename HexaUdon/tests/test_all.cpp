@@ -8,6 +8,7 @@
 #include "solver/PathFinder.hpp"
 #include "solver/ActionValidator.hpp"
 #include "solver/Solver.hpp"
+#include "solver/SupplyPlanner.hpp"
 #include "solver\SpotScorer.hpp"
 
 // =============================================================================
@@ -291,6 +292,156 @@ void test_spot_scoring() {
     std::cout << "[PASS] SpotScorer scoring test passed!" << std::endl;
 }
 
+void test_tactical_scoring_and_claims() {
+    std::set<int> none;
+    int common = SpotScorer::scoreSpot(7, 5, none, 3, 3, 1, 10);
+    int rareUrgent = SpotScorer::scoreSpot(7, 5, none, 1, 1, 1, 10);
+    assert(rareUrgent > common);
+
+    GameConfig config{};
+    config.map.height = 2;
+    config.map.width = 2;
+    config.map.cells = {{0, 0}, {0, 0}};
+    config.daySteps = {2};
+    config.fuelLimit = 1;
+    config.initialAgentPositions = {0, 0};
+    config.spots = {{0, 1, 1}, {1, 2, 1}};
+
+    GameState state;
+    state.day = 0;
+    state.agents = {{0, 0, 1}, {0, 0, 1}};
+    Map map(2, 2, config.map.cells);
+    Solver solver;
+    auto actions = solver.solve(config, state, map);
+
+    assert(ActionValidator::validate(config, state, actions, map));
+    assert(solver.getPlannedTargetSpot(0) >= 0);
+    assert(solver.getPlannedTargetSpot(1) >= 0);
+    assert(solver.getPlannedTargetSpot(0) != solver.getPlannedTargetSpot(1));
+    std::cout << "[PASS] Tactical scoring and patrol claims test passed!" << std::endl;
+}
+
+void test_fuel_weighted_path() {
+    Map map(2, 4, {{0, 1, 1, 0}, {0, 0, 0, 0}});
+    Position start{0, 0};
+    Position goal{3, 0};
+    auto fastest = PathFinder::findPath(start, goal, map);
+    auto fuelAware = PathFinder::findPath(start, goal, map, INT_MAX, 10.0);
+    assert(fastest.found && fuelAware.found);
+    assert(fuelAware.totalFuel < fastest.totalFuel);
+    assert(fuelAware.totalSteps > fastest.totalSteps);
+    std::cout << "[PASS] Fuel-weighted path test passed!" << std::endl;
+}
+
+void test_lexicographic_brand_ranking() {
+    std::set<int> matchBrands = {0, 1};
+    std::set<int> dailyBrands = {0};
+    auto repeatedToday = SpotScorer::rankSpot(0, 2, matchBrands, dailyBrands, 1, 1, 1);
+    auto newToday = SpotScorer::rankSpot(1, 2, matchBrands, dailyBrands, 1, 1, 1);
+    assert(newToday > repeatedToday);
+
+    dailyBrands.clear();
+    matchBrands = {0};
+    auto oldMatchBrand = SpotScorer::rankSpot(0, 1, matchBrands, dailyBrands, 1, 1, 1);
+    auto newMatchBrand = SpotScorer::rankSpot(1, 100, matchBrands, dailyBrands, 1, 1, 20);
+    assert(newMatchBrand > oldMatchBrand);
+    std::cout << "[PASS] Lexicographic match/daily brand ranking test passed!" << std::endl;
+}
+
+void test_exclusive_spot_claim_and_reset() {
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 2;
+    config.map.cells = {{0, 0}};
+    config.daySteps = {2, 2};
+    config.fuelLimit = 10;
+    config.initialAgentPositions = {0, 0};
+    config.spots = {{0, 1, 2}};
+
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 0, 10}, {0, 0, 10}};
+    Map map(1, 2, config.map.cells);
+    Solver solver;
+    auto actions = solver.solve(config, state, map);
+
+    assert(ActionValidator::validate(config, state, actions, map));
+    assert(solver.getPlannedTargetSpot(0) == 0);
+    assert(solver.getPlannedTargetSpot(1) == -1);
+    assert(actions[1] == std::vector<int>{-2});
+    assert(solver.solve(config, state, map) == actions);
+    solver.commitLastPlan();
+    state.day = 1;
+    auto nextDay = solver.solve(config, state, map);
+    assert(nextDay == actions); // Claims reset on retries and on a new day.
+    std::cout << "[PASS] Exclusive spot claims and reset test passed!" << std::endl;
+}
+
+void test_upgrade_plan_policies() {
+    std::set<int> none;
+    assert(SpotScorer::scoreSpot(0, 5, none, 1, 1, 6, 10) == 5235);
+    assert(SpotScorer::scoreSpot(0, 5, none, 2, 2, 5, 10) == 5295);
+    assert(SpotScorer::scoreSpot(0, 5, {0}, 3, 3, 0, 10) == -5);
+
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 7;
+    config.map.cells = {{0, 0, 0, 0, 0, 0, 0}};
+    config.daySteps = {6};
+    config.fuelLimit = 20;
+    config.spots = {{0, 0, 1}, {1, 4, 1}, {2, 6, 1}};
+    Map map(1, 7, config.map.cells);
+    std::vector<int> stock = {1, 1, 1};
+    assert(SpotScorer::findBestSpot({3, 0}, config, map, 20, 6,
+        {}, stock, {}, {}, {0, 1}) == 2);
+    assert(SpotScorer::findBestSpot({3, 0}, config, map, 20, 6,
+        {}, stock, {}, {}, {0, 1, 2}) == -1);
+
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 3, 20}};
+    Solver solver;
+    auto actions = solver.solve(config, state, map);
+    assert(ActionValidator::validate(config, state, actions, map));
+    assert(actions[0].front() == 2); // Right visits two brands; left visits only one.
+    assert(solver.getPlannedTargetSpot(0) == 2);
+
+    config.spots = {{7, 5, 1}};
+    // An urgent empty patrol loses to a patrol able to reach a new brand.
+    std::vector<Agent> agents = {{0, 0, 0}, {0, 4, 10}, {1, 3, 0}};
+    assert(SupplyPlanner::findTargetPatrol(agents, 2, config, map,
+        {}, {1}, {3, 0}) == 1);
+    assert(SupplyPlanner::findTargetPatrol(agents, 2, config, map,
+        {7}, {1}, {3, 0}) == 0);
+    assert(SupplyPlanner::findTargetPatrol(agents, 2, config, map,
+        {}, {0}, {3, 0}) == 0);
+    std::cout << "[PASS] Upgrade scoring, claims, lookahead and supply policies passed!" << std::endl;
+}
+
+void test_solver_retry_is_transactional() {
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 4;
+    config.map.cells = {{0, 0, 0, 0}};
+    config.daySteps = {6};
+    config.fuelLimit = 10;
+    config.initialAgentPositions = {0};
+    config.spots = {{0, 1, 1}, {1, 2, 1}, {2, 3, 1}};
+
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 0, 10}};
+    Map map(1, 4, config.map.cells);
+    Solver solver;
+    auto first = solver.solve(config, state, map);
+    solver.discardLastPlan();
+    auto retry = solver.solve(config, state, map);
+
+    assert(first == retry);
+    assert(ActionValidator::validate(config, state, retry, map));
+    std::cout << "[PASS] Transactional retry test passed!" << std::endl;
+}
+
 // =============================================================================
 // Main
 // =============================================================================
@@ -304,6 +455,12 @@ int main() {
     test_solver_multi_spot();
     test_solver_with_supply();
     test_spot_scoring();
+    test_tactical_scoring_and_claims();
+    test_fuel_weighted_path();
+    test_lexicographic_brand_ranking();
+    test_exclusive_spot_claim_and_reset();
+    test_upgrade_plan_policies();
+    test_solver_retry_is_transactional();
     std::cout << "\nAll unit tests completed successfully!" << std::endl;
     return 0;
 }

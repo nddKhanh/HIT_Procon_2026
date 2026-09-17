@@ -37,7 +37,8 @@ public:
         Position start,
         Position goal,
         const Map& map,
-        int maxFuel = INT_MAX
+        int maxFuel = INT_MAX,
+        double fuelWeight = 0.0
     );
 
     /**
@@ -54,6 +55,7 @@ public:
     static SSSPResult computeSSSP(
         Position source,
         const Map& map,
-        int maxFuel = INT_MAX
+        int maxFuel = INT_MAX,
+        double fuelWeight = 0.0
     );
 };

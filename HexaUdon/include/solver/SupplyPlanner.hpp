@@ -4,6 +4,7 @@
 #include "model/Agent.hpp"
 #include "map/Map.hpp"
 #include <vector>
+#include <set>
 
 /**
  * @brief Lập kế hoạch di chuyển cho xe Tiếp tế (Supply).
@@ -25,7 +26,12 @@ public:
      */
     static int findTargetPatrol(
         const std::vector<Agent>& agents,
-        int excludeIdx
+        int excludeIdx,
+        const GameConfig& config,
+        const Map& map,
+        const std::set<int>& collectedBrands,
+        const std::vector<int>& remainingStock,
+        Position supplyPos
     );
 
     /**
@@ -62,6 +68,8 @@ public:
         int& plannedTargetSpot,
         Position& plannedTargetPos,
         std::vector<int>& plannedStepSpots,
-        std::vector<Position>& plannedStepPositions
+        std::vector<Position>& plannedStepPositions,
+        const std::set<int>& collectedBrands,
+        const std::vector<int>& remainingStock
     );
 };

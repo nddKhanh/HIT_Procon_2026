@@ -4,11 +4,12 @@ setlocal enabledelayedexpansion
 
 set CXX=g++
 set CXXFLAGS=-std=c++17 -IHexaUdon/include -IHexaUdon/third_party
-set CORE_SRC=HexaUdon/src/io/JsonReader.cpp HexaUdon/src/io/JsonWriter.cpp HexaUdon/src/map/Map.cpp HexaUdon/src/solver/ActionValidator.cpp HexaUdon/src/solver/PathFinder.cpp HexaUdon/src/solver/Solver.cpp
+set CORE_SRC=HexaUdon/src/io/JsonReader.cpp HexaUdon/src/io/JsonWriter.cpp HexaUdon/src/io/DiaryWriter.cpp HexaUdon/src/map/Map.cpp HexaUdon/src/solver/ActionValidator.cpp HexaUdon/src/solver/PathFinder.cpp HexaUdon/src/solver/SpotScorer.cpp HexaUdon/src/solver/PatrolPlanner.cpp HexaUdon/src/solver/SupplyPlanner.cpp HexaUdon/src/solver/MoveSimulator.cpp HexaUdon/src/solver/Solver.cpp HexaUdon/src/api/GameApiClient.cpp HexaUdon/src/api/HttpClient.cpp
+set LDFLAGS=-lwininet
 
 if "%1"=="runner" (
     echo [DANG BIEN DICH VA CHAY AGENT DEBUGGER RUNNER]...
-    %CXX% %CXXFLAGS% HexaUdon/tests/test_runner.cpp %CORE_SRC% -o test_runner.exe
+    %CXX% %CXXFLAGS% HexaUdon/tests/test_runner.cpp %CORE_SRC% %LDFLAGS% -o test_runner.exe
     if !errorlevel! equ 0 (
         type HexaUdon\demo_input.json | .\test_runner.exe
     ) else (
@@ -19,7 +20,7 @@ if "%1"=="runner" (
 
 if "%1"=="test" (
     echo [DANG BIEN DICH VA CHAY UNIT TESTS]...
-    %CXX% %CXXFLAGS% HexaUdon/tests/test_all.cpp %CORE_SRC% -o test_all.exe
+    %CXX% %CXXFLAGS% HexaUdon/tests/test_all.cpp %CORE_SRC% %LDFLAGS% -o test_all.exe
     if !errorlevel! equ 0 (
         echo [DANG CHAY CAC BAI TEST]:
         .\test_all.exe
@@ -42,7 +43,7 @@ if "%1"=="clean" (
 )
 
 echo [DANG BIEN DICH CHUONG TRINH CHINH] HexaUdon.exe...
-%CXX% %CXXFLAGS% HexaUdon/src/main.cpp %CORE_SRC% -o HexaUdon.exe
+%CXX% %CXXFLAGS% HexaUdon/src/main.cpp %CORE_SRC% %LDFLAGS% -o HexaUdon.exe
 if !errorlevel! equ 0 (
     echo [THANH CONG] Da tao file HexaUdon.exe!
 ) else (

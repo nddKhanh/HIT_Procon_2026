@@ -41,10 +41,12 @@ public:
         int availableFuel,
         std::vector<int>& remainingStock,
         std::set<int>& visitedToday,
-        std::set<int>& collectedBrands,
+        std::set<int>& matchBrands,
+        std::set<int>& dailyBrands,
         int& lastTargetSpot,
         Position& plannedTargetPos,
         std::vector<int>& plannedStepSpots,
-        std::vector<Position>& plannedStepPositions
+        std::vector<Position>& plannedStepPositions,
+        std::set<int>& claimedSpots
     );
 };

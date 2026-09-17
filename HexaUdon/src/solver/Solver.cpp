@@ -50,6 +50,17 @@ std::vector<int> Solver::decideAgentTypes(const GameConfig& config) {
     return AgentStrategy::decideAgentTypes(config);
 }
 
+void Solver::commitLastPlan() {
+    if (!hasPendingPlan_) return;
+    collectedBrandsTotal_ = pendingBrandsTotal_;
+    hasPendingPlan_ = false;
+}
+
+void Solver::discardLastPlan() {
+    pendingBrandsTotal_.clear();
+    hasPendingPlan_ = false;
+}
+
 int Solver::getPlannedTargetSpot(int agentIdx) const {
     if (agentIdx >= 0 && agentIdx < static_cast<int>(currentTargets_.size())) {
         return currentTargets_[agentIdx];
@@ -100,6 +111,7 @@ void Solver::resetDailyState(const GameConfig& config, int numAgents) {
 
     // Reset visited spots for each patrol
     visitedSpotsToday_.assign(numAgents, {});
+    claimedSpots_.clear();
 
     // Reset current targets
     currentTargets_.assign(numAgents, -1);
@@ -131,11 +143,12 @@ std::vector<std::vector<int>> Solver::solve(
     // 1. Cập nhật giao thông trên bản đồ
     map.updateTraffic(state.traffics);
 
-    // 2. Reset trạng thái nếu là ngày mới
-    if (state.day != currentDay_) {
-        resetDailyState(config, numAgents);
-        currentDay_ = state.day;
-    }
+    // 2. Every solve is a fresh transaction. Retries must produce the same
+    // plan and must not consume fictional stock from a rejected submission.
+    resetDailyState(config, numAgents);
+    currentDay_ = state.day;
+    std::set<int> matchBrands = collectedBrandsTotal_;
+    std::set<int> dailyBrands;
 
     // 3. Lập kế hoạch cho xe TUẦN TRA (PatrolPlanner)
     //    Tính trước để xe Supply biết mục tiêu của Patrol
@@ -149,11 +162,12 @@ std::vector<std::vector<int>> Solver::solve(
             config, map, agentPos, daySteps, agent.fuel,
             remainingStock_,
             visitedSpotsToday_[i],
-            collectedBrandsTotal_,
+            matchBrands,
+            dailyBrands,
             currentTargets_[i],
             currentTargetPositions_[i],
             plannedStepSpots_[i],
-            plannedStepPositions_[i]
+            plannedStepPositions_[i], claimedSpots_
         );
     }
 
@@ -167,9 +181,13 @@ std::vector<std::vector<int>> Solver::solve(
             daySteps, currentTargets_, currentTargetPositions_,
             supportedPatrols_[i], currentTargets_[i],
             currentTargetPositions_[i],
-            plannedStepSpots_[i], plannedStepPositions_[i]
+            plannedStepSpots_[i], plannedStepPositions_[i],
+            matchBrands, remainingStock_
         );
     }
+
+    pendingBrandsTotal_ = matchBrands;
+    hasPendingPlan_ = true;
 
     return actions;
 }

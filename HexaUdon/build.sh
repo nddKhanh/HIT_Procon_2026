@@ -1,7 +1,7 @@
 #!/bin/bash
 CXX=g++
 CXXFLAGS="-std=c++17 -Iinclude -Ithird_party"
-CORE_SRC="src/io/JsonReader.cpp src/io/JsonWriter.cpp src/map/Map.cpp src/solver/ActionValidator.cpp src/solver/PathFinder.cpp src/solver/Solver.cpp"
+CORE_SRC="src/io/JsonReader.cpp src/io/JsonWriter.cpp src/io/DiaryWriter.cpp src/map/Map.cpp src/solver/ActionValidator.cpp src/solver/PathFinder.cpp src/solver/SpotScorer.cpp src/solver/PatrolPlanner.cpp src/solver/SupplyPlanner.cpp src/solver/MoveSimulator.cpp src/solver/Solver.cpp src/api/GameApiClient.cpp src/api/HttpClient.cpp"
 
 if [ "$1" == "test" ]; then
     echo "[BUILDING & RUNNING UNIT TESTS]..."
