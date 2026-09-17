@@ -27,48 +27,46 @@ std::string formatActionList(const std::vector<int>& actions) {
 } // namespace
 
 std::string DiaryWriter::agentKindName(int kind) {
-    return kind == 0 ? "Patrol" : "Supply";
+    return kind == 0 ? "Tuần tra" : "Tiếp tế";
 }
 
 std::string DiaryWriter::spotName(int spotIndex, const GameConfig& config) {
     if (spotIndex < 0 || spotIndex >= static_cast<int>(config.spots.size())) {
-        return "Khong co Spot muc tieu";
+        return "Không có Spot mục tiêu";
     }
 
     const Spot& spot = config.spots[spotIndex];
+        int width = config.map.width > 0 ? config.map.width : 1;
+        int x = spot.pos % width;
+        int y = spot.pos / width;
     return "Spot #" + std::to_string(spotIndex) +
-           " (brand=" + std::to_string(spot.brand) +
-           ", pos=" + std::to_string(spot.pos) + ")";
-}
-
-static std::string formatCellSummary(const Position& position) {
-    return formatPosition(position) + " (cell=" + std::to_string(position.x + position.y * 1000) + ")";
+           " (thương hiệu=" + std::to_string(spot.brand) +
+            ", tọa độ=" + formatPosition({x, y}) + ")";
 }
 
 static std::string describeCurrentTarget(
     int targetSpot,
     const GameConfig& config,
-    const Map& map
+    Position targetPosition
 ) {
     if (targetSpot < 0 || targetSpot >= static_cast<int>(config.spots.size())) {
-        return "Khong co muc tieu";
+        return "Điểm đích tọa độ=" + formatPosition(targetPosition);
     }
 
     const Spot& spot = config.spots[targetSpot];
-    Position spotPos = map.posToCoordinate(spot.pos);
     return "Spot #" + std::to_string(targetSpot) +
-           " (brand=" + std::to_string(spot.brand) + ", o=" +
-           formatPosition(spotPos) + ")";
+            " (thương hiệu=" + std::to_string(spot.brand) + ", tọa độ=" +
+            formatPosition(targetPosition) + ")";
 }
 
 std::string DiaryWriter::actionName(int action) {
     if (action < 0) {
-        return "Cho " + std::to_string(-action) + " step";
+        return "Chờ " + std::to_string(-action) + " bước";
     }
     if (action <= 5) {
-        return "Di chuyen huong " + std::to_string(action);
+        return "Di chuyển hướng " + std::to_string(action);
     }
-    return "Action khong hop le " + std::to_string(action);
+    return "Hành động không hợp lệ " + std::to_string(action);
 }
 
 std::string DiaryWriter::formatActions(const std::vector<int>& actions) {
@@ -80,6 +78,10 @@ void DiaryWriter::writeAgentTimeline(
     int agentIndex,
     const Agent& agent,
     int targetSpot,
+    Position targetPosition,
+    int supportedPatrol,
+    const std::vector<int>& plannedStepSpots,
+    const std::vector<Position>& plannedStepPositions,
     const GameConfig& config,
     const Map& map,
     const std::vector<int>& actions
@@ -87,39 +89,80 @@ void DiaryWriter::writeAgentTimeline(
     Position currentPosition = map.posToCoordinate(agent.pos);
     int currentStep = 0;
     int currentFuel = agent.fuel;
+    bool isSupply = agent.kind == 1;
 
     output << "### Xe #" << agentIndex << " - " << agentKindName(agent.kind) << "\n\n";
-    output << "- Vi tri dau ngay: " << formatPosition(currentPosition)
-           << " (cell=" << agent.pos << ")\n";
-    output << "- Nhien lieu dau ngay: " << agent.fuel << "\n";
-    output << "- Muc tieu hien tai: " << describeCurrentTarget(targetSpot, config, map) << "\n";
-    output << "- Dia diem den: " << spotName(targetSpot, config) << "\n";
-    output << "- Mang action cuoi ngay: " << formatActions(actions) << "\n\n";
-    output << "| Step | Hanh dong | Tu o | Den o | Muc tieu/spot | Fuel con lai |\n";
+        output << "- Vị trí đầu ngày: " << formatPosition(currentPosition)
+            << " (ô=" << agent.pos << ")\n";
+        output << "- Nhiên liệu đầu ngày: " << agent.fuel << "\n";
+        if (isSupply && supportedPatrol >= 0) {
+            output << "- Vai trò: Hỗ trợ xe tuần tra #" << supportedPatrol << "\n";
+            output << "- Điểm hẹn của xe tuần tra: " << describeCurrentTarget(targetSpot, config, targetPosition) << "\n";
+        } else {
+            output << "- Mục tiêu kế hoạch từ Solver: " << describeCurrentTarget(targetSpot, config, targetPosition) << "\n";
+            output << "- Địa điểm đích kế hoạch: " << describeCurrentTarget(targetSpot, config, targetPosition) << "\n";
+        }
+        output << "- Mảng hành động đã gửi server: " << formatActions(actions) << "\n\n";
+        output << "Bảng dưới đây là mô phỏng theo action đã gửi, không phải trạng thái server xác nhận sau từng bước.\n\n";
+         output << "| Bước dự kiến | Hành động đã gửi | Từ ô theo mô phỏng | Đến ô dự kiến | "
+             << (isSupply ? "Điểm hẹn kế hoạch" : "Mục tiêu kế hoạch")
+             << " | Nhiên liệu dự kiến còn lại |\n";
     output << "|---:|---|---|---|---|---:|\n";
 
     for (int action : actions) {
         int startStep = currentStep;
         int duration = 1;
         Position nextPosition = currentPosition;
-        std::string targetDescription = "Dung yen tai " + formatPosition(currentPosition);
+        int stepTargetSpot = targetSpot;
+        Position stepTargetPosition = targetPosition;
+        if (startStep >= 0 && startStep < static_cast<int>(plannedStepSpots.size())) {
+            stepTargetSpot = plannedStepSpots[startStep];
+        }
+        if (startStep >= 0 && startStep < static_cast<int>(plannedStepPositions.size())) {
+            stepTargetPosition = plannedStepPositions[startStep];
+        }
+        std::string targetDescription = "Dự kiến đứng yên tại " + formatPosition(currentPosition);
 
         if (action < 0) {
             duration = -action;
+            if (stepTargetPosition.x >= 0 && stepTargetPosition.y >= 0) {
+                if (isSupply && supportedPatrol >= 0) {
+                    targetDescription += "; điểm hẹn của xe tuần tra #" +
+                        std::to_string(supportedPatrol) + " tại " +
+                        formatPosition(stepTargetPosition);
+                } else if (stepTargetSpot >= 0 && stepTargetSpot < static_cast<int>(config.spots.size())) {
+                    targetDescription += "; mục tiêu " + spotName(stepTargetSpot, config);
+                } else {
+                    targetDescription += "; hướng tới tọa độ " + formatPosition(stepTargetPosition);
+                }
+            }
         } else if (action <= 5) {
             duration = map.getTravelTime(currentPosition);
             if (agent.kind == 0) {
                 currentFuel -= map.getFuelCost(currentPosition);
             }
             nextPosition = map.nextPosition(currentPosition, action);
-            targetDescription = "Di chuyen den " + formatPosition(nextPosition);
+            targetDescription = "Dự kiến di chuyển đến " + formatPosition(nextPosition);
 
-            if (targetSpot >= 0 && targetSpot < static_cast<int>(config.spots.size())) {
-                Position spotPos = map.posToCoordinate(config.spots[targetSpot].pos);
-                if (nextPosition == spotPos) {
-                    targetDescription = "Dat muc tieu " + spotName(targetSpot, config);
+            if (stepTargetPosition.x >= 0 && stepTargetPosition.y >= 0) {
+                if (nextPosition == stepTargetPosition) {
+                    if (isSupply && supportedPatrol >= 0) {
+                        targetDescription = "Dự kiến đến điểm hẹn của xe tuần tra #" +
+                            std::to_string(supportedPatrol) + " tại " +
+                            formatPosition(stepTargetPosition);
+                    } else if (stepTargetSpot >= 0 && stepTargetSpot < static_cast<int>(config.spots.size())) {
+                        targetDescription = "Dự kiến đạt mục tiêu " + spotName(stepTargetSpot, config);
+                    } else {
+                        targetDescription = "Dự kiến đến điểm hẹn tọa độ " + formatPosition(stepTargetPosition);
+                    }
                 } else {
-                    targetDescription += "; huong toi " + spotName(targetSpot, config);
+                    targetDescription += isSupply && supportedPatrol >= 0
+                        ? "; hướng tới điểm hẹn của xe tuần tra #" + std::to_string(supportedPatrol) +
+                            " tại " + formatPosition(stepTargetPosition)
+                        : "; hướng tới tọa độ " + formatPosition(stepTargetPosition);
+                    if (stepTargetSpot >= 0 && stepTargetSpot < static_cast<int>(config.spots.size())) {
+                        targetDescription += " (" + spotName(stepTargetSpot, config) + ")";
+                    }
                 }
             }
         }
@@ -139,9 +182,9 @@ void DiaryWriter::writeAgentTimeline(
     }
 
     if (actions.empty()) {
-        output << "| - | Khong co action | " << formatPosition(currentPosition)
+         output << "| - | Không có hành động đã gửi | " << formatPosition(currentPosition)
                << " | " << formatPosition(currentPosition)
-               << " | Dung yen tai vi tri hien tai | " << currentFuel << " |\n";
+             << " | Không có mô phỏng di chuyển | " << currentFuel << " |\n";
     }
     output << "\n";
 }
@@ -167,10 +210,13 @@ bool DiaryWriter::writeDay(
     std::ofstream output(filePath);
     if (!output) return false;
 
-    output << "# Nhat ky hanh trinh - Ngay " << day << "\n\n";
-    output << "- So step trong ngay: " << daySteps << "\n";
-    output << "- So xe: " << state.agents.size() << "\n";
-    output << "- Ke hoach: " << (usedFallback ? "Fallback" : "Solver") << "\n\n";
+    output << "# Nhật ký hành trình - Ngày " << day << "\n\n";
+    output << "- Số bước trong ngày: " << daySteps << "\n";
+    output << "- Số xe: " << state.agents.size() << "\n";
+    output << "- Kế hoạch: " << (usedFallback ? "Dự phòng" : "Bộ giải") << "\n\n";
+        output << "> Vị trí, loại xe và nhiên liệu đầu ngày lấy trực tiếp từ GET /status. "
+            << "Các dòng vị trí sau action và nhiên liệu còn lại là mô phỏng từ "
+            << "action đã gửi, vì API không trả trạng thái sau từng bước.\n\n";
 
     for (size_t i = 0; i < state.agents.size(); ++i) {
         const std::vector<int> emptyActions;
@@ -180,6 +226,22 @@ bool DiaryWriter::writeDay(
             static_cast<int>(i),
             state.agents[i],
             solver.getPlannedTargetSpot(static_cast<int>(i)),
+            solver.getPlannedTargetPosition(static_cast<int>(i)),
+            solver.getSupportedPatrol(static_cast<int>(i)),
+            [&solver, i, daySteps]() {
+                std::vector<int> spots;
+                for (int step = 0; step < daySteps; ++step) {
+                    spots.push_back(solver.getPlannedStepSpot(static_cast<int>(i), step));
+                }
+                return spots;
+            }(),
+            [&solver, i, daySteps]() {
+                std::vector<Position> positions;
+                for (int step = 0; step < daySteps; ++step) {
+                    positions.push_back(solver.getPlannedStepPosition(static_cast<int>(i), step));
+                }
+                return positions;
+            }(),
             config,
             map,
             agentActions
