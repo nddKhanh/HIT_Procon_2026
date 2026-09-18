@@ -2,6 +2,7 @@
 #include "solver/SpotScorer.hpp"
 #include "solver/MoveSimulator.hpp"
 #include "solver/PathFinder.hpp"
+#include <algorithm>
 #include <climits>
 
 static int brandSpotCount(const GameConfig& config, int brand) {
@@ -14,26 +15,54 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
     const Map& map, int fuelRemaining, int stepsRemaining,
     const std::set<int>& visitedToday, const std::vector<int>& remainingStock,
     const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
-    const std::set<int>& claimedSpots) {
+    const std::set<int>& claimedSpots, bool officialRanking,
+    bool exclusiveClaims, PathCache* pathCache) {
     int bestFirst = -1;
-    std::array<int, 3> bestPairRank = {INT_MIN, INT_MIN, INT_MIN};
+    SpotScorer::SpotRank bestPairRank = {-1, -1, -1, -1, INT_MIN, INT_MIN};
+    auto localCurrent = pathCache ? SSSPResult{} :
+        PathFinder::computeSSSP(currentPos, map, fuelRemaining, 1.0);
+    const auto& fromCurrent = pathCache ? pathCache->get(currentPos, fuelRemaining, 1.0) :
+                                          localCurrent;
 
-    // ponytail: O(spots^2) path searches per choice; cache SSSP if maps grow.
+    struct FirstCandidate {
+        int spot;
+        PathResult path;
+        SpotScorer::SpotRank rank;
+    };
+    std::vector<FirstCandidate> firstCandidates;
     for (size_t first = 0; first < config.spots.size(); ++first) {
-        if (claimedSpots.count(static_cast<int>(first)) ||
+        if ((exclusiveClaims && claimedSpots.count(static_cast<int>(first))) ||
             visitedToday.count(static_cast<int>(first)) ||
             first >= remainingStock.size() || remainingStock[first] <= 0) continue;
 
         Position firstPos = map.posToCoordinate(config.spots[first].pos);
-        auto firstPath = PathFinder::findPath(currentPos, firstPos, map, fuelRemaining, 1.0);
+        auto firstPath = fromCurrent.extractPath(config.spots[first].pos);
         if (!firstPath.found || firstPath.totalSteps > stepsRemaining) continue;
 
-        int firstScore = SpotScorer::scoreSpot(config.spots[first].brand,
-            firstPath.totalSteps, matchBrands, remainingStock[first],
+        auto pairRank = SpotScorer::rankSpot(config.spots[first].brand,
+            firstPath.totalSteps, matchBrands, dailyBrands, remainingStock[first],
             brandSpotCount(config, config.spots[first].brand),
-            firstPath.totalFuel, fuelRemaining);
-        std::array<int, 3> pairRank = {firstScore,
-            dailyBrands.count(config.spots[first].brand) ? 0 : 1, -firstPath.totalSteps};
+            firstPath.totalFuel);
+        if (!officialRanking) pairRank = {
+            SpotScorer::scoreSpot(config.spots[first].brand, firstPath.totalSteps,
+                matchBrands, remainingStock[first],
+                brandSpotCount(config, config.spots[first].brand),
+                firstPath.totalFuel, fuelRemaining),
+            dailyBrands.count(config.spots[first].brand) ? 0 : 1,
+            0, 0, -firstPath.totalSteps, -firstPath.totalFuel};
+        firstCandidates.push_back({static_cast<int>(first), std::move(firstPath), pairRank});
+    }
+    std::sort(firstCandidates.begin(), firstCandidates.end(),
+        [](const FirstCandidate& a, const FirstCandidate& b) { return a.rank > b.rank; });
+    // ponytail: bounded branching protects short response windows. Increase
+    // this only after large-map deadline benchmarks justify the cost.
+    if (firstCandidates.size() > 16) firstCandidates.resize(16);
+
+    for (const auto& candidate : firstCandidates) {
+        int first = candidate.spot;
+        const auto& firstPath = candidate.path;
+        auto pairRank = candidate.rank;
+        Position firstPos = map.posToCoordinate(config.spots[first].pos);
 
         auto nextVisited = visitedToday;
         auto nextStock = remainingStock;
@@ -44,20 +73,30 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
         nextMatchBrands.insert(config.spots[first].brand);
         nextDailyBrands.insert(config.spots[first].brand);
 
-        int second = SpotScorer::findBestSpot(firstPos, config, map,
-            fuelRemaining - firstPath.totalFuel, stepsRemaining - firstPath.totalSteps,
-            nextVisited, nextStock, nextMatchBrands, nextDailyBrands, claimedSpots);
-        if (second >= 0) {
-            auto secondPath = PathFinder::findPath(firstPos,
-                map.posToCoordinate(config.spots[second].pos), map,
-                fuelRemaining - firstPath.totalFuel, 1.0);
-            int secondScore = SpotScorer::scoreSpot(config.spots[second].brand,
-                secondPath.totalSteps, nextMatchBrands, nextStock[second],
-                brandSpotCount(config, config.spots[second].brand),
-                secondPath.totalFuel, fuelRemaining - firstPath.totalFuel);
-            std::array<int, 3> withSecond = {pairRank[0] + secondScore,
-                pairRank[1] + (nextDailyBrands.count(config.spots[second].brand) ? 0 : 1),
-                pairRank[2] - secondPath.totalSteps};
+        int secondFuel = fuelRemaining - firstPath.totalFuel;
+        auto localFirst = pathCache ? SSSPResult{} :
+            PathFinder::computeSSSP(firstPos, map, secondFuel, 1.0);
+        const auto& fromFirst = pathCache ? pathCache->get(firstPos, secondFuel, 1.0) :
+                                           localFirst;
+        for (size_t second = 0; second < config.spots.size(); ++second) {
+            if ((exclusiveClaims && claimedSpots.count(static_cast<int>(second))) ||
+                nextVisited.count(static_cast<int>(second)) || nextStock[second] <= 0)
+                continue;
+            auto secondPath = fromFirst.extractPath(config.spots[second].pos);
+            if (!secondPath.found || firstPath.totalSteps + secondPath.totalSteps > stepsRemaining)
+                continue;
+            auto secondRank = SpotScorer::rankSpot(config.spots[second].brand,
+                secondPath.totalSteps, nextMatchBrands, nextDailyBrands, nextStock[second],
+                brandSpotCount(config, config.spots[second].brand), secondPath.totalFuel);
+            if (!officialRanking) secondRank = {
+                SpotScorer::scoreSpot(config.spots[second].brand, secondPath.totalSteps,
+                    nextMatchBrands, nextStock[second],
+                    brandSpotCount(config, config.spots[second].brand),
+                    secondPath.totalFuel, fuelRemaining - firstPath.totalFuel),
+                nextDailyBrands.count(config.spots[second].brand) ? 0 : 1,
+                0, 0, -secondPath.totalSteps, -secondPath.totalFuel};
+            auto withSecond = pairRank;
+            for (size_t i = 0; i < withSecond.size(); ++i) withSecond[i] += secondRank[i];
             if (withSecond > pairRank) pairRank = withSecond;
         }
 
@@ -87,7 +126,10 @@ std::vector<int> PatrolPlanner::planDay(
     Position& plannedTargetPos,
     std::vector<int>& plannedStepSpots,
     std::vector<Position>& plannedStepPositions,
-    std::set<int>& claimedSpots
+    std::set<int>& claimedSpots,
+    bool officialRanking,
+    bool exclusiveClaims,
+    PathCache* pathCache
 ) {
     std::vector<int> allActions;
     int stepsUsed = 0;
@@ -107,7 +149,8 @@ std::vector<int> PatrolPlanner::planDay(
         int nextSpot = findLookaheadSpot(
             currentPos, config, map,
             fuelRemaining, stepsRemaining,
-            visitedToday, remainingStock, matchBrands, dailyBrands, claimedSpots
+            visitedToday, remainingStock, matchBrands, dailyBrands, claimedSpots,
+            officialRanking, exclusiveClaims, pathCache
         );
 
         if (nextSpot < 0) break; // Không còn Spot nào khả thi
@@ -145,7 +188,7 @@ std::vector<int> PatrolPlanner::planDay(
 
         // Bước 5: Đánh dấu Spot đã ghé + cập nhật stock + brand
         visitedToday.insert(nextSpot);
-        claimedSpots.insert(nextSpot);
+        if (exclusiveClaims) claimedSpots.insert(nextSpot);
         remainingStock[nextSpot]--;
         matchBrands.insert(config.spots[nextSpot].brand);
         dailyBrands.insert(config.spots[nextSpot].brand);

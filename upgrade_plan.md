@@ -4,10 +4,11 @@ Implemented and integrated into the current solver:
 
 - Phase 0: the Windows build already includes all sources and links WinINet.
 - Phase 1: the live spot selector uses the weighted formula below. Existing daily brand tracking breaks equal-score ties.
-- Phase 2: exclusive claims are shared across patrols and reset for every solve, including retries. This deliberately allows only one planned visit per spot per day, even if stock is greater than one.
+- Phase 2: exclusive claims remain as a legacy candidate. The optimized candidates use remaining stock, so multiple patrols may collect from a spot with sufficient stock.
 - Phase 3: the existing supply scoring formula is retained and covered by policy tests.
 - Phase 4: existing floating-point fuel weighting is retained; actual steps and fuel remain separate from weighted cost.
-- Phase 5: look-ahead uses the same weighted spot score for both visits and considers stopping after the first visit if the second lowers the score.
+- Phase 5: look-ahead reuses single-source path searches and ranks visits by the official score order. Solver evaluates multiple patrol orders and the former weighted policy, then selects the best simulated team result.
+- Pathfinding foundation: fuel-constrained searches retain nondominated time/fuel labels, with a daily cache shared by all candidate plans. A regression test covers the slower low-fuel route that the former single-label search discarded.
 
 Submission commit/discard handling and diary outputs remain integrated. Tests cover exact scoring, claim filtering/reset, look-ahead route selection, supply targeting, and fuel-weighted paths.
 

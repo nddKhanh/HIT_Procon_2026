@@ -1,0 +1,123 @@
+# Offline simulation and baseline benchmark
+
+From the repository root on Windows:
+
+```powershell
+.\build.bat test
+.\build.bat benchmark
+# Once compiled, CSV can be captured without compiler output:
+.\benchmark.exe > baseline.csv
+```
+
+CMake also exposes a `benchmark` target. The Windows benchmark build uses
+`-O2`; compare timings only with the same build flags and machine.
+
+## Scope
+
+`MoveSimulator::simulateDay` evaluates a whole team's actions against one
+clock. It records final positions/fuel, incidental spot collections, shared
+stock, daily brands, road occupancy and refueling events. An invalid result
+contains a diagnostic and may contain partial events; do not score or commit
+it. `MatchScore::add` ignores invalid results.
+
+The production validator and planner are unchanged. This reference simulator
+must be checked against the official engine before it becomes the production
+authority for refueling legality.
+
+## Explicit assumptions
+
+- Fuel is charged when a move begins; arrival happens after its full duration.
+- Road occupancy counts departure-cell occupancy during movement and waiting.
+- Collections occur on every movement arrival, including the final boundary.
+- Default: starting a day on a spot does not trigger collection. Set
+  `SimulationRules::collectAtDayStart` to test the alternative.
+- Default: refueling requires both vehicles to wait in the same cell for a
+  whole step. Set `refuelDuringMovement` to allow shared departure-cell
+  occupancy during a move as well. A refill cannot fund a movement command
+  that was already invalid when issued.
+- Refueling is processed before arrivals at the end of each step. Arriving
+  together at the day boundary does not provide an overlap step.
+- Simultaneous collections use agent-index order. This may affect which
+  patrol gets the final serving and must be verified against the official engine.
+- Stock resets daily; each patrol gets at most one serving per spot per day.
+
+## Benchmark corpus
+
+Thirty fixed seeds generate connected 8x8, 12x12 and 16x16 maps with plain,
+road and mountain terrain, 3-6 agents, eight spots, four brands, varying
+stock and fuel, and four days. Positions/fuel carry over from the simulated
+previous day, rather than reading unrelated daily snapshots.
+
+This is a **single-team synthetic baseline**, not a competitive win-rate
+evaluation. Traffic uses the team's preceding two days of road occupancy
+with one player. There are no ponds, opponent trajectories, server latency
+or measured deadline misses in this initial corpus.
+
+Each row reports seed, distinct match brands, sum of daily distinct brands,
+servings, successful fuel increases, invalid plans and total solve milliseconds.
+Stderr reports median, p95 and maximum per-day planning times. Invalid plans
+are replaced with waits for continuation and cause a nonzero benchmark exit.
+
+Preserve a CSV for each solver revision. Compare identical seeds
+lexicographically by (types, daily_types, servings), and inspect invalid counts
+before comparing scores. Runtime is measured separately and is not server
+response time. The current solver commits its own predicted brands, so the
+benchmark can expose consequences of its incomplete collection bookkeeping.
+
+The first run's deterministic scores are saved in
+`tests/baseline_scores.csv`: 29/30 matches collected all four brands,
+with zero invalid plans across 120 days. Observed optimized-build planning
+times were median 0.6652 ms, p95 2.6682 ms, maximum 3.3306 ms.
+These are local observations, not performance guarantees.
+
+The optimized team selector evaluates the former weighted/exclusive policy
+plus official-score candidates in original, reverse and low-fuel-first patrol
+orders. Shared stock is authoritative; claims are retained only for the legacy
+candidate. On the same corpus it produced 25 wins, 4 losses and 1 tie against
+the saved baseline, raised total daily types from 390 to 410 and servings from
+637 to 935, and produced zero invalid days. Its observed per-day runtime was
+median 1.82 ms, p95 8.03 ms and maximum 16.17 ms. The four losses show that
+selecting the best current day can worsen later starting positions; a bounded
+multi-day rollout is the next scoring improvement.
+
+Pareto-correct fuel routing now retains nondominated `(steps, fuel)` arrivals
+and shares them through a per-day cache across all candidate patrol orders.
+This fixes cases where a fast fuel-heavy prefix made a feasible destination
+appear unreachable. On the same synthetic corpus it produced 22 wins, 5
+losses and 3 ties against the original baseline, aggregate daily types 413,
+servings 929, and zero invalid days. Observed runtime was median 2.55 ms, p95
+11.48 ms and maximum 20.13 ms. These numbers are a correctness/performance
+checkpoint: route search must next expose several Pareto alternatives to the
+team beam search rather than select one weighted path prematurely.
+
+A multi-rendezvous supply experiment scored well in this synthetic simulator
+but regressed on the official server (daily types 10 to 7, servings 10 to 8).
+It was removed because official match outcomes take precedence over unverified
+simulation assumptions. The solver still skips the low-fuel patrol order when
+it is identical to the original order, removing a redundant day-one candidate.
+
+The coverage-first selector now exhausts all patrol planning orders for up to
+four patrols (six orders for the common `P P P R` formation). Candidate ranking
+also places the number of brands reachable on the next day ahead of current-day
+servings. This prevents a locally profitable route from unnecessarily stranding
+the team before the next daily-types round. On the same corpus it produced 23
+wins, 4 losses and 3 ties against the original baseline, aggregate daily types
+418 and servings 989, with zero invalid days. Observed per-day runtime was
+median 6.44 ms, p95 39.71 ms and maximum 77.36 ms.
+
+Supply targeting now uses each patrol's submitted route to project its final
+fuel and stable rendezvous time. It prioritizes the largest projected deficit
+and rejects meetings that cannot leave one complete overlap step. This removes
+the former `+600` brand-utility case that could repeatedly support a healthy
+patrol while another ran dry. Combined with coverage-first selection, the same
+corpus produced 26 wins, 2 losses and 2 ties, aggregate daily types 424 and
+servings 1008, with zero invalid days. Observed per-day runtime was median
+4.70 ms, p95 20.77 ms and maximum 24.91 ms.
+
+## Next work
+
+1. Differential tests against official event semantics.
+2. Recorded matches and connected maps with ponds, larger teams and maps.
+3. Candidate-versus-baseline comparison and separate tuning/held-out seeds.
+4. Add joint patrol/refuel routing so a rendezvous can extend the patrol's
+   same-day route, rather than only restoring fuel for later days.

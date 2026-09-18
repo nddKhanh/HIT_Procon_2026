@@ -2,6 +2,7 @@
 
 #include "model/GameConfig.hpp"
 #include "map/Map.hpp"
+#include "solver/PathFinder.hpp"
 #include <vector>
 #include <set>
 
@@ -47,6 +48,9 @@ public:
         Position& plannedTargetPos,
         std::vector<int>& plannedStepSpots,
         std::vector<Position>& plannedStepPositions,
-        std::set<int>& claimedSpots
+        std::set<int>& claimedSpots,
+        bool officialRanking = true,
+        bool exclusiveClaims = false,
+        PathCache* pathCache = nullptr
     );
 };

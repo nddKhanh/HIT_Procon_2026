@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <chrono>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -153,7 +154,15 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
         }
 
         // Solve
+        auto solveStarted = std::chrono::steady_clock::now();
         auto actions = solver.solve(config, state, map);
+        auto solveMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - solveStarted).count();
+        auto remainingMs = state.endsAt * 1000LL -
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+        std::cout << "  -> Solver: " << solveMs << " ms, con "
+                  << remainingMs << " ms truoc deadline\n";
         bool usedFallback = false;
 
         // Sanity check: actions must not be empty

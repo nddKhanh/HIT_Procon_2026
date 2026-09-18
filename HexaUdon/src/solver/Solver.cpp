@@ -1,7 +1,14 @@
 #include "solver/Solver.hpp"
 #include "solver/PatrolPlanner.hpp"
 #include "solver/SupplyPlanner.hpp"
+#include "solver/MoveSimulator.hpp"
+#include "solver/PathFinder.hpp"
+#include <algorithm>
+#include <chrono>
+#include <climits>
 #include <iostream>
+#include <numeric>
+#include <tuple>
 
 // =============================================================================
 // AgentStrategy — Quyết định đội hình xe
@@ -10,39 +17,13 @@
 std::vector<int> AgentStrategy::decideAgentTypes(const GameConfig& config) {
     size_t n = config.initialAgentPositions.size();
     int mapArea = config.map.height * config.map.width;
-
-    // === CORE PRINCIPLE: Maximize Patrol cars, minimize Supply ===
-    // Patrol cars score points by visiting spots.
-    // Supply cars score ZERO — they only refuel patrols.
-    // So: use as many Patrols as possible, only 1 Supply.
-
-    // If fuel is enormous relative to map → no supply needed at all
-    if (config.fuelLimit >= mapArea * 2) {
-        return std::vector<int>(n, 0); // All Patrol
+    if (n <= 2 || config.fuelLimit >= mapArea * 2) {
+        return std::vector<int>(n, 0);
     }
-
-    // Default strategy: (N-1) Patrol + 1 Supply
-    int supplyCount = 1;
-
-    // Very small team (1-2 agents): no supply, all patrol
-    if (n <= 2) {
-        supplyCount = 0;
-    }
-
-    // Large map + very low fuel + many agents → 2 supply
-    if (n >= 6 && config.fuelLimit <= 10 && mapArea > 400) {
-        supplyCount = 2;
-    }
-
-    // Safety: at least 1 patrol
-    if (supplyCount >= static_cast<int>(n)) {
-        supplyCount = static_cast<int>(n) - 1;
-    }
-
-    std::vector<int> types(n, 0); // Default: Patrol
-    for (int i = 0; i < supplyCount; ++i) {
-        types[n - 1 - i] = 1; // Supply from the end
-    }
+    int supplyCount = n >= 6 && config.fuelLimit <= 10 && mapArea > 400 ? 2 : 1;
+    if (supplyCount >= static_cast<int>(n)) supplyCount = static_cast<int>(n) - 1;
+    std::vector<int> types(n, 0);
+    for (int i = 0; i < supplyCount; ++i) types[n - 1 - i] = 1;
     return types;
 }
 
@@ -142,51 +123,133 @@ std::vector<std::vector<int>> Solver::solve(
 
     // 1. Cập nhật giao thông trên bản đồ
     map.updateTraffic(state.traffics);
+    PathCache pathCache(map);
+    const auto nowEpochMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    const long long deadlineMs = state.endsAt > 0 ? state.endsAt * 1000LL - 750 : LLONG_MAX;
+    auto hasSearchTime = [&] {
+        // Ignore stale fixture timestamps used by local stdin tests.
+        if (deadlineMs < nowEpochMs - 60000) return true;
+        auto current = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        return current < deadlineMs;
+    };
 
-    // 2. Every solve is a fresh transaction. Retries must produce the same
-    // plan and must not consume fictional stock from a rejected submission.
-    resetDailyState(config, numAgents);
+    struct Candidate {
+        std::vector<std::vector<int>> actions;
+        std::vector<int> targets, supported;
+        std::vector<Position> targetPositions;
+        std::vector<std::vector<int>> stepSpots;
+        std::vector<std::vector<Position>> stepPositions;
+        std::set<int> brands;
+        std::tuple<int, int, int, int> rank{-1, -1, -1, -1};
+    } best;
+
+    std::vector<int> original(numAgents);
+    std::iota(original.begin(), original.end(), 0);
+    std::vector<int> patrols;
+    for (int i : original) if (state.agents[i].kind == 0) patrols.push_back(i);
+    std::vector<std::vector<int>> orders;
+    auto addOrder = [&](const std::vector<int>& order) {
+        if (std::find(orders.begin(), orders.end(), order) == orders.end())
+            orders.push_back(order);
+    };
+    if (patrols.size() <= 4) {
+        std::sort(patrols.begin(), patrols.end());
+        do addOrder(patrols); while (std::next_permutation(patrols.begin(), patrols.end()));
+    } else {
+        addOrder(patrols);
+        auto reversed = patrols;
+        std::reverse(reversed.begin(), reversed.end());
+        addOrder(reversed);
+        for (size_t shift = 1; shift < patrols.size() && orders.size() < 24; ++shift) {
+            auto rotated = patrols;
+            std::rotate(rotated.begin(), rotated.begin() + shift, rotated.end());
+            addOrder(rotated);
+            std::reverse(rotated.begin(), rotated.end());
+            addOrder(rotated);
+        }
+        auto lowFuelFirst = patrols;
+        std::stable_sort(lowFuelFirst.begin(), lowFuelFirst.end(), [&](int a, int b) {
+            return state.agents[a].fuel < state.agents[b].fuel;
+        });
+        addOrder(lowFuelFirst);
+    }
+
+    auto planCandidate = [&](const std::vector<int>& order,
+                             bool officialRanking, bool exclusiveClaims) {
+        resetDailyState(config, numAgents);
+        Candidate candidate;
+        candidate.actions.resize(numAgents);
+        std::set<int> matchBrands = collectedBrandsTotal_;
+        std::set<int> dailyBrands;
+        for (int i : order) {
+            const Agent& agent = state.agents[i];
+            if (agent.kind != 0) continue;
+            candidate.actions[i] = PatrolPlanner::planDay(
+                config, map, map.posToCoordinate(agent.pos), daySteps, agent.fuel,
+                remainingStock_, visitedSpotsToday_[i], matchBrands, dailyBrands,
+                currentTargets_[i], currentTargetPositions_[i], plannedStepSpots_[i],
+                plannedStepPositions_[i], claimedSpots_, officialRanking, exclusiveClaims,
+                &pathCache);
+        }
+        for (int i = 0; i < numAgents; ++i) {
+            const Agent& agent = state.agents[i];
+            if (agent.kind != 1) continue;
+            candidate.actions[i] = SupplyPlanner::planDay(
+                config, map, agent, state.agents, i, daySteps, currentTargets_,
+                currentTargetPositions_, candidate.actions,
+                supportedPatrols_[i], currentTargets_[i],
+                currentTargetPositions_[i], plannedStepSpots_[i], plannedStepPositions_[i],
+                matchBrands, remainingStock_);
+        }
+        auto result = MoveSimulator::simulateDay(config, state, candidate.actions, map);
+        if (!result.valid) return candidate;
+        int newTypes = 0;
+        for (int brand : result.brands) newTypes += !collectedBrandsTotal_.count(brand);
+        std::set<int> nextReachableBrands;
+        if (state.day + 1 < static_cast<int>(config.daySteps.size())) {
+            int nextSteps = config.daySteps[state.day + 1];
+            for (const auto& nextAgent : result.agents) {
+                if (nextAgent.kind != 0 || nextAgent.fuel <= 0) continue;
+                Position from = map.posToCoordinate(nextAgent.pos);
+                auto reachable = PathFinder::computeSSSP(from, map, nextAgent.fuel, 1.0);
+                for (const auto& spot : config.spots) {
+                    auto path = reachable.extractPath(spot.pos);
+                    if (path.found && path.totalSteps <= nextSteps)
+                        nextReachableBrands.insert(spot.brand);
+                }
+            }
+        }
+        candidate.rank = {newTypes, static_cast<int>(result.brands.size()),
+                          static_cast<int>(nextReachableBrands.size()),
+                          static_cast<int>(result.collections.size())};
+        candidate.brands = collectedBrandsTotal_;
+        candidate.brands.insert(result.brands.begin(), result.brands.end());
+        candidate.targets = currentTargets_;
+        candidate.targetPositions = currentTargetPositions_;
+        candidate.supported = supportedPatrols_;
+        candidate.stepSpots = plannedStepSpots_;
+        candidate.stepPositions = plannedStepPositions_;
+        return candidate;
+    };
+
+    // Preserve the former policy as a candidate, then try official-score
+    // ranking under multiple patrol orders and select by simulated outcome.
+    best = planCandidate(original, false, true);
+    for (const auto& order : orders) {
+        if (!hasSearchTime()) break;
+        auto candidate = planCandidate(order, true, false);
+        if (candidate.rank > best.rank) best = std::move(candidate);
+    }
+    actions = std::move(best.actions);
+    currentTargets_ = std::move(best.targets);
+    currentTargetPositions_ = std::move(best.targetPositions);
+    supportedPatrols_ = std::move(best.supported);
+    plannedStepSpots_ = std::move(best.stepSpots);
+    plannedStepPositions_ = std::move(best.stepPositions);
+    pendingBrandsTotal_ = std::move(best.brands);
     currentDay_ = state.day;
-    std::set<int> matchBrands = collectedBrandsTotal_;
-    std::set<int> dailyBrands;
-
-    // 3. Lập kế hoạch cho xe TUẦN TRA (PatrolPlanner)
-    //    Tính trước để xe Supply biết mục tiêu của Patrol
-    for (int i = 0; i < numAgents; ++i) {
-        const Agent& agent = state.agents[i];
-        if (agent.kind != 0) continue; // Bỏ qua xe Supply
-
-        Position agentPos = map.posToCoordinate(agent.pos);
-
-        actions[i] = PatrolPlanner::planDay(
-            config, map, agentPos, daySteps, agent.fuel,
-            remainingStock_,
-            visitedSpotsToday_[i],
-            matchBrands,
-            dailyBrands,
-            currentTargets_[i],
-            currentTargetPositions_[i],
-            plannedStepSpots_[i],
-            plannedStepPositions_[i], claimedSpots_
-        );
-    }
-
-    // 4. Lập kế hoạch cho xe TIẾP TẾ (SupplyPlanner)
-    for (int i = 0; i < numAgents; ++i) {
-        const Agent& agent = state.agents[i];
-        if (agent.kind != 1) continue; // Bỏ qua xe Patrol
-
-        actions[i] = SupplyPlanner::planDay(
-            config, map, agent, state.agents, i,
-            daySteps, currentTargets_, currentTargetPositions_,
-            supportedPatrols_[i], currentTargets_[i],
-            currentTargetPositions_[i],
-            plannedStepSpots_[i], plannedStepPositions_[i],
-            matchBrands, remainingStock_
-        );
-    }
-
-    pendingBrandsTotal_ = matchBrands;
     hasPendingPlan_ = true;
 
     return actions;

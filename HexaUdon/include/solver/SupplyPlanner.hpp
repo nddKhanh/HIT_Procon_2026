@@ -47,7 +47,6 @@ public:
      * @param supplyIdx          Index của xe Supply
      * @param daySteps           Tổng bước trong ngày
      * @param patrolTargetSpots  Spot mục tiêu của từng xe Patrol
-    * @param patrolTargetPositions Vị trí đích chính xác của từng xe Patrol
     * @param plannedTargetPatrol  [OUT] Xe Patrol mà Supply đang hỗ trợ
         * @param plannedTargetSpot  [OUT] Spot điểm hẹn mà xe Supply đã chọn
         * @param plannedTargetPos   [OUT] Vị trí chính xác của điểm hẹn
@@ -64,6 +63,7 @@ public:
         int daySteps,
         const std::vector<int>& patrolTargetSpots,
         const std::vector<Position>& patrolTargetPositions,
+        const std::vector<std::vector<int>>& patrolActions,
         int& plannedTargetPatrol,
         int& plannedTargetSpot,
         Position& plannedTargetPos,

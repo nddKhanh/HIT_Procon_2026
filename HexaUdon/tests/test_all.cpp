@@ -8,6 +8,7 @@
 #include "solver/PathFinder.hpp"
 #include "solver/ActionValidator.hpp"
 #include "solver/Solver.hpp"
+#include "solver/MoveSimulator.hpp"
 #include "solver/SupplyPlanner.hpp"
 #include "solver\SpotScorer.hpp"
 
@@ -333,6 +334,24 @@ void test_fuel_weighted_path() {
     std::cout << "[PASS] Fuel-weighted path test passed!" << std::endl;
 }
 
+void test_pareto_path_and_cache() {
+    Map map(2, 5, {
+        {0, 1, 1, 0, 0},
+        {3, 0, 0, 0, 3}
+    });
+    auto path = PathFinder::findPath({0, 0}, {4, 0}, map, 5, 0.0);
+    assert(path.found);
+    assert(path.totalFuel <= 5);
+    assert(path.totalSteps > 5); // Must reject the faster fuel-heavy prefix.
+
+    PathCache cache(map);
+    const auto* first = &cache.get({0, 0}, 5, 1.0);
+    const auto* second = &cache.get({0, 0}, 5, 1.0);
+    assert(first == second && cache.size() == 1);
+    assert(first->extractPath(4).found);
+    std::cout << "[PASS] Pareto fuel path and daily route cache test passed!" << std::endl;
+}
+
 void test_lexicographic_brand_ranking() {
     std::set<int> matchBrands = {0, 1};
     std::set<int> dailyBrands = {0};
@@ -348,7 +367,7 @@ void test_lexicographic_brand_ranking() {
     std::cout << "[PASS] Lexicographic match/daily brand ranking test passed!" << std::endl;
 }
 
-void test_exclusive_spot_claim_and_reset() {
+void test_stock_aware_coordination_and_reset() {
     GameConfig config{};
     config.map.height = 1;
     config.map.width = 2;
@@ -367,14 +386,13 @@ void test_exclusive_spot_claim_and_reset() {
 
     assert(ActionValidator::validate(config, state, actions, map));
     assert(solver.getPlannedTargetSpot(0) == 0);
-    assert(solver.getPlannedTargetSpot(1) == -1);
-    assert(actions[1] == std::vector<int>{-2});
+    assert(solver.getPlannedTargetSpot(1) == 0);
     assert(solver.solve(config, state, map) == actions);
     solver.commitLastPlan();
     state.day = 1;
     auto nextDay = solver.solve(config, state, map);
     assert(nextDay == actions); // Claims reset on retries and on a new day.
-    std::cout << "[PASS] Exclusive spot claims and reset test passed!" << std::endl;
+    std::cout << "[PASS] Stock-aware coordination and reset test passed!" << std::endl;
 }
 
 void test_upgrade_plan_policies() {
@@ -393,9 +411,7 @@ void test_upgrade_plan_policies() {
     Map map(1, 7, config.map.cells);
     std::vector<int> stock = {1, 1, 1};
     assert(SpotScorer::findBestSpot({3, 0}, config, map, 20, 6,
-        {}, stock, {}, {}, {0, 1}) == 2);
-    assert(SpotScorer::findBestSpot({3, 0}, config, map, 20, 6,
-        {}, stock, {}, {}, {0, 1, 2}) == -1);
+        {}, stock, {}, {}, {0, 1}) >= 0); // Claims are advisory; stock is authoritative.
 
     GameState state{};
     state.day = 0;
@@ -415,6 +431,23 @@ void test_upgrade_plan_policies() {
         {7}, {1}, {3, 0}) == 0);
     assert(SupplyPlanner::findTargetPatrol(agents, 2, config, map,
         {}, {0}, {3, 0}) == 0);
+
+    config.daySteps = {10};
+    config.fuelLimit = 5;
+    config.map.width = 7;
+    config.map.cells = {{0, 0, 0, 0, 0, 0, 0}};
+    agents = {{0, 0, 5}, {0, 4, 5}, {1, 2, 0}};
+    std::vector<std::vector<int>> patrolActions = {
+        {2, -8}, {5, 5, 5, -4}, {}
+    };
+    int targetPatrol = -1, targetSpot = -1;
+    Position targetPos{-1, -1};
+    std::vector<int> stepSpots;
+    std::vector<Position> stepPositions;
+    auto supplyActions = SupplyPlanner::planDay(config, map, agents[2], agents,
+        2, 10, {-1, -1, -1}, {{1, 0}, {1, 0}, {2, 0}}, patrolActions,
+        targetPatrol, targetSpot, targetPos, stepSpots, stepPositions, {}, {});
+    assert(targetPatrol == 1 && !supplyActions.empty());
     std::cout << "[PASS] Upgrade scoring, claims, lookahead and supply policies passed!" << std::endl;
 }
 
@@ -445,7 +478,61 @@ void test_solver_retry_is_transactional() {
 // =============================================================================
 // Main
 // =============================================================================
+void test_joint_simulator() {
+    GameConfig config{};
+    config.daySteps = {6, 6};
+    config.fuelLimit = 3;
+    config.spots = {{0, 1, 2}, {1, 2, 1}};
+    Map map(1, 3, {{0, 0, 0}});
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 0, 3}, {0, 0, 3}};
+    auto day = MoveSimulator::simulateDay(config, state,
+        {{2, 2, 5}, {2, 2, -2}}, map);
+    assert(day.valid);
+    assert(day.collections.size() == 3);
+    assert(day.collections[0].step == 2 && day.collections[2].step == 4);
+    assert(day.remainingStock == std::vector<int>({0, 0}));
+    assert(day.agents[0].pos == 1 && day.agents[0].fuel == 0);
+    MatchScore score;
+    score.add(day);
+    score.add(day);
+    assert(score.rank() == std::make_tuple(2, 4, 6));
+
+    config.daySteps[0] = 5;
+    state.agents = {{0, 0, 0}, {1, 0, 0}};
+    auto refill = MoveSimulator::simulateDay(config, state,
+        {{-1, 2, 2}, {-5}}, map);
+    assert(refill.valid && refill.refuels == 1);
+    assert(refill.agents[0].pos == 2 && refill.agents[0].fuel == 1);
+    assert(refill.collections.size() == 2);
+    assert(!MoveSimulator::simulateDay(config, state,
+        {{2, 2, -1}, {-5}}, map).valid);
+
+    config.daySteps[0] = 2;
+    state.agents = {{0, 0, 0}, {1, 1, 0}};
+    auto late = MoveSimulator::simulateDay(config, state, {{-2}, {5}}, map);
+    assert(late.valid && late.refuels == 0 && late.agents[0].fuel == 0);
+    state.agents = {{0, 1, 1}};
+    assert(MoveSimulator::simulateDay(config, state, {{-2}}, map).collections.empty());
+    assert(MoveSimulator::simulateDay(config, state, {{-2}}, map,
+        {true, false}).collections.size() == 1);
+    assert(!MoveSimulator::simulateDay(config, state, {{INT_MIN}}, map).valid);
+    assert(!MoveSimulator::simulateDay(config, state, {{-1}}, map).valid);
+    assert(!MoveSimulator::simulateDay(config, state, {{6}}, map).valid);
+    assert(!MoveSimulator::simulateDay(config, state, {{2, -1}}, map).valid);
+
+    config.spots.clear();
+    Map roads(1, 2, {{1, 0}});
+    state.agents = {{0, 0, 3}};
+    state.traffics = {{0, 1}};
+    auto road = MoveSimulator::simulateDay(config, state, {{2}}, roads);
+    assert(road.valid && road.roadOccupancy[0] == 2 && road.agents[0].fuel == 1);
+    std::cout << "[PASS] Joint simulation, collection, refueling and score tests passed!" << std::endl;
+}
+
 int main() {
+    test_joint_simulator();
     test_map_and_geometry();
     test_travel_time_and_fuel();
     test_sssp();
@@ -457,8 +544,9 @@ int main() {
     test_spot_scoring();
     test_tactical_scoring_and_claims();
     test_fuel_weighted_path();
+    test_pareto_path_and_cache();
     test_lexicographic_brand_ranking();
-    test_exclusive_spot_claim_and_reset();
+    test_stock_aware_coordination_and_reset();
     test_upgrade_plan_policies();
     test_solver_retry_is_transactional();
     std::cout << "\nAll unit tests completed successfully!" << std::endl;

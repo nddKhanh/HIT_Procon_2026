@@ -23,6 +23,16 @@ endif()
 
 # Executable chính
 add_executable(HexaUdon src/main.cpp ${CORE_SOURCES})
+set_target_properties(HexaUdon PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_CURRENT_SOURCE_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
-# Executable kiểm thử (Unit test)
-add_executable(test_all tests/test_all.cpp ${CORE_SOURCES})
+option(HEXAUDON_BUILD_TESTS "Build test and benchmark executables" OFF)
+if(HEXAUDON_BUILD_TESTS)
+    add_executable(test_all tests/test_all.cpp ${CORE_SOURCES})
+    add_executable(benchmark tests/benchmark.cpp ${CORE_SOURCES})
+endif()

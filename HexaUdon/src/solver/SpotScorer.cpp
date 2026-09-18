@@ -45,11 +45,10 @@ int SpotScorer::findBestSpot(Position currentPos, const GameConfig& config,
     const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
     const std::set<int>& claimedSpots) {
     int bestSpot = -1;
-    std::array<int, 3> bestRank = {INT_MIN, INT_MIN, INT_MIN};
+    SpotRank bestRank = {-1, -1, -1, -1, INT_MIN, INT_MIN};
 
     for (size_t si = 0; si < config.spots.size(); ++si) {
-        if (claimedSpots.count(static_cast<int>(si)) ||
-            visitedToday.count(static_cast<int>(si)) ||
+        if (visitedToday.count(static_cast<int>(si)) ||
             si >= remainingStock.size() || remainingStock[si] <= 0) continue;
 
         Position spotPos = map.posToCoordinate(config.spots[si].pos);
@@ -60,11 +59,9 @@ int SpotScorer::findBestSpot(Position currentPos, const GameConfig& config,
         for (const auto& spot : config.spots) {
             if (spot.brand == config.spots[si].brand) ++brandSpotCount;
         }
-        int score = scoreSpot(config.spots[si].brand, path.totalSteps,
-            matchBrands, remainingStock[si], brandSpotCount,
-            path.totalFuel, fuelRemaining);
-        std::array<int, 3> rank = {score,
-            dailyBrands.count(config.spots[si].brand) ? 0 : 1, -path.totalSteps};
+        auto rank = rankSpot(config.spots[si].brand, path.totalSteps,
+            matchBrands, dailyBrands, remainingStock[si], brandSpotCount,
+            path.totalFuel);
 
         if (rank > bestRank) {
             bestRank = rank;

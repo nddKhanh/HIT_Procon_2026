@@ -1,7 +1,48 @@
 #pragma once
 
 #include "map/Map.hpp"
+#include "GameState.hpp"
+#include "model/GameConfig.hpp"
+#include <set>
+#include <string>
+#include <tuple>
 #include <vector>
+
+// Offline rule assumptions, pending comparison with the official engine.
+struct SimulationRules {
+    bool collectAtDayStart = false;
+    bool refuelDuringMovement = false;
+};
+
+struct CollectionEvent {
+    int step, agent, spot, brand;
+};
+
+struct DaySimulation {
+    bool valid = false;
+    std::string error;
+    std::vector<Agent> agents;
+    std::vector<int> remainingStock;
+    std::vector<long long> roadOccupancy;
+    std::vector<CollectionEvent> collections;
+    std::set<int> brands;
+    int refuels = 0; // Only events that increase fuel.
+};
+
+struct MatchScore {
+    std::set<int> brands;
+    int dailyTypes = 0;
+    int servings = 0;
+    void add(const DaySimulation& day) {
+        if (!day.valid) return;
+        brands.insert(day.brands.begin(), day.brands.end());
+        dailyTypes += static_cast<int>(day.brands.size());
+        servings += static_cast<int>(day.collections.size());
+    }
+    auto rank() const {
+        return std::make_tuple(static_cast<int>(brands.size()), dailyTypes, servings);
+    }
+};
 
 /**
  * @brief Kết quả sau khi mô phỏng 1 đoạn di chuyển.
@@ -21,6 +62,12 @@ struct SimResult {
  */
 class MoveSimulator {
 public:
+    // All agents advance on one clock. Traffic is copied from state.
+    // Equal-time collections are resolved in agent-index order.
+    static DaySimulation simulateDay(
+        const GameConfig& config, const GameState& state,
+        const std::vector<std::vector<int>>& actions, const Map& map,
+        SimulationRules rules = {});
     /**
      * @brief Biến path directions -> chuỗi hành động + mô phỏng kết quả.
      *

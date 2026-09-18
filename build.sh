@@ -6,17 +6,21 @@ LDFLAGS="-lwininet"
 
 if [ "$1" == "test" ]; then
     echo "[BUILDING & RUNNING UNIT TESTS]..."
-    $CXX $CXXFLAGS HexaUdon/tests/test_all.cpp $CORE_SRC $LDFLAGS -o test_all
+    mkdir -p HexaUdon/.build
+    $CXX $CXXFLAGS HexaUdon/tests/test_all.cpp $CORE_SRC $LDFLAGS -o HexaUdon/.build/test_all
     if [ $? -eq 0 ]; then
-        ./test_all
+        HexaUdon/.build/test_all
+        result=$?
+        rm -f HexaUdon/.build/test_all
+        exit $result
     fi
 elif [ "$1" == "clean" ]; then
     echo "[CLEANING EXECUTABLES]..."
-    rm -f HexaUdon test_all HexaUdon.exe test_all.exe
+    rm -f HexaUdon/HexaUdon HexaUdon/HexaUdon.exe HexaUdon/.build/test_all
     echo "Done!"
 else
     echo "[BUILDING MAIN EXECUTABLE] HexaUdon..."
-    $CXX $CXXFLAGS HexaUdon/src/main.cpp $CORE_SRC $LDFLAGS -o HexaUdon
+    $CXX $CXXFLAGS HexaUdon/src/main.cpp $CORE_SRC $LDFLAGS -o HexaUdon/HexaUdon
     if [ $? -eq 0 ]; then
         echo "[SUCCESS] HexaUdon created successfully!"
     fi

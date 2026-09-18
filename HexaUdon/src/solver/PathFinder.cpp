@@ -1,6 +1,7 @@
 #include "solver/PathFinder.hpp"
 #include <queue>
 #include <algorithm>
+#include <cmath>
 
 // =============================================================================
 // SSSPResult::extractPath — Extract path from SSSP result to a specific goal
@@ -30,11 +31,17 @@ PathResult SSSPResult::extractPath(int goalPos) const {
     result.totalSteps = dist[goalPos];
     result.totalFuel = fuel[goalPos];
 
-    // Trace back path
-    int cur = goalPos;
-    while (cur != sourcePos) {
-        result.directions.push_back(prevDir[cur]);
-        cur = prevCell[cur];
+    if (!bestLabel.empty() && bestLabel[goalPos] >= 0) {
+        for (int label = bestLabel[goalPos]; labelPrev[label] >= 0;
+             label = labelPrev[label]) {
+            result.directions.push_back(labelDir[label]);
+        }
+    } else {
+        int cur = goalPos;
+        while (cur != sourcePos) {
+            result.directions.push_back(prevDir[cur]);
+            cur = prevCell[cur];
+        }
     }
     std::reverse(result.directions.begin(), result.directions.end());
 
@@ -61,22 +68,38 @@ static SSSPResult runDijkstra(
     sssp.fuel.assign(totalCells, INT_MAX);
     sssp.prevDir.assign(totalCells, -1);
     sssp.prevCell.assign(totalCells, -1);
+    if (!map.canMove(source)) return sssp;
     sssp.sourcePos = map.coordinateToPos(source);
+    sssp.bestLabel.assign(totalCells, -1);
 
-    using PDI = std::pair<double, int>;
-    std::priority_queue<PDI, std::vector<PDI>, std::greater<PDI>> pq;
-    std::vector<double> weightedDist(totalCells, static_cast<double>(INT_MAX));
-
-    sssp.dist[sssp.sourcePos] = 0;
-    sssp.fuel[sssp.sourcePos] = 0;
-    weightedDist[sssp.sourcePos] = 0.0;
-    pq.push({0.0, sssp.sourcePos});
+    struct QueueItem { double weight; int label; };
+    auto greater = [](const QueueItem& a, const QueueItem& b) {
+        return a.weight > b.weight;
+    };
+    std::priority_queue<QueueItem, std::vector<QueueItem>, decltype(greater)> pq(greater);
+    std::vector<std::vector<int>> frontier(totalCells);
+    std::vector<char> active;
+    auto addLabel = [&](int cell, int steps, int fuel, int prev, int dir) {
+        int id = static_cast<int>(sssp.labelCell.size());
+        sssp.labelCell.push_back(cell);
+        sssp.labelSteps.push_back(steps);
+        sssp.labelFuel.push_back(fuel);
+        sssp.labelPrev.push_back(prev);
+        sssp.labelDir.push_back(dir);
+        active.push_back(true);
+        frontier[cell].push_back(id);
+        pq.push({steps + fuelWeight * fuel, id});
+        return id;
+    };
+    addLabel(sssp.sourcePos, 0, 0, -1, -1);
 
     while (!pq.empty()) {
-        auto [d, u] = pq.top();
+        auto [weight, label] = pq.top();
         pq.pop();
-
-        if (d > weightedDist[u]) continue;
+        if (!active[label]) continue;
+        int u = sssp.labelCell[label];
+        int steps = sssp.labelSteps[label];
+        int usedFuel = sssp.labelFuel[label];
         if (earlyStopPos >= 0 && u == earlyStopPos) break;
 
         Position uPos = map.posToCoordinate(u);
@@ -88,20 +111,61 @@ static SSSPResult runDijkstra(
             if (!map.canMove(nPos)) continue;
 
             int v = map.coordinateToPos(nPos);
-            int newDist = sssp.dist[u] + travelTime;
-            int newFuel = sssp.fuel[u] + fuelCost;
-            double newWeight = weightedDist[u] + travelTime + fuelWeight * fuelCost;
+            int newDist = steps + travelTime;
+            int newFuel = usedFuel + fuelCost;
 
             if (newFuel > maxFuel) continue;
 
-            if (newWeight < weightedDist[v] ||
-                (newWeight == weightedDist[v] && newDist < sssp.dist[v])) {
-                weightedDist[v] = newWeight;
-                sssp.dist[v] = newDist;
-                sssp.fuel[v] = newFuel;
-                sssp.prevDir[v] = dir;
-                sssp.prevCell[v] = u;
-                pq.push({newWeight, v});
+            bool dominated = false;
+            for (int old : frontier[v]) {
+                if (!active[old]) continue;
+                if (sssp.labelSteps[old] <= newDist && sssp.labelFuel[old] <= newFuel) {
+                    dominated = true;
+                    break;
+                }
+            }
+            if (dominated) continue;
+            for (int old : frontier[v]) {
+                if (active[old] && newDist <= sssp.labelSteps[old] &&
+                    newFuel <= sssp.labelFuel[old]) active[old] = false;
+            }
+            int added = addLabel(v, newDist, newFuel, label, dir);
+            int activeCount = 0;
+            for (int old : frontier[v]) activeCount += active[old];
+            if (activeCount > 16) {
+                // ponytail: bound the Pareto frontier so a pathological map
+                // cannot consume the server response window. Upgrade to a
+                // deadline-aware global label budget if fuel limits grow.
+                int worst = added;
+                double worstWeight = -1.0;
+                for (int old : frontier[v]) {
+                    if (!active[old]) continue;
+                    double oldWeight = sssp.labelSteps[old] +
+                                       fuelWeight * sssp.labelFuel[old];
+                    if (oldWeight > worstWeight) {
+                        worstWeight = oldWeight;
+                        worst = old;
+                    }
+                }
+                active[worst] = false;
+            }
+        }
+    }
+
+    for (int cell = 0; cell < totalCells; ++cell) {
+        double bestWeight = static_cast<double>(INT_MAX);
+        for (int label : frontier[cell]) {
+            if (!active[label]) continue;
+            double weight = sssp.labelSteps[label] + fuelWeight * sssp.labelFuel[label];
+            if (weight < bestWeight ||
+                (weight == bestWeight && sssp.labelSteps[label] < sssp.dist[cell])) {
+                bestWeight = weight;
+                sssp.bestLabel[cell] = label;
+                sssp.dist[cell] = sssp.labelSteps[label];
+                sssp.fuel[cell] = sssp.labelFuel[label];
+                sssp.prevDir[cell] = sssp.labelDir[label];
+                sssp.prevCell[cell] = sssp.labelPrev[label] < 0 ? -1 :
+                    sssp.labelCell[sssp.labelPrev[label]];
             }
         }
     }
@@ -142,4 +206,12 @@ SSSPResult PathFinder::computeSSSP(
     double fuelWeight
 ) {
     return runDijkstra(source, map, maxFuel, fuelWeight, -1);
+}
+
+const SSSPResult& PathCache::get(Position source, int maxFuel, double fuelWeight) {
+    auto key = std::make_tuple(map_.coordinateToPos(source), maxFuel,
+                               static_cast<int>(std::lround(fuelWeight * 1000.0)));
+    auto [it, inserted] = cache_.try_emplace(key);
+    if (inserted) it->second = PathFinder::computeSSSP(source, map_, maxFuel, fuelWeight);
+    return it->second;
 }

@@ -5,6 +5,8 @@
 #include "map/Map.hpp"
 #include <vector>
 #include <climits>
+#include <map>
+#include <tuple>
 
 struct PathResult {
     std::vector<int> directions;  // Sequence of hex directions (0-5)
@@ -24,8 +26,29 @@ struct SSSPResult {
     std::vector<int> prevCell;  // prevCell[pos] = previous cell index
     int sourcePos = -1;         // Source position index
 
+    // Pareto-label arena. bestLabel[pos] selects the weighted-best
+    // nondominated (steps, fuel) label used by extractPath().
+    std::vector<int> labelCell;
+    std::vector<int> labelSteps;
+    std::vector<int> labelFuel;
+    std::vector<int> labelPrev;
+    std::vector<int> labelDir;
+    std::vector<int> bestLabel;
+
     // Extract path from source to goalPos
     PathResult extractPath(int goalPos) const;
+};
+
+class PathCache {
+public:
+    explicit PathCache(const Map& map) : map_(map) {}
+    const SSSPResult& get(Position source, int maxFuel = INT_MAX,
+                          double fuelWeight = 0.0);
+    size_t size() const { return cache_.size(); }
+
+private:
+    const Map& map_;
+    std::map<std::tuple<int, int, int>, SSSPResult> cache_;
 };
 
 class PathFinder {
