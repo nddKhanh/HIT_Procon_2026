@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <climits>
@@ -735,9 +736,11 @@ void test_agent_strategy_maximizes_patrol_distance() {
     config.initialAgentPositions = {0, 2, 5, 9, 12, 14};
     config.spots = {{0, 1, 3}, {1, 4, 3}, {2, 7, 3},
                     {3, 10, 3}, {4, 13, 3}};
-    // Exhaustive trial distances for 0..5 Supply are 32, 52, 65, 56, 47, 23.
-    assert(AgentStrategy::decideAgentTypes(config) ==
-           std::vector<int>({0, 0, 0, 0, 1, 1}));
+    // Allowed trials 0..3 Supply have distances 32, 52, 65, 56.
+    auto scarceTypes = AgentStrategy::decideAgentTypes(config);
+    assert(scarceTypes == std::vector<int>({0, 0, 0, 0, 1, 1}));
+    assert(std::count(scarceTypes.begin(), scarceTypes.end(), 1) <=
+           static_cast<int>(scarceTypes.size() / 2));
     std::cout << "[PASS] Adaptive supply-count strategy test passed!" << std::endl;
 }
 

@@ -106,7 +106,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(const GameConfig& config) {
 
     // ponytail: trials assume smooth traffic and no opponents; replace these
     // deterministic trials with sampled scenarios if pre-match traffic becomes available.
-    for (int supplyCount = 0; supplyCount < agentCount; ++supplyCount) {
+    for (int supplyCount = 0; supplyCount <= agentCount / 2; ++supplyCount) {
         std::vector<int> types(agentCount, 0);
         for (int i = 0; i < supplyCount; ++i) types[agentCount - 1 - i] = 1;
 

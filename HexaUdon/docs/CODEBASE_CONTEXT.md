@@ -15,8 +15,8 @@
   1. số brand khác nhau toàn trận;
   2. tổng số brand khác nhau theo từng ngày;
   3. tổng servings.
-- Đội hình không còn dùng tỷ lệ cố định. `AgentStrategy` thử mọi số Supply từ `0`
-  đến `n-1` qua toàn bộ các ngày, rồi tối đa tổng cạnh Patrol di chuyển; servings và
+- Đội hình không còn dùng tỷ lệ cố định. `AgentStrategy` thử số Supply từ `0`
+  đến `floor(n/2)` qua toàn bộ các ngày, rồi tối đa tổng cạnh Patrol di chuyển; servings và
   ít Supply hơn là tie-break.
 - Patrol dùng pathfinding Pareto theo `(steps, fuel)`, lookahead hai spot và chaining
   nhiều spot trong ngày.
@@ -209,7 +209,8 @@ dưới `/api/game` trả `404`, còn admin replay trả `401`. Không có brows
 đăng nhập tại lúc phân tích, vì vậy chưa có action trace thật để gán 42 servings cho
 từng ngày.
 
-Tái hiện deterministic với traffic smooth và code hiện tại cho số Supply `0..5`:
+Tái hiện deterministic với traffic smooth trước khi thêm giới hạn `floor(n/2)` đã
+đo đủ số Supply `0..5`; selector hiện tại chỉ xét các hàng `0..3`:
 
 | Supply | Patrol distance theo ngày | Tổng distance | Servings | Refuel |
 |---:|---|---:|---:|---:|
@@ -226,6 +227,36 @@ Các khả năng cần trace để phân biệt: binary chạy trận không cù
 fallback/retry, traffic/đối thủ lịch sử khác state cuối, hoặc assumption collection/
 refuel của simulator lệch engine. Không khẳng định khả năng nào là root cause khi
 chưa có replay hoặc diary đủ 5 ngày.
+
+### 3.7 Trận tham chiếu `b0d6932d-c95a-4f88-9b28-d0bd8ec38b7a`
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Map | `20 × 20` = 400 ô |
+| Vị trí đầu xe | `132, 381, 177, 220, 361, 151, 63` |
+| Fuel limit | `64` |
+| Ngày/steps | 7 ngày; `40, 45, 49, 54, 59, 63, 68` |
+| Spot/brand | 20 spot, 18 brand |
+| Stock/ngày | `91` |
+| Tiềm năng toàn trận | `637 servings` |
+| Đội hình server ghi nhận | `4 Patrol + 3 Supply` |
+| Kết quả người dùng quan sát | `127 servings` |
+
+Không đọc được replay thật trong phiên phân tích: không có tab browser được chia sẻ,
+ba endpoint team `trace/history/replay` trả `404`, admin replay trả `401`. Vì vậy hiện
+tượng toàn bộ xe đứng yên ngày đầu chưa thể quy cho planner: với đúng config và snapshot
+trước fix, offline solver tạo plan hợp lệ có di chuyển cho cả bốn Patrol và thu 13
+servings ngày 0. Nếu replay thật ghi toàn wait thì khả năng mạnh là bot bỏ lỡ/không gửi
+được action ngày đó hoặc dùng fallback; cần tab đăng nhập hoặc log stdout để xác nhận.
+
+Root cause chắc chắn của việc xe gần bỏ spot cho xe xa nằm trong reconstruction của
+`assignFirstSpots()`: trong cùng một layer DP, parent của transition tốt hơn bị nhánh
+carry của mask cũ ghi đè. Trên config này, assignment đầu ngày trước fix có tổng travel
+`8 + 33 + 13 + 33 = 87`; sau fix là `2 + 6 + 9 + 5 = 22`. Servings offline ngày 0
+tăng từ 13 lên 21 nếu giữ đội hình cũ. Khi chạy lại adaptive selector, đội hình đổi từ
+`4 Patrol + 3 Supply` sang `5 Patrol + 2 Supply`; mô phỏng smooth-traffic đủ 7 ngày đạt
+`27, 31, 28, 29, 23, 30, 25`, tổng 193 servings. Đây là regression estimate, không
+phải replay server.
 
 ## 4. Cấu trúc repository
 
@@ -332,7 +363,7 @@ Supply không tiêu thụ fuel trong `MoveSimulator`.
 
 ### 7.1 Chọn loại xe — `AgentStrategy::decideAgentTypes`
 
-- Thử `supplyCount` từ `0` đến `n-1`; các xe cuối mảng được đổi thành Supply.
+- Thử `supplyCount` từ `0` đến `floor(n/2)`; các xe cuối mảng được đổi thành Supply.
 - Với mỗi phương án, dựng state từ vị trí đầu và full fuel, chạy `Solver` +
   `MoveSimulator` xuyên mọi ngày với traffic smooth, đồng thời commit brand sau mỗi ngày.
 - Rank là `(tổng số action di chuyển của Patrol, servings, -supplyCount)`.
@@ -376,6 +407,8 @@ Supply không tiêu thụ fuel trong `MoveSimulator`.
   1. tối đa số patrol có spot;
   2. với cùng cardinality, tối thiểu tổng `path.totalSteps`.
 - Kết quả một-một: một patrol ≤ một first spot, một first spot ≤ một patrol.
+- Parent carry được ghi trước transition trong mỗi layer. Transition rẻ hơn được giữ
+  để reconstruction trả đúng nghiệm DP, không quay lại assignment spot index thấp cũ.
 - Sentinel truyền vào `PatrolPlanner`:
   - `-2`: không override, dùng thuật toán cũ;
   - `-1`: matching không tìm được spot, xe không tự tranh spot đầu;
