@@ -139,7 +139,8 @@ std::vector<int> PatrolPlanner::planDay(
     std::set<int>& claimedSpots,
     bool officialRanking,
     bool exclusiveClaims,
-    PathCache* pathCache
+    PathCache* pathCache,
+    int firstTargetSpot
 ) {
     std::vector<int> allActions;
     int stepsUsed = 0;
@@ -148,18 +149,26 @@ std::vector<int> PatrolPlanner::planDay(
     plannedTargetPos = startPos;
     plannedStepSpots.assign(daySteps, -1);
     plannedStepPositions.assign(daySteps, startPos);
+    bool firstTargetPending = firstTargetSpot != -2;
 
     while (true) {
         int stepsRemaining = daySteps - stepsUsed;
         if (stepsRemaining <= 0) break;
         if (fuelRemaining <= 0) break;
 
-        int nextSpot = findLookaheadSpot(
-            currentPos, config, map,
-            fuelRemaining, stepsRemaining,
-            visitedToday, remainingStock, matchBrands, dailyBrands, claimedSpots,
-            officialRanking, exclusiveClaims, pathCache
-        );
+        int nextSpot;
+        if (firstTargetPending) {
+            nextSpot = firstTargetSpot;
+            firstTargetPending = false;
+            if (nextSpot < 0) break;
+        } else {
+            nextSpot = findLookaheadSpot(
+                currentPos, config, map,
+                fuelRemaining, stepsRemaining,
+                visitedToday, remainingStock, matchBrands, dailyBrands, claimedSpots,
+                officialRanking, exclusiveClaims, pathCache
+            );
+        }
 
         if (nextSpot >= 0) {
             Position spotPos = map.posToCoordinate(config.spots[nextSpot].pos);

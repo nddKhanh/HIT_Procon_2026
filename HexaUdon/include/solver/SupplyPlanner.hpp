@@ -31,7 +31,8 @@ public:
         const Map& map,
         const std::set<int>& collectedBrands,
         const std::vector<int>& remainingStock,
-        Position supplyPos
+        Position supplyPos,
+        const std::set<int>& excludedPatrols = {}
     );
 
     /**
@@ -70,6 +71,7 @@ public:
         std::vector<int>& plannedStepSpots,
         std::vector<Position>& plannedStepPositions,
         const std::set<int>& collectedBrands,
-        const std::vector<int>& remainingStock
+        const std::vector<int>& remainingStock,
+        const std::set<int>& excludedPatrols = {}
     );
 };

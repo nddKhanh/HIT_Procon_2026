@@ -386,14 +386,38 @@ void test_stock_aware_coordination_and_reset() {
     auto actions = solver.solve(config, state, map);
 
     assert(ActionValidator::validate(config, state, actions, map));
-    assert(solver.getPlannedTargetSpot(0) == 0);
-    assert(solver.getPlannedTargetSpot(1) == 0);
+    assert((solver.getPlannedTargetSpot(0) == 0) !=
+           (solver.getPlannedTargetSpot(1) == 0)); // One physical spot has one first owner.
     assert(solver.solve(config, state, map) == actions);
     solver.commitLastPlan();
     state.day = 1;
     auto nextDay = solver.solve(config, state, map);
     assert(nextDay == actions); // Claims reset on retries and on a new day.
     std::cout << "[PASS] Stock-aware coordination and reset test passed!" << std::endl;
+}
+
+void test_first_spot_uses_global_shortest_assignment() {
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 4;
+    config.map.cells = {{0, 0, 0, 0}};
+    config.daySteps = {3};
+    config.fuelLimit = 10;
+    config.initialAgentPositions = {0, 2};
+    config.spots = {{1, 0, 1}, {0, 3, 1}, {1, 1, 1}};
+
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 0, 10}, {0, 2, 10}};
+    Map map(1, 4, config.map.cells);
+    Solver solver;
+    auto actions = solver.solve(config, state, map);
+
+    assert(ActionValidator::validate(config, state, actions, map));
+    assert(solver.getPlannedStepSpot(0, 0) == 2); // Agent 0 owns nearby old-brand spot.
+    assert(solver.getPlannedStepSpot(1, 0) == 1); // Agent 1 owns contested new-brand spot.
+    assert(solver.getPlannedStepSpot(0, 0) != solver.getPlannedStepSpot(1, 0));
+    std::cout << "[PASS] Global first-spot assignment test passed!" << std::endl;
 }
 
 void test_upgrade_plan_policies() {
@@ -669,6 +693,17 @@ void test_day_steps_are_per_day() {
     std::cout << "[PASS] Per-day step counts test passed!" << std::endl;
 }
 
+void test_agent_strategy_uses_one_third_supply() {
+    GameConfig config{};
+    config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
+    assert(AgentStrategy::decideAgentTypes(config) ==
+           std::vector<int>({0, 0, 0, 0, 1, 1}));
+
+    config.initialAgentPositions = {0, 1};
+    assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>({0, 0}));
+    std::cout << "[PASS] One-third supply agent strategy test passed!" << std::endl;
+}
+
 void test_supply_intercept_lowest_fuel_multiday() {
     GameConfig config{};
     config.map.height = 1;
@@ -722,8 +757,44 @@ void test_supply_earliest_route_intercept() {
     std::cout << "[PASS] Supply Earliest Route Intercept test passed!" << std::endl;
 }
 
+void test_multiple_supplies_reserve_distinct_patrols() {
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 7;
+    config.map.cells = {{0, 0, 0, 0, 0, 0, 0}};
+    config.daySteps = {10};
+    config.fuelLimit = 10;
+    config.spots = {{0, 1, 1}, {1, 5, 1}};
+    Map map(1, 7, config.map.cells);
+    std::vector<Agent> agents = {
+        {0, 0, 1}, {0, 6, 1}, {1, 2, 10}, {1, 4, 10}
+    };
+    std::vector<std::vector<int>> patrolActions = {{2, -8}, {5, -8}, {}, {}};
+    std::vector<int> targets = {0, 1, -1, -1};
+    std::vector<Position> positions = {{1, 0}, {5, 0}, {-1, -1}, {-1, -1}};
+    std::set<int> reserved;
+
+    int firstPatrol = -1, targetSpot = -1;
+    Position targetPos{-1, -1};
+    std::vector<int> stepSpots;
+    std::vector<Position> stepPositions;
+    SupplyPlanner::planDay(config, map, agents[2], agents, 2, 10, targets,
+        positions, patrolActions, firstPatrol, targetSpot, targetPos,
+        stepSpots, stepPositions, {}, {1, 1}, reserved);
+    assert(firstPatrol >= 0);
+    reserved.insert(firstPatrol);
+
+    int secondPatrol = -1;
+    SupplyPlanner::planDay(config, map, agents[3], agents, 3, 10, targets,
+        positions, patrolActions, secondPatrol, targetSpot, targetPos,
+        stepSpots, stepPositions, {}, {1, 1}, reserved);
+    assert(secondPatrol >= 0 && secondPatrol != firstPatrol);
+    std::cout << "[PASS] Multiple supplies reserve distinct patrols test passed!" << std::endl;
+}
+
 int main() {
     test_day_steps_are_per_day();
+    test_agent_strategy_uses_one_third_supply();
     test_joint_simulator();
     test_joint_refuel_extends_patrol_route();
     test_recorded_match_120_score_regression();
@@ -742,11 +813,13 @@ int main() {
     test_pareto_path_and_cache();
     test_lexicographic_brand_ranking();
     test_stock_aware_coordination_and_reset();
+    test_first_spot_uses_global_shortest_assignment();
     test_upgrade_plan_policies();
     test_solver_retry_is_transactional();
     test_zero_wait_multiday_movement();
     test_supply_intercept_lowest_fuel_multiday();
     test_supply_earliest_route_intercept();
+    test_multiple_supplies_reserve_distinct_patrols();
     std::cout << "\nAll unit tests completed successfully!" << std::endl;
     return 0;
 }

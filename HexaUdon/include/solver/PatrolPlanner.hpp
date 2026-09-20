@@ -51,6 +51,7 @@ public:
         std::set<int>& claimedSpots,
         bool officialRanking = true,
         bool exclusiveClaims = false,
-        PathCache* pathCache = nullptr
+        PathCache* pathCache = nullptr,
+        int firstTargetSpot = -2
     );
 };

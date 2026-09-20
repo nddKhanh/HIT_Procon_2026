@@ -7,8 +7,88 @@
 #include <chrono>
 #include <climits>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <tuple>
+
+namespace {
+
+std::vector<int> assignFirstSpots(
+    const GameConfig& config, const GameState& state, const Map& map,
+    const std::vector<int>& patrols, int daySteps,
+    const std::vector<int>& remainingStock,
+    const std::vector<std::set<int>>& visitedToday, PathCache& pathCache) {
+    std::vector<int> assigned(state.agents.size(), -2);
+    if (patrols.size() < 2 || config.spots.empty()) return assigned;
+    for (int patrol : patrols) assigned[patrol] = -1;
+
+    const int patrolCount = static_cast<int>(patrols.size());
+    const int stateCount = 1 << patrolCount;
+    const int unreachable = std::numeric_limits<int>::max() / 4;
+    std::vector<std::vector<int>> travel(patrolCount,
+                                         std::vector<int>(config.spots.size(), unreachable));
+    for (int p = 0; p < patrolCount; ++p) {
+        int agent = patrols[p];
+        const auto& paths = pathCache.get(map.posToCoordinate(state.agents[agent].pos),
+                                          state.agents[agent].fuel, 1.0);
+        for (size_t spot = 0; spot < config.spots.size(); ++spot) {
+            if (remainingStock[spot] <= 0 || visitedToday[agent].count(static_cast<int>(spot)))
+                continue;
+            auto path = paths.extractPath(config.spots[spot].pos);
+            if (path.found && path.totalSteps <= daySteps)
+                travel[p][spot] = path.totalSteps;
+        }
+    }
+
+    struct Parent { int mask = -1; int patrol = -1; };
+    std::vector<int> cost(stateCount, unreachable);
+    std::vector<std::vector<Parent>> parent(config.spots.size() + 1,
+                                             std::vector<Parent>(stateCount));
+    cost[0] = 0;
+
+    // ponytail: O(spots * patrols * 2^patrols); switch to Hungarian matching
+    // if future matches raise the patrol count beyond the current single digits.
+    for (size_t spot = 0; spot < config.spots.size(); ++spot) {
+        auto next = cost;
+        for (int mask = 0; mask < stateCount; ++mask) {
+            if (cost[mask] < unreachable) parent[spot + 1][mask] = {mask, -1};
+            for (int p = 0; p < patrolCount; ++p) {
+                if ((mask & (1 << p)) || travel[p][spot] >= unreachable) continue;
+                int nextMask = mask | (1 << p);
+                int nextCost = cost[mask] + travel[p][spot];
+                if (cost[mask] < unreachable && nextCost < next[nextMask]) {
+                    next[nextMask] = nextCost;
+                    parent[spot + 1][nextMask] = {mask, p};
+                }
+            }
+        }
+        cost = std::move(next);
+    }
+
+    auto bitCount = [](int mask) {
+        int count = 0;
+        for (; mask; mask >>= 1) count += mask & 1;
+        return count;
+    };
+    int bestMask = 0;
+    for (int mask = 1; mask < stateCount; ++mask) {
+        if (cost[mask] >= unreachable) continue;
+        if (bitCount(mask) > bitCount(bestMask) ||
+            (bitCount(mask) == bitCount(bestMask) && cost[mask] < cost[bestMask]))
+            bestMask = mask;
+    }
+
+    int mask = bestMask;
+    for (int spot = static_cast<int>(config.spots.size()); spot > 0; --spot) {
+        Parent step = parent[spot][mask];
+        if (step.mask < 0) continue;
+        if (step.patrol >= 0) assigned[patrols[step.patrol]] = spot - 1;
+        mask = step.mask;
+    }
+    return assigned;
+}
+
+} // namespace
 
 // =============================================================================
 // AgentStrategy — Quyết định đội hình xe
@@ -16,11 +96,8 @@
 
 std::vector<int> AgentStrategy::decideAgentTypes(const GameConfig& config) {
     size_t n = config.initialAgentPositions.size();
-    int mapArea = config.map.height * config.map.width;
-    if (n <= 2 || config.fuelLimit >= mapArea * 2) {
-        return std::vector<int>(n, 0);
-    }
-    int supplyCount = n >= 6 && config.fuelLimit <= 10 && mapArea > 400 ? 2 : 1;
+    if (n <= 2) return std::vector<int>(n, 0);
+    int supplyCount = static_cast<int>(n / 3);
     if (supplyCount >= static_cast<int>(n)) supplyCount = static_cast<int>(n) - 1;
     std::vector<int> types(n, 0);
     for (int i = 0; i < supplyCount; ++i) types[n - 1 - i] = 1;
@@ -192,6 +269,9 @@ std::vector<std::vector<int>> Solver::solve(
                 break;
             }
         }
+        const auto firstSpots = assignFirstSpots(
+            config, state, map, patrols, daySteps, remainingStock_,
+            visitedSpotsToday_, pathCache);
         for (int i : order) {
             const Agent& agent = state.agents[i];
             if (agent.kind != 0) continue;
@@ -200,8 +280,9 @@ std::vector<std::vector<int>> Solver::solve(
                 remainingStock_, visitedSpotsToday_[i], matchBrands, dailyBrands,
                 currentTargets_[i], currentTargetPositions_[i], plannedStepSpots_[i],
                 plannedStepPositions_[i], claimedSpots_, officialRanking, exclusiveClaims,
-                &pathCache);
+                &pathCache, firstSpots[i]);
         }
+        std::set<int> suppliedPatrols;
         for (int i = 0; i < numAgents; ++i) {
             const Agent& agent = state.agents[i];
             if (agent.kind != 1) continue;
@@ -210,7 +291,8 @@ std::vector<std::vector<int>> Solver::solve(
                 currentTargetPositions_, candidate.actions,
                 supportedPatrols_[i], currentTargets_[i],
                 currentTargetPositions_[i], plannedStepSpots_[i], plannedStepPositions_[i],
-                matchBrands, remainingStock_);
+                matchBrands, remainingStock_, suppliedPatrols);
+            if (supportedPatrols_[i] >= 0) suppliedPatrols.insert(supportedPatrols_[i]);
         }
 
         // ponytail: one refuel suffix per patrol/day; evaluate multiple meetings

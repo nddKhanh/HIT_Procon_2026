@@ -16,7 +16,8 @@ int SupplyPlanner::findTargetPatrol(
     const Map& map,
     const std::set<int>& collectedBrands,
     const std::vector<int>& remainingStock,
-    Position supplyPos
+    Position supplyPos,
+    const std::set<int>& excludedPatrols
 ) {
     int bestIdx = -1;
     int bestScore = INT_MIN;
@@ -24,6 +25,7 @@ int SupplyPlanner::findTargetPatrol(
     for (size_t i = 0; i < agents.size(); ++i) {
         if (static_cast<int>(i) == excludeIdx) continue;
         if (agents[i].kind != 0) continue; // Chỉ xét xe Patrol
+        if (excludedPatrols.count(static_cast<int>(i))) continue;
 
         int deficit = config.fuelLimit - agents[i].fuel;
         int fuelPercent = config.fuelLimit > 0
@@ -77,7 +79,8 @@ std::vector<int> SupplyPlanner::planDay(
     std::vector<int>& plannedStepSpots,
     std::vector<Position>& plannedStepPositions,
     const std::set<int>& collectedBrands,
-    const std::vector<int>& remainingStock
+    const std::vector<int>& remainingStock,
+    const std::set<int>& excludedPatrols
 ) {
     plannedTargetPatrol = -1;
     plannedTargetSpot = -1;
@@ -91,7 +94,7 @@ std::vector<int> SupplyPlanner::planDay(
     std::tuple<int, int, int> bestRank{-1, INT_MIN, INT_MIN};
     for (int i = 0; i < static_cast<int>(allAgents.size()); ++i) {
         if (i == supplyIdx || allAgents[i].kind != 0 ||
-            i >= static_cast<int>(patrolActions.size())) continue;
+            i >= static_cast<int>(patrolActions.size()) || excludedPatrols.count(i)) continue;
 
         Position routePos = map.posToCoordinate(allAgents[i].pos);
         int readyAt = 0;
@@ -135,7 +138,8 @@ std::vector<int> SupplyPlanner::planDay(
     }
     if (targetPatrol < 0) {
         targetPatrol = findTargetPatrol(allAgents, supplyIdx, config, map,
-                                        collectedBrands, remainingStock, agentPos);
+                                        collectedBrands, remainingStock, agentPos,
+                                        excludedPatrols);
         if (targetPatrol >= 0)
             targetPos = map.posToCoordinate(allAgents[targetPatrol].pos);
     }
