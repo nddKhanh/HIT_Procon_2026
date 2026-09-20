@@ -114,15 +114,6 @@ corpus produced 26 wins, 2 losses and 2 ties, aggregate daily types 424 and
 servings 1008, with zero invalid days. Observed per-day runtime was median
 4.70 ms, p95 20.77 ms and maximum 24.91 ms.
 
-### Recorded match checkpoint
-
-Match `6c560a25-4fb6-4494-bf35-99d73d645076` produced daily servings
-`18, 26, 27, 25, 24` (120 total), covered all eight brands each day, and
-left Patrol vehicles waiting for 388 steps in the submitted traces. The unit
-regression pins the resulting score `(8 match brands, 40 daily brands, 120
-servings)`; an exact action replay still requires the historical per-day
-statuses, traffic, and accepted answers from the server.
-
 ## Next work
 
 1. Differential tests against official event semantics.

@@ -20,8 +20,6 @@ DaySimulation MoveSimulator::simulateDay(const GameConfig& config,
     const int cells = map.getHeight() * map.getWidth();
     if (cells <= 0) return fail("Empty map");
     out.agents = state.agents;
-    out.fuelAtTime.assign(n, std::vector<int>(steps + 1));
-    for (int i = 0; i < n; ++i) out.fuelAtTime[i][0] = out.agents[i].fuel;
     out.roadOccupancy.assign(cells, 0);
     std::vector<int> spotAt(cells, -1);
     for (size_t s = 0; s < config.spots.size(); ++s) {
@@ -104,7 +102,6 @@ DaySimulation MoveSimulator::simulateDay(const GameConfig& config,
                 out.agents[i].pos = destination[i];
                 collect(i, time + 1);
             }
-            out.fuelAtTime[i][time + 1] = out.agents[i].fuel;
         }
     }
     for (int i = 0; i < n; ++i)

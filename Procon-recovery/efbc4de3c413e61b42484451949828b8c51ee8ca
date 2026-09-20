@@ -242,7 +242,7 @@ std::vector<std::vector<int>> Solver::solve(
 
             std::vector<int> suffixSpots;
             std::vector<Position> suffixPositions;
-            int suffixTarget = -1;
+            int suffixTarget = currentTargets_[patrol];
             Position suffixTargetPos = patrolPos;
             auto suffix = PatrolPlanner::planDay(
                 config, map, patrolPos, daySteps - resumeAt, config.fuelLimit,

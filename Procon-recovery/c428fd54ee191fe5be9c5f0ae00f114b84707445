@@ -1,0 +1,64 @@
+# Cài đặt và chạy HexaUdon
+
+## 1. Yêu cầu
+
+- Windows: MinGW-w64 `g++` trong `PATH`, hỗ trợ C++17 và có header/thư viện WinHTTP (`winhttp.h`, `-lwinhttp`). `build.bat` cần các thành phần này cho chế độ API.
+- Linux/macOS: `g++` hỗ trợ C++17 để chạy unit test. Kết nối API hiện dùng WinHTTP của Windows.
+- Không cần cài `nlohmann/json`: header đã nằm trong `third_party/nlohmann/json.hpp`.
+- CMake 3.10 trở lên là tùy chọn.
+
+Kiểm tra nhanh trên Windows:
+
+```powershell
+g++ --version
+```
+
+## 2. Lấy mã nguồn
+
+```powershell
+git clone <URL_REPOSITORY>
+cd HexaUdon
+```
+
+Mở đúng thư mục chứa `CMakeLists.txt`, `build.bat` và `src/`.
+
+## 3. Biên dịch trên Windows
+
+Để tạo bot đầy đủ, bao gồm kết nối HTTPS:
+
+```powershell
+.\build.bat
+```
+
+Lệnh này tạo `HexaUdon.exe`, biên dịch `src/api/` và liên kết với `winhttp`.
+
+```powershell
+.\build.bat test      # Biên dịch và chạy tests/test_all.cpp
+.\build.bat runner    # Biên dịch test_runner và chạy với demo_input.json
+.\build.bat clean     # Xóa các executable do script tạo
+```
+
+## 4. Chạy local bằng stdin/stdout
+
+```powershell
+Get-Content .\demo_input.json | .\HexaUdon.exe --stdin
+```
+
+`demo_input.json` gồm một JSON `GameConfig`, sau đó là một JSON `GameState` cho mỗi ngày. Chương trình ghi JSON ra `stdout`; cảnh báo được ghi ra `stderr`.
+
+## 5. Chạy thi đấu qua API
+
+```powershell
+.\HexaUdon.exe --server https://procon26.haui.ac.vn --token YOUR_TOKEN --match MATCH_ID
+```
+
+Bot sẽ lấy cấu hình, gửi loại xe, chờ admin Start match, polling trạng thái, tính/kiểm tra và gửi action plan cho từng ngày.
+
+Token được truyền qua tham số dòng lệnh, vì vậy không nên commit token vào repository hoặc ghi token vào docs/log.
+
+## 6. Lưu ý về build
+
+- `build.bat` là đường build đầy đủ trên Windows.
+- Nếu gặp `fatal error: winhttp.h: No such file or directory`, toolchain MinGW hiện tại thiếu WinHTTP SDK; cần dùng toolchain Windows có WinHTTP hoặc bổ sung Windows SDK/MinGW-w64 phù hợp.
+- `build.sh` hiện phù hợp với build/test phần lõi; nhánh build app chính chưa thêm API và thư viện HTTPS.
+- `CMakeLists.txt` cũng gom phần lõi nhưng chưa khai báo `src/api/*.cpp` và WinHTTP; cần kiểm tra linker nếu dùng CMake để tạo executable chính.

@@ -1,0 +1,103 @@
+# Cấu trúc dữ liệu và điều khiển xe
+
+## 1. `GameConfig`
+
+JSON config được đọc một lần ở đầu stdin mode hoặc lấy từ API:
+
+```json
+{
+  "startsAt": 1778227200,
+  "daySeconds": [5, 5],
+  "daySteps": [10, 10],
+  "map": { "height": 4, "width": 4, "cells": [[0, 0, 1, 2]] },
+  "spots": [{ "brand": 0, "pos": 1, "stocks": 4 }],
+  "agents": [0, 5],
+  "fuelLimits": 20,
+  "players": 2,
+  "busyThreshold": 2,
+  "jammedThreshold": 4
+}
+```
+
+| Trường | Ý nghĩa |
+|---|---|
+| `startsAt` | Unix timestamp bắt đầu |
+| `daySeconds[i]` | Thời lượng thực của ngày `i` |
+| `daySteps[i]` | Số bước bắt buộc của ngày `i` |
+| `map.height`, `map.width` | Kích thước bản đồ |
+| `map.cells` | Ma trận địa hình `[y][x]` |
+| `spots` | Spot gồm `brand`, `pos`, `stocks` |
+| `agents` | Vị trí xuất phát xe |
+| `fuelLimits` | Dung lượng fuel tối đa |
+| `players` | Số đội |
+| `busyThreshold`, `jammedThreshold` | Ngưỡng traffic do server định nghĩa |
+
+Lấy tài nguyên cố định:
+
+```cpp
+for (const Spot& spot : config.spots) {
+    Position p = map.posToCoordinate(spot.pos);
+    std::cerr << "spot=" << p.x << "," << p.y
+              << " brand=" << spot.brand
+              << " stock=" << spot.stocks << "\n";
+}
+```
+
+## 2. `GameState`
+
+Mỗi ngày có một JSON trạng thái:
+
+```json
+{
+  "endsAt": 1778227205,
+  "day": 0,
+  "agents": [{ "kind": 0, "pos": 0, "fuel": 20 }],
+  "others": [],
+  "traffics": []
+}
+```
+
+- `day`: chỉ số ngày, bắt đầu từ 0.
+- `endsAt`: deadline của ngày.
+- `agents[i].kind`: `0` patrol, `1` supply.
+- `agents[i].pos`: vị trí hiện tại.
+- `agents[i].fuel`: fuel hiện tại.
+- `others`: xe đội khác gồm `id` và `agents`.
+- `traffics`: ô có traffic gồm `pos` và `status`.
+
+Kiểm tra agent và traffic:
+
+```cpp
+for (size_t i = 0; i < state.agents.size(); ++i) {
+    Position p = map.posToCoordinate(state.agents[i].pos);
+    std::cerr << "agent " << i << " pos=(" << p.x << "," << p.y
+              << ") fuel=" << state.agents[i].fuel
+              << " kind=" << state.agents[i].kind << "\n";
+}
+for (const Traffic& traffic : state.traffics) {
+    std::cerr << "traffic pos=" << traffic.pos
+              << " status=" << traffic.status << "\n";
+}
+```
+
+## 3. Cách lấy tài nguyên trong solver
+
+- Tài nguyên cố định: `config.spots[i].stocks`.
+- Tồn kho còn lại trong ngày: `Solver::remainingStock_`.
+- Spot patrol `i` đã ghé: `visitedSpotsToday_[i]`.
+- Brand đã thu thập cả trận: `collectedBrandsTotal_`.
+- Target hiện tại: `currentTargets_[i]`.
+- Fuel hiện tại: `state.agents[i].fuel`.
+- Chi phí di chuyển: `map.getTravelTime(pos)` và `map.getFuelCost(pos)`.
+
+Server không gửi trường stock còn lại theo ngày trong `GameState`; solver tự reset và trừ tồn kho cục bộ. Đây là giả định của implementation hiện tại.
+
+## 4. Action plan
+
+Mỗi xe có một vector action. Action `0..5` là di chuyển; số âm `-K` là chờ `K` steps.
+
+```json
+[[2, -8], [-10]]
+```
+
+Tổng chi phí của mỗi xe phải bằng `config.daySteps[state.day]`. Validator kiểm tra số vector, mã action, ô đến, fuel patrol và tổng steps.

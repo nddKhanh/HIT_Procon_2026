@@ -1,0 +1,209 @@
+# Tổng quan HexaUdon
+
+HexaUdon là bot C++17 cho trận Procon trên bản đồ lục giác. Chương trình có hai chế độ:
+
+- `--stdin`: đọc cấu hình và trạng thái từng ngày từ JSON, phù hợp để test local.
+- `--server`: gọi REST API của server, tự lấy dữ liệu trận đấu và gửi hành động.
+
+## 1. Luồng xử lý
+
+Trong `src/main.cpp`:
+
+1. Đọc `GameConfig` hoặc gọi GET config.
+2. `Solver::decideAgentTypes()` chọn loại xe.
+3. Đọc `GameState` hoặc gọi GET status cho từng ngày.
+4. `Map::updateTraffic()` cập nhật giao thông.
+5. `Solver::solve()` tạo action plan.
+6. `ActionValidator::validate()` kiểm tra steps, ô đến và nhiên liệu.
+7. Nếu không hợp lệ, fallback cho mọi xe chờ cả ngày.
+8. Ghi output hoặc gọi API gửi answer.
+
+| Module | Vai trò |
+|---|---|
+| `io/JsonReader` | Đọc `GameConfig` và `GameState` từ stdin |
+| `io/JsonWriter` | Ghi `agentTypes` và actions thành JSON |
+| `map/Map` | Tọa độ, địa hình, traffic, thời gian và nhiên liệu |
+| `solver/PathFinder` | Dijkstra có giới hạn nhiên liệu |
+| `solver/Solver` | Chọn spot, lập lịch patrol/supply |
+| `solver/ActionValidator` | Kiểm tra kế hoạch trước khi gửi |
+| `api/GameApiClient` | Gọi endpoint trận đấu |
+
+## 2. Bản đồ và di chuyển
+
+`pos` là chỉ số một chiều:
+
+```text
+pos = y * width + x
+x = pos % width
+y = pos / width
+```
+
+| Mã | Địa hình | Thời gian đi từ ô | Nhiên liệu patrol |
+|---:|---|---:|---:|
+| 0 | Đồng bằng | 2 | 1 |
+| 1 | Đường | 1, 2 hoặc 4 theo traffic | 2 |
+| 2 | Núi | 3 | 2 |
+| 3 | Hồ | Không đi được | Không áp dụng |
+
+Traffic `0` là bình thường, `1` là đông, `2` là kẹt; traffic chỉ thay đổi thời gian trên đường, không thay đổi fuel.
+
+| Action | Hướng |
+|---:|---|
+| 0 | Trên-trái |
+| 1 | Trên-phải |
+| 2 | Phải |
+| 3 | Dưới-phải |
+| 4 | Dưới-trái |
+| 5 | Trái |
+
+Lưới dùng quy ước offset theo hàng chẵn/lẻ trong `Map::nextPosition()`.
+
+## 3. Chiến thuật hiện tại
+
+- `0` là patrol, `1` là supply.
+- Nếu fuel lớn so với diện tích bản đồ, tất cả xe là patrol.
+- Đội tối đa hai xe không dùng supply; mặc định dùng `N - 1` patrol và 1 supply.
+- Patrol ưu tiên spot có brand chưa từng thu thập, sau đó ưu tiên đường ngắn hơn.
+- Một patrol có thể đi nhiều spot trong ngày đến khi hết thời gian, fuel hoặc spot hợp lệ.
+- Tồn kho reset theo `Spot::stocks` mỗi ngày; mỗi patrol không ghé cùng spot hai lần trong ngày.
+- Supply tìm patrol ít fuel nhất và đi đến target spot của patrol. Solver không mô phỏng thao tác nạp fuel.
+- `state.others` được đọc nhưng hiện chưa dùng để tránh đối thủ.
+
+## 4. Thuật toán đang sử dụng
+
+Thuật toán hiện tại là sự kết hợp của:
+
+1. heuristic ngưỡng để phân loại xe;
+2. Dijkstra để tìm đường ngắn nhất theo thời gian;
+3. heuristic tham lam để chọn spot tiếp theo;
+4. mô phỏng trực tiếp để cắt đường theo steps và fuel;
+5. fallback cho cả xe chờ nếu kế hoạch không hợp lệ.
+
+Đây không phải là A*, dynamic programming hay tối ưu toàn cục. Solver không tìm một lịch trình tối ưu cho toàn bộ trận; nó chọn quyết định tốt nhất tại từng bước dựa trên thông tin hiện tại.
+
+### 4.1. Phân loại Patrol và Supply
+
+`AgentStrategy::decideAgentTypes()` nhận `GameConfig` và trả về mảng có cùng kích thước với `initialAgentPositions`:
+
+- `0`: Patrol, có ghi nhận fuel và đi thu gom tại spot.
+- `1`: Supply, không bị trừ fuel khi di chuyển và được dùng làm điểm rendezvous.
+
+Quy tắc:
+
+```text
+n = số agent
+mapArea = height * width
+
+nếu fuelLimit >= mapArea * 2:
+    tất cả là Patrol
+ngược lại:
+    supplyCount = 1
+    nếu n <= 2: supplyCount = 0
+    nếu n >= 6 và fuelLimit <= 10 và mapArea > 400:
+        supplyCount = 2
+    giảm supplyCount nếu cần để luôn còn ít nhất 1 Patrol
+    gán các Supply vào các chỉ số cuối cùng
+```
+
+Đây là heuristic cố định, không đánh giá mật độ spot, khoảng cách thực tế hay fuel của từng agent.
+
+### 4.2. Tìm đường bằng Dijkstra
+
+`PathFinder::findPath()` gọi `runDijkstra()` trên các ô của bản đồ. Mỗi ô là một đỉnh; mỗi cạnh là một trong 6 hướng lục giác đến ô hợp lệ.
+
+Chi phí cạnh được tính từ ô đang đứng:
+
+```text
+newDist = dist[ô_đang_đứng] + map.getTravelTime(ô_đang_đứng)
+newFuel = fuel[ô_đang_đứng] + map.getFuelCost(ô_đang_đứng)
+```
+
+Ô tiếp theo bị bỏ qua nếu nằm ngoài bản đồ, là hồ (`cell == 3`) hoặc `newFuel > maxFuel`.
+
+Hàng đợi ưu tiên là `std::priority_queue` sắp xếp theo `dist` tăng dần. Khi một đỉnh có khoảng cách tốt hơn, Dijkstra lưu:
+
+- `dist`: tổng travel time ngắn nhất;
+- `fuel`: tổng fuel trên đường đã chọn;
+- `prevCell`: ô trước đó;
+- `prevDir`: hướng đi từ ô trước đến ô hiện tại.
+
+Khi gặp đích, `findPath()` dừng sớm và truy vết `prevCell`/`prevDir` để tạo vector hướng. `computeSSSP()` không dừng sớm, tính đường từ một nguồn đến tất cả ô, nhưng solver hiện chủ yếu gọi `findPath()` riêng cho từng spot.
+
+Traffic được cập nhật trước khi tìm đường. Vì vậy Dijkstra dùng travel time hiện tại của đường: 1 steps nếu thông, 2 nếu đông và 4 nếu kẹt. Fuel cost không đổi theo traffic.
+
+### 4.3. Chọn spot bằng heuristic tham lam
+
+Với mỗi patrol, `findBestNextSpot()` duyệt toàn bộ `config.spots` và loại bỏ spot nếu:
+
+1. patrol đã ghé spot đó trong ngày hiện tại;
+2. `remainingStock_[spot] <= 0`;
+3. không tìm được đường với fuel còn lại;
+4. tổng travel time vượt quá steps còn lại.
+
+Spot hợp lệ được chấm điểm:
+
+```text
+score = 1000 nếu brand chưa từng được thu thập trong trận
+score = 0 nếu brand đã từng được thu thập
+```
+
+Chọn spot có `score` cao hơn. Nếu điểm bằng nhau, chọn spot có `path.totalSteps` nhỏ hơn.
+
+Lưu ý: code hiện tại không dùng `stocks` để xếp hạng trong hàm chấm điểm, dù comment trong `Solver.hpp` có nhắc đến “higher stock”. `stocks` chỉ được dùng để loại spot hết hàng và trừ tồn kho sau khi patrol đến spot.
+
+### 4.4. Lập kế hoạch cho Patrol
+
+`buildMultiSpotPlan()` lặp cho tới khi hết steps, hết fuel hoặc không còn spot hợp lệ:
+
+```text
+currentPos = vị trí bắt đầu
+stepsUsed = 0
+fuelRemaining = fuel ban đầu
+
+lặp:
+    tìm spot tốt nhất bằng findBestNextSpot()
+    nếu không có spot: dừng
+    tìm đường Dijkstra đến spot
+    chuyển các hướng thành action, không vượt steps/fuel
+    mô phỏng từng action để cập nhật vị trí, steps và fuel
+    đánh dấu spot đã ghé
+    giảm remainingStock của spot
+    ghi nhận brand vào collectedBrandsTotal_
+    đặt currentTargets_ cho Supply rendezvous
+
+thêm action -remainingSteps để đủ tổng steps của ngày
+```
+
+`collectedBrandsTotal_` tồn tại qua nhiều ngày; `remainingStock_` và `visitedSpotsToday_` được reset khi `state.day` thay đổi. Vì vậy brand mới chỉ được ưu tiên một lần trong cả trận, còn stock được nạp lại theo giả định của solver vào đầu mỗi ngày.
+
+### 4.5. Lập kế hoạch cho Supply
+
+Supply được xử lý sau tất cả Patrol để đã biết `currentTargets_`:
+
+1. tìm Patrol có `fuel` thấp nhất;
+2. nếu Patrol có target spot, chọn spot đó làm đích; nếu không, chọn vị trí hiện tại của Patrol;
+3. tìm đường bằng Dijkstra với `maxFuel = INT_MAX`;
+4. tạo action di chuyển và thêm action chờ cho đủ tổng steps.
+
+Supply không bị trừ fuel trong `buildActionSequence()`. Ngoài ra, solver không có bước cộng fuel cho Patrol khi Supply đến nơi; đây chỉ là kế hoạch đi tới điểm gặp theo implementation hiện tại.
+
+### 4.6. Kiểm tra và fallback
+
+Sau khi `solve()` trả về, `ActionValidator::validate()` kiểm tra từng xe:
+
+- số vector action bằng số agent;
+- action di chuyển nằm trong `0..5`, action âm là wait;
+- tổng travel time và wait bằng chính xác `daySteps[state.day]`;
+- không đi vào hồ hoặc ra ngoài bản đồ;
+- Patrol không tiêu quá fuel.
+
+Nếu solver trả về action rỗng/sai số lượng hoặc validator thất bại, `main.cpp` thay bằng `createFallbackActions()`: mỗi agent nhận một action `-daySteps`, tức là chờ cả ngày. Fallback an toàn về tính hợp lệ nhưng không thu gom được spot.
+
+### 4.7. Chi phí tính toán
+
+Giả sử bản đồ có `V = height * width` ô và mỗi ô có tối đa 6 cạnh:
+
+- Một lần Dijkstra có chi phí xấp xỉ `O((V + E) log V)`, với `E <= 6V` nên gần `O(V log V)`.
+- Mỗi vòng chọn spot có thể gọi Dijkstra cho từng spot còn lại.
+- Một patrol có thể lặp nhiều vòng trong ngày, do đó tổng chi phí phụ thuộc vào số spot và số lần ghé spot.
+- `solve()` xử lý Patrol trước, sau đó mới Supply; các xe không được tối ưu đồng thời theo một bài toán chung.

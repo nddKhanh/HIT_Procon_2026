@@ -118,15 +118,7 @@ std::vector<int> SupplyPlanner::planDay(
         if (!supplyPath.found) continue;
         int overlapAt = std::max(supplyPath.totalSteps, point.readyAt);
         if (overlapAt + 1 > daySteps) continue;
-        int extensionPotential = 0;
-        int usableSteps = daySteps - overlapAt - 1;
-        auto reachable = PathFinder::computeSSSP(point.pos, map, config.fuelLimit, 1.0);
-        for (size_t si = 0; si < config.spots.size(); ++si) {
-            if (si >= remainingStock.size() || remainingStock[si] <= 0) continue;
-            auto route = reachable.extractPath(config.spots[si].pos);
-            extensionPotential += route.found && route.totalSteps <= usableSteps;
-        }
-        auto rank = std::make_tuple(deficit, extensionPotential, usableSteps);
+        auto rank = std::make_tuple(deficit, -supplyPath.totalSteps, -overlapAt);
         if (rank > bestRank) {
             bestRank = rank;
             targetPatrol = i;

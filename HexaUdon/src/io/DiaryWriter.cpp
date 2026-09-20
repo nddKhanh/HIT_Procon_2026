@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <solver/MoveSimulator.hpp>
 
 namespace {
 
@@ -84,7 +85,8 @@ void DiaryWriter::writeAgentTimeline(
     const std::vector<Position>& plannedStepPositions,
     const GameConfig& config,
     const Map& map,
-    const std::vector<int>& actions
+    const std::vector<int>& actions,
+    const DaySimulation* simulation
 ) {
     Position currentPosition = map.posToCoordinate(agent.pos);
     int currentStep = 0;
@@ -138,7 +140,7 @@ void DiaryWriter::writeAgentTimeline(
             }
         } else if (action <= 5) {
             duration = map.getTravelTime(currentPosition);
-            if (agent.kind == 0) {
+            if (!simulation && agent.kind == 0) {
                 currentFuel -= map.getFuelCost(currentPosition);
             }
             nextPosition = map.nextPosition(currentPosition, action);
@@ -168,6 +170,10 @@ void DiaryWriter::writeAgentTimeline(
         }
 
         currentStep += duration;
+        if (simulation && agentIndex < static_cast<int>(simulation->fuelAtTime.size()) &&
+            currentStep < static_cast<int>(simulation->fuelAtTime[agentIndex].size())) {
+            currentFuel = simulation->fuelAtTime[agentIndex][currentStep];
+        }
         int endStep = currentStep - 1;
         std::string stepRange = startStep == endStep
             ? std::to_string(startStep)
@@ -218,6 +224,8 @@ bool DiaryWriter::writeDay(
             << "Các dòng vị trí sau action và nhiên liệu còn lại là mô phỏng từ "
             << "action đã gửi, vì API không trả trạng thái sau từng bước.\n\n";
 
+    const auto simulation = MoveSimulator::simulateDay(config, state, actions, map);
+
     for (size_t i = 0; i < state.agents.size(); ++i) {
         const std::vector<int> emptyActions;
         const std::vector<int>& agentActions = i < actions.size() ? actions[i] : emptyActions;
@@ -244,7 +252,8 @@ bool DiaryWriter::writeDay(
             }(),
             config,
             map,
-            agentActions
+            agentActions,
+            simulation.valid ? &simulation : nullptr
         );
     }
 

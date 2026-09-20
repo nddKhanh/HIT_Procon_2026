@@ -121,12 +121,11 @@ void test_pathfinder_fuel_limit() {
 // Test 5: ActionValidator with travel time
 // =============================================================================
 void test_validator_travel_time() {
-    GameConfig config{};
+    GameConfig config;
     config.map.height = 1;
     config.map.width = 3;
     config.map.cells = {{0, 0, 0}};
     config.daySteps = {10};
-    config.fuelLimit = 20;
 
     GameState state;
     state.day = 0;
@@ -449,14 +448,6 @@ void test_upgrade_plan_policies() {
         2, 10, {-1, -1, -1}, {{1, 0}, {1, 0}, {2, 0}}, patrolActions,
         targetPatrol, targetSpot, targetPos, stepSpots, stepPositions, {}, {});
     assert(targetPatrol == 1 && !supplyActions.empty());
-
-    // For equal deficits, prefer the refill that can still reach remaining stock.
-    agents = {{0, 0, 1}, {0, 4, 1}, {1, 2, 0}};
-    patrolActions = {{2, -8}, {5, -8}, {}};
-    supplyActions = SupplyPlanner::planDay(config, map, agents[2], agents,
-        2, 10, {-1, -1, -1}, {{1, 0}, {3, 0}, {2, 0}}, patrolActions,
-        targetPatrol, targetSpot, targetPos, stepSpots, stepPositions, {}, {1});
-    assert(targetPatrol == 1 && !supplyActions.empty());
     std::cout << "[PASS] Upgrade scoring, claims, lookahead and supply policies passed!" << std::endl;
 }
 
@@ -514,7 +505,6 @@ void test_joint_simulator() {
         {{-1, 2, 2}, {-5}}, map);
     assert(refill.valid && refill.refuels == 1);
     assert(refill.agents[0].pos == 2 && refill.agents[0].fuel == 1);
-    assert(refill.fuelAtTime[0] == std::vector<int>({0, 3, 2, 2, 1, 1}));
     assert(refill.collections.size() == 2);
     assert(!MoveSimulator::simulateDay(config, state,
         {{2, 2, -1}, {-5}}, map).valid);
@@ -575,20 +565,6 @@ void test_joint_refuel_extends_patrol_route() {
     }
     assert(movedAfterWait);
     std::cout << "[PASS] Joint refuel extends patrol route test passed!" << std::endl;
-}
-
-void test_recorded_match_120_score_regression() {
-    // Match 6c560a25-4fb6-4494-bf35-99d73d645076: 18+26+27+25+24 = 120.
-    const std::vector<int> dailyServings = {18, 26, 27, 25, 24};
-    MatchScore score;
-    for (int servings : dailyServings) {
-        DaySimulation day;
-        day.valid = true;
-        for (int brand = 0; brand < 8; ++brand) day.brands.insert(brand);
-        day.collections.resize(servings);
-        score.add(day);
-    }
-    assert(score.rank() == std::make_tuple(8, 40, 120));
 }
 
 void test_incidental_spot_updates_planner_state() {
@@ -726,7 +702,6 @@ int main() {
     test_day_steps_are_per_day();
     test_joint_simulator();
     test_joint_refuel_extends_patrol_route();
-    test_recorded_match_120_score_regression();
     test_incidental_spot_updates_planner_state();
     test_map_and_geometry();
     test_travel_time_and_fuel();

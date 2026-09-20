@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+struct DaySimulation;
+
 /**
  * @brief Ghi nhật ký hành trình của toàn bộ xe trong một ngày ra Markdown.
  *
@@ -69,6 +71,7 @@ private:
         const std::vector<Position>& plannedStepPositions,
         const GameConfig& config,
         const Map& map,
-        const std::vector<int>& actions
+        const std::vector<int>& actions,
+        const DaySimulation* simulation
     );
 };

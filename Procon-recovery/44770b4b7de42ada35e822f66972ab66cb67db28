@@ -1,0 +1,71 @@
+# Kiểm tra, debug và xác nhận dữ liệu
+
+## 1. Unit test
+
+Windows:
+
+```powershell
+.\build.bat test
+```
+
+Linux/macOS:
+
+```bash
+./build.sh test
+```
+
+`tests/test_all.cpp` kiểm tra lưới lục giác, địa hình, traffic, thời gian, fuel, Dijkstra/SSSP, validator, solver nhiều spot, solver có supply và scoring spot.
+
+Kết quả cuối cần có `All unit tests completed successfully!`. `assert` thất bại sẽ dừng chương trình với mã lỗi.
+
+## 2. Runner với dữ liệu mẫu
+
+```powershell
+.\build.bat runner
+```
+
+Script tự động chạy `demo_input.json | test_runner.exe`. Runner in kích thước map, số xe, số spot, trạng thái agent, action plan và tổng steps. Đây là cách nhanh để kiểm tra solver mà không cần server.
+
+## 3. Chạy local và tách log
+
+```powershell
+Get-Content .\demo_input.json | .\HexaUdon.exe --stdin 1> result.jsonl 2> debug.log
+```
+
+- `result.jsonl`: dòng đầu là mảng loại xe, các dòng sau là actions theo ngày.
+- `debug.log`: cảnh báo validation và log chẩn đoán.
+
+Không dùng `result.jsonl` làm input cho lần chạy sau nếu chưa khôi phục đúng cấu trúc config + state.
+
+## 4. Kiểm tra input
+
+Trước khi chạy, kiểm tra:
+
+- `map.cells.size() == height`, mỗi hàng có `width` phần tử.
+- `spots[*].pos` nằm trong `0 .. height*width-1`.
+- `agents` có số phần tử đúng với đội.
+- `daySeconds.size()` và `daySteps.size()` bằng số ngày.
+- `state.day` nằm trong mảng `daySteps`.
+- vị trí agent/spot không nằm trên hồ.
+- `traffics[*].status` là `0`, `1` hoặc `2`.
+
+`tests/debug_match.cpp` in tọa độ spot/agent, terrain, đường đi tới spot và kết quả solver. File này dùng dữ liệu trận mẫu riêng, không đọc stdin.
+
+## 5. Kiểm tra khi chạy API
+
+Console hiển thị GET config, POST agent types, trạng thái chờ Start, từng ngày, số move/action và kết quả gửi answer. API client in request/response rút gọn ra `stderr`.
+
+HTTP 200 chưa chắc answer hợp lệ: nếu response có `{"valid": false, ...}`, client coi là thất bại và thử lại ngày đó.
+
+Nếu status lỗi, bot thử lại mỗi 2 giây, tối đa khoảng 5 phút. Khi match chưa start, bot poll mỗi 500 ms và cũng có giới hạn chờ.
+
+## 6. Sự cố thường gặp
+
+| Hiện tượng | Cách kiểm tra |
+|---|---|
+| Không biên dịch API | Dùng `build.bat` trên Windows; build chính cần WinHTTP |
+| `invalid action` | Chạy runner, xem tổng steps và validator |
+| Không đến được spot | Kiểm tra hồ, traffic, fuel và offset hàng chẵn/lẻ |
+| Bot cứ chờ | Match chưa Start, `agents` rỗng hoặc `endsAt == 0` |
+| API lỗi token | Kiểm tra `--server`, `--token`, `--match`; không in token vào log |
+| Local không chạy | Input phải có 1 config và đủ state cho mỗi ngày |

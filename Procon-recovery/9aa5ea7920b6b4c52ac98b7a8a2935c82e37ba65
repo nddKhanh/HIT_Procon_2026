@@ -22,8 +22,6 @@ struct DaySimulation {
     bool valid = false;
     std::string error;
     std::vector<Agent> agents;
-    // Fuel at each step boundary: [agent][0] is start-of-day fuel.
-    std::vector<std::vector<int>> fuelAtTime;
     std::vector<int> remainingStock;
     std::vector<long long> roadOccupancy;
     std::vector<CollectionEvent> collections;
