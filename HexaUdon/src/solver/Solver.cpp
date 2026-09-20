@@ -95,13 +95,54 @@ std::vector<int> assignFirstSpots(
 // =============================================================================
 
 std::vector<int> AgentStrategy::decideAgentTypes(const GameConfig& config) {
-    size_t n = config.initialAgentPositions.size();
-    if (n <= 2) return std::vector<int>(n, 0);
-    int supplyCount = static_cast<int>(n / 3);
-    if (supplyCount >= static_cast<int>(n)) supplyCount = static_cast<int>(n) - 1;
-    std::vector<int> types(n, 0);
-    for (int i = 0; i < supplyCount; ++i) types[n - 1 - i] = 1;
-    return types;
+    const int agentCount = static_cast<int>(config.initialAgentPositions.size());
+    std::vector<int> bestTypes(agentCount, 0);
+    int bestServings = -1;
+
+    for (int supplyCount = 0; supplyCount <= agentCount / 2; ++supplyCount) {
+        std::vector<int> types(agentCount, 0);
+        for (int i = 0; i < supplyCount; ++i) types[agentCount - 1 - i] = 1;
+
+        GameState state{};
+        for (int i = 0; i < agentCount; ++i) {
+            state.agents.push_back({types[i], config.initialAgentPositions[i], config.fuelLimit});
+        }
+
+        Map map(config.map.height, config.map.width, config.map.cells);
+        Solver solver;
+        int servings = 0;
+        bool valid = true;
+        for (int day = 0; day < static_cast<int>(config.daySteps.size()); ++day) {
+            state.day = day;
+            auto actions = solver.solve(config, state, map);
+            auto result = MoveSimulator::simulateDay(config, state, actions, map);
+            if (!result.valid) {
+                valid = false;
+                break;
+            }
+            servings += static_cast<int>(result.collections.size());
+            state.agents = std::move(result.agents);
+            solver.commitLastPlan();
+        }
+
+        std::cerr << "[FORMATION] supply=" << supplyCount
+                  << " servings=" << (valid ? std::to_string(servings) : "invalid")
+                  << '\n';
+
+        if (valid && servings > bestServings) {
+            bestServings = servings;
+            bestTypes = std::move(types);
+        }
+    }
+
+    std::cerr << "[FORMATION] selected servings=" << bestServings << " types=[";
+    for (int i = 0; i < agentCount; ++i) {
+        if (i > 0) std::cerr << ',';
+        std::cerr << bestTypes[i];
+    }
+    std::cerr << "]\n";
+
+    return bestTypes;
 }
 
 std::vector<int> Solver::decideAgentTypes(const GameConfig& config) {

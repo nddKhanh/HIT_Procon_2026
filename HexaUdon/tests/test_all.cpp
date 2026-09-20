@@ -693,15 +693,32 @@ void test_day_steps_are_per_day() {
     std::cout << "[PASS] Per-day step counts test passed!" << std::endl;
 }
 
-void test_agent_strategy_uses_one_third_supply() {
+void test_agent_strategy_simulates_supply_counts() {
     GameConfig config{};
     config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
-    assert(AgentStrategy::decideAgentTypes(config) ==
-           std::vector<int>({0, 0, 0, 0, 1, 1}));
+    assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>(6, 0));
 
-    config.initialAgentPositions = {0, 1};
-    assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>({0, 0}));
-    std::cout << "[PASS] One-third supply agent strategy test passed!" << std::endl;
+    config.daySeconds = {60, 60, 60, 60, 60};
+    config.daySteps = {8, 10, 12, 14, 16};
+    config.map.height = 6;
+    config.map.width = 6;
+    config.map.cells = {
+        {0, 0, 0, 1, 0, 0},
+        {2, 1, 0, 2, 0, 0},
+        {1, 0, 1, 0, 0, 0},
+        {2, 0, 1, 0, 0, 2},
+        {2, 1, 0, 0, 0, 2},
+        {2, 1, 0, 0, 0, 0}
+    };
+    config.spots = {
+        {0, 26, 2}, {1, 5, 1}, {2, 1, 4}, {3, 22, 1},
+        {0, 8, 4}, {1, 10, 3}, {2, 21, 3}, {3, 15, 3}
+    };
+    config.initialAgentPositions = {29, 0, 19, 28};
+    config.fuelLimit = 7;
+    assert(AgentStrategy::decideAgentTypes(config) ==
+           std::vector<int>({0, 0, 1, 1}));
+    std::cout << "[PASS] Simulated supply-count strategy test passed!" << std::endl;
 }
 
 void test_supply_intercept_lowest_fuel_multiday() {
@@ -794,7 +811,7 @@ void test_multiple_supplies_reserve_distinct_patrols() {
 
 int main() {
     test_day_steps_are_per_day();
-    test_agent_strategy_uses_one_third_supply();
+    test_agent_strategy_simulates_supply_counts();
     test_joint_simulator();
     test_joint_refuel_extends_patrol_route();
     test_recorded_match_120_score_regression();
