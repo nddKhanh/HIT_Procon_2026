@@ -1,0 +1,207 @@
+{
+  "startsAt": 1789912203,
+  "endsAt": 1789912263,
+  "day": 4,
+  "currentDay": 4,
+  "stepsCount": 99,
+  "agents": [
+    {
+      "kind": 0,
+      "pos": 249,
+      "fuel": 63
+    },
+    {
+      "kind": 0,
+      "pos": 16,
+      "fuel": 56
+    },
+    {
+      "kind": 0,
+      "pos": 16,
+      "fuel": 56
+    },
+    {
+      "kind": 1,
+      "pos": 199,
+      "fuel": 69
+    },
+    {
+      "kind": 1,
+      "pos": 118,
+      "fuel": 69
+    }
+  ],
+  "others": [],
+  "traffics": [
+    {
+      "pos": 4,
+      "status": 0
+    },
+    {
+      "pos": 5,
+      "status": 0
+    },
+    {
+      "pos": 14,
+      "status": 0
+    },
+    {
+      "pos": 23,
+      "status": 0
+    },
+    {
+      "pos": 41,
+      "status": 0
+    },
+    {
+      "pos": 42,
+      "status": 0
+    },
+    {
+      "pos": 45,
+      "status": 0
+    },
+    {
+      "pos": 53,
+      "status": 0
+    },
+    {
+      "pos": 55,
+      "status": 0
+    },
+    {
+      "pos": 60,
+      "status": 0
+    },
+    {
+      "pos": 61,
+      "status": 0
+    },
+    {
+      "pos": 79,
+      "status": 0
+    },
+    {
+      "pos": 80,
+      "status": 0
+    },
+    {
+      "pos": 88,
+      "status": 0
+    },
+    {
+      "pos": 91,
+      "status": 0
+    },
+    {
+      "pos": 92,
+      "status": 0
+    },
+    {
+      "pos": 93,
+      "status": 0
+    },
+    {
+      "pos": 99,
+      "status": 0
+    },
+    {
+      "pos": 116,
+      "status": 0
+    },
+    {
+      "pos": 122,
+      "status": 0
+    },
+    {
+      "pos": 123,
+      "status": 0
+    },
+    {
+      "pos": 124,
+      "status": 0
+    },
+    {
+      "pos": 134,
+      "status": 1
+    },
+    {
+      "pos": 161,
+      "status": 0
+    },
+    {
+      "pos": 172,
+      "status": 0
+    },
+    {
+      "pos": 200,
+      "status": 0
+    },
+    {
+      "pos": 205,
+      "status": 0
+    },
+    {
+      "pos": 207,
+      "status": 0
+    },
+    {
+      "pos": 208,
+      "status": 0
+    },
+    {
+      "pos": 212,
+      "status": 0
+    },
+    {
+      "pos": 219,
+      "status": 0
+    },
+    {
+      "pos": 228,
+      "status": 0
+    },
+    {
+      "pos": 230,
+      "status": 0
+    },
+    {
+      "pos": 233,
+      "status": 0
+    },
+    {
+      "pos": 236,
+      "status": 0
+    },
+    {
+      "pos": 239,
+      "status": 0
+    },
+    {
+      "pos": 240,
+      "status": 0
+    },
+    {
+      "pos": 250,
+      "status": 0
+    },
+    {
+      "pos": 262,
+      "status": 0
+    },
+    {
+      "pos": 263,
+      "status": 0
+    },
+    {
+      "pos": 269,
+      "status": 0
+    },
+    {
+      "pos": 271,
+      "status": 0
+    }
+  ],
+  "totalDays": 4,
+  "finished": true
+}
