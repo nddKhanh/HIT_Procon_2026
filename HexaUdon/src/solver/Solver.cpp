@@ -52,6 +52,8 @@ std::vector<int> assignFirstSpots(
         auto next = cost;
         for (int mask = 0; mask < stateCount; ++mask) {
             if (cost[mask] < unreachable) parent[spot + 1][mask] = {mask, -1};
+        }
+        for (int mask = 0; mask < stateCount; ++mask) {
             for (int p = 0; p < patrolCount; ++p) {
                 if ((mask & (1 << p)) || travel[p][spot] >= unreachable) continue;
                 int nextMask = mask | (1 << p);
@@ -95,13 +97,55 @@ std::vector<int> assignFirstSpots(
 // =============================================================================
 
 std::vector<int> AgentStrategy::decideAgentTypes(const GameConfig& config) {
-    size_t n = config.initialAgentPositions.size();
-    if (n <= 2) return std::vector<int>(n, 0);
-    int supplyCount = static_cast<int>(n / 3);
-    if (supplyCount >= static_cast<int>(n)) supplyCount = static_cast<int>(n) - 1;
-    std::vector<int> types(n, 0);
-    for (int i = 0; i < supplyCount; ++i) types[n - 1 - i] = 1;
-    return types;
+    const int agentCount = static_cast<int>(config.initialAgentPositions.size());
+    if (agentCount <= 1 || config.daySteps.empty())
+        return std::vector<int>(agentCount, 0);
+
+    std::vector<int> bestTypes(agentCount, 0);
+    std::tuple<long long, int, int> bestRank{-1, -1, -agentCount};
+
+    // ponytail: trials assume smooth traffic and no opponents; replace these
+    // deterministic trials with sampled scenarios if pre-match traffic becomes available.
+    for (int supplyCount = 0; supplyCount < agentCount; ++supplyCount) {
+        std::vector<int> types(agentCount, 0);
+        for (int i = 0; i < supplyCount; ++i) types[agentCount - 1 - i] = 1;
+
+        GameState state{};
+        state.agents.reserve(agentCount);
+        for (int i = 0; i < agentCount; ++i)
+            state.agents.push_back({types[i], config.initialAgentPositions[i], config.fuelLimit});
+
+        Map map(config.map.height, config.map.width, config.map.cells);
+        Solver trial;
+        long long patrolDistance = 0;
+        int servings = 0;
+        bool valid = true;
+        for (int day = 0; day < static_cast<int>(config.daySteps.size()); ++day) {
+            state.day = day;
+            auto actions = trial.solve(config, state, map);
+            auto simulated = MoveSimulator::simulateDay(config, state, actions, map);
+            if (!simulated.valid) {
+                valid = false;
+                break;
+            }
+            for (int i = 0; i < agentCount; ++i) {
+                if (types[i] != 0) continue;
+                patrolDistance += std::count_if(actions[i].begin(), actions[i].end(),
+                                                [](int action) { return action >= 0; });
+            }
+            servings += static_cast<int>(simulated.collections.size());
+            state.agents = std::move(simulated.agents);
+            trial.commitLastPlan();
+        }
+
+        const auto rank = std::make_tuple(valid ? patrolDistance : -1LL,
+                                          valid ? servings : -1, -supplyCount);
+        if (rank > bestRank) {
+            bestRank = rank;
+            bestTypes = std::move(types);
+        }
+    }
+    return bestTypes;
 }
 
 std::vector<int> Solver::decideAgentTypes(const GameConfig& config) {

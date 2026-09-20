@@ -420,6 +420,29 @@ void test_first_spot_uses_global_shortest_assignment() {
     std::cout << "[PASS] Global first-spot assignment test passed!" << std::endl;
 }
 
+void test_first_spot_reconstruction_keeps_late_cheaper_assignment() {
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 10;
+    config.map.cells = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
+    config.daySteps = {8};
+    config.fuelLimit = 30;
+    config.initialAgentPositions = {0, 9};
+    config.spots = {{0, 4, 1}, {1, 5, 1}, {2, 1, 1}, {3, 8, 1}};
+
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 0, 30}, {0, 9, 30}};
+    Map map(1, 10, config.map.cells);
+    Solver solver;
+    auto actions = solver.solve(config, state, map);
+
+    assert(ActionValidator::validate(config, state, actions, map));
+    assert(solver.getPlannedStepSpot(0, 0) == 2);
+    assert(solver.getPlannedStepSpot(1, 0) == 3);
+    std::cout << "[PASS] First-spot DP reconstruction test passed!" << std::endl;
+}
+
 void test_upgrade_plan_policies() {
     std::set<int> none;
     assert(SpotScorer::scoreSpot(0, 5, none, 1, 1, 6, 10) == 5235);
@@ -693,15 +716,29 @@ void test_day_steps_are_per_day() {
     std::cout << "[PASS] Per-day step counts test passed!" << std::endl;
 }
 
-void test_agent_strategy_uses_one_third_supply() {
+void test_agent_strategy_maximizes_patrol_distance() {
     GameConfig config{};
-    config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
+    config.map.height = 1;
+    config.map.width = 12;
+    config.map.cells = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
+    config.daySteps = {3, 5};
+    config.fuelLimit = 100;
+    config.initialAgentPositions = {0, 3, 6, 9};
+    config.spots = {{0, 1, 5}, {1, 5, 5}, {2, 10, 5}};
+    assert(AgentStrategy::decideAgentTypes(config) ==
+           std::vector<int>({0, 0, 0, 0}));
+
+    config.map.width = 15;
+    config.map.cells = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
+    config.daySteps = {5, 8, 12, 15, 20};
+    config.fuelLimit = 6;
+    config.initialAgentPositions = {0, 2, 5, 9, 12, 14};
+    config.spots = {{0, 1, 3}, {1, 4, 3}, {2, 7, 3},
+                    {3, 10, 3}, {4, 13, 3}};
+    // Exhaustive trial distances for 0..5 Supply are 32, 52, 65, 56, 47, 23.
     assert(AgentStrategy::decideAgentTypes(config) ==
            std::vector<int>({0, 0, 0, 0, 1, 1}));
-
-    config.initialAgentPositions = {0, 1};
-    assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>({0, 0}));
-    std::cout << "[PASS] One-third supply agent strategy test passed!" << std::endl;
+    std::cout << "[PASS] Adaptive supply-count strategy test passed!" << std::endl;
 }
 
 void test_supply_intercept_lowest_fuel_multiday() {
@@ -794,7 +831,7 @@ void test_multiple_supplies_reserve_distinct_patrols() {
 
 int main() {
     test_day_steps_are_per_day();
-    test_agent_strategy_uses_one_third_supply();
+    test_agent_strategy_maximizes_patrol_distance();
     test_joint_simulator();
     test_joint_refuel_extends_patrol_route();
     test_recorded_match_120_score_regression();
@@ -814,6 +851,7 @@ int main() {
     test_lexicographic_brand_ranking();
     test_stock_aware_coordination_and_reset();
     test_first_spot_uses_global_shortest_assignment();
+    test_first_spot_reconstruction_keeps_late_cheaper_assignment();
     test_upgrade_plan_policies();
     test_solver_retry_is_transactional();
     test_zero_wait_multiday_movement();
