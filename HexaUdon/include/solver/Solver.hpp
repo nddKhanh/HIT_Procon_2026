@@ -11,7 +11,8 @@
  */
 class AgentStrategy {
 public:
-    static std::vector<int> decideAgentTypes(const GameConfig& config);
+    static std::vector<int> decideAgentTypes(
+        const GameConfig& config, bool* useRegions = nullptr);
 };
 
 /**
@@ -75,10 +76,13 @@ public:
     Position getPlannedStepPosition(int agentIdx, int step) const;
 
 private:
+    friend class AgentStrategy;
+
     // === Trạng thái xuyên trận ===
     std::set<int> collectedBrandsTotal_;   // Brand đã thu thập toàn trận
     std::set<int> pendingBrandsTotal_;     // Candidate result, committed only after acceptance
     bool hasPendingPlan_ = false;
+    bool useRegions_ = false;
     std::set<int> claimedSpots_; // Exclusive daily reservations per upgrade_plan.md.
     int currentDay_ = -1;
 

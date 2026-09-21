@@ -2,6 +2,9 @@
 #include <cassert>
 #include <cmath>
 #include <climits>
+#include <fstream>
+#include <filesystem>
+#include <nlohmann/json.hpp>
 #include "model/GameConfig.hpp"
 #include "GameState.hpp"
 #include "map/Map.hpp"
@@ -9,6 +12,7 @@
 #include "solver/ActionValidator.hpp"
 #include "solver/Solver.hpp"
 #include "solver/MoveSimulator.hpp"
+#include "solver/PatrolPlanner.hpp"
 #include "solver/SupplyPlanner.hpp"
 #include "solver\SpotScorer.hpp"
 
@@ -511,6 +515,64 @@ void test_solver_retry_is_transactional() {
 // =============================================================================
 // Main
 // =============================================================================
+void test_server_replay() {
+    using nlohmann::json;
+    auto path = std::filesystem::path(__FILE__).parent_path() / "replay_5cc3b9ea.json";
+    std::ifstream input(path);
+    assert(input && "Missing recorded server replay");
+    json replay;
+    input >> replay;
+    const auto& c = replay["config"];
+    GameConfig config{};
+    config.daySteps = c["daySteps"].get<std::vector<int>>();
+    config.fuelLimit = c["fuelLimits"];
+    config.players = c["players"];
+    config.busyThreshold = c["busyThreshold"];
+    config.jammedThreshold = c["jammedThreshold"];
+    config.map.height = c["map"]["height"];
+    config.map.width = c["map"]["width"];
+    config.map.cells = c["map"]["cells"].get<std::vector<std::vector<int>>>();
+    for (const auto& s : c["spots"])
+        config.spots.push_back({s["brand"], s["pos"], s["stocks"]});
+    Map map(config.map.height, config.map.width, config.map.cells);
+    for (const auto& team : replay["teams"]) {
+        GameState state{};
+        for (size_t i = 0; i < team["kinds"].size(); ++i)
+            state.agents.push_back({team["kinds"][i], c["agents"][i], config.fuelLimit});
+        MatchScore score;
+        for (const auto& expected : team["days"]) {
+            state.traffics.clear();
+            for (const auto& t : replay["traffic"][state.day])
+                state.traffics.push_back({t[0], t[1]});
+            auto actions = expected["actions"].get<std::vector<std::vector<int>>>();
+            auto result = MoveSimulator::simulateDay(config, state, actions, map);
+            json agents = json::array(), collections = json::array();
+            json occupancy = json::object();
+            for (const auto& a : result.agents) agents.push_back({a.pos, a.fuel});
+            for (const auto& e : result.collections) collections.push_back({e.agent, e.brand});
+            for (size_t p = 0; p < result.roadOccupancy.size(); ++p)
+                if (result.roadOccupancy[p])
+                    occupancy[std::to_string(p)] = result.roadOccupancy[p];
+            bool matches = result.valid && agents == expected["agents"] &&
+                collections == expected["collections"] &&
+                result.remainingStock == expected["stock"].get<std::vector<int>>() &&
+                occupancy == expected["occupancy"];
+            if (!matches) {
+                std::cerr << "Replay mismatch: " << team["name"] << " day " << state.day + 1
+                          << " error=" << result.error << "\nagents=" << agents
+                          << "\ncollections=" << collections << "\noccupancy=" << occupancy << '\n';
+            }
+            assert(matches);
+            score.add(result);
+            state.agents = result.agents; // Carry predictions, never reset to the server's answer.
+            ++state.day;
+        }
+        assert(score.rank() == std::make_tuple(team["score"][0].get<int>(),
+            team["score"][1].get<int>(), team["score"][2].get<int>()));
+    }
+    std::cout << "[PASS] Server replay: 14 team-days, 112 agent states, collections, stock and traffic occupancy.\n";
+}
+
 void test_joint_simulator() {
     GameConfig config{};
     config.daySteps = {6, 6};
@@ -540,8 +602,11 @@ void test_joint_simulator() {
     assert(refill.agents[0].pos == 2 && refill.agents[0].fuel == 1);
     assert(refill.fuelAtTime[0] == std::vector<int>({0, 3, 2, 2, 1, 1}));
     assert(refill.collections.size() == 2);
-    assert(!MoveSimulator::simulateDay(config, state,
-        {{2, 2, -1}, {-5}}, map).valid);
+    auto departWhileRefueling = MoveSimulator::simulateDay(config, state,
+        {{2, 2, -1}, {-5}}, map);
+    assert(departWhileRefueling.valid && departWhileRefueling.refuels == 1);
+    assert(departWhileRefueling.agents[0].pos == 2 &&
+           departWhileRefueling.agents[0].fuel == 1);
 
     config.daySteps[0] = 2;
     state.agents = {{0, 0, 0}, {1, 1, 0}};
@@ -721,6 +786,41 @@ void test_agent_strategy_simulates_supply_counts() {
     std::cout << "[PASS] Simulated supply-count strategy test passed!" << std::endl;
 }
 
+void test_patrol_region_is_a_soft_preference() {
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 5;
+    config.map.cells = {{0, 0, 0, 0, 0}};
+    config.daySteps = {4};
+    config.fuelLimit = 10;
+    config.spots = {{0, 1, 1}, {0, 4, 1}};
+    Map map(1, 5, config.map.cells);
+
+    std::vector<int> stock = {1, 1};
+    std::set<int> visited, matchBrands, dailyBrands, claimed;
+    int target = -1;
+    Position targetPos{-1, -1};
+    std::vector<int> stepSpots;
+    std::vector<Position> stepPositions;
+    auto actions = PatrolPlanner::planDay(
+        config, map, {2, 0}, 4, 10, stock, visited, matchBrands, dailyBrands,
+        target, targetPos, stepSpots, stepPositions, claimed,
+        true, false, nullptr, -2, {1});
+    assert(!actions.empty() && actions[0] == 2);
+
+    stock = {1, 0};
+    visited.clear();
+    matchBrands.clear();
+    dailyBrands.clear();
+    claimed.clear();
+    actions = PatrolPlanner::planDay(
+        config, map, {2, 0}, 4, 10, stock, visited, matchBrands, dailyBrands,
+        target, targetPos, stepSpots, stepPositions, claimed,
+        true, false, nullptr, -2, {1});
+    assert(!actions.empty() && actions[0] == 5);
+    std::cout << "[PASS] Patrol region soft-preference test passed!" << std::endl;
+}
+
 void test_supply_intercept_lowest_fuel_multiday() {
     GameConfig config{};
     config.map.height = 1;
@@ -812,6 +912,7 @@ void test_multiple_supplies_reserve_distinct_patrols() {
 int main() {
     test_day_steps_are_per_day();
     test_agent_strategy_simulates_supply_counts();
+    test_patrol_region_is_a_soft_preference();
     test_joint_simulator();
     test_joint_refuel_extends_patrol_route();
     test_recorded_match_120_score_regression();

@@ -16,7 +16,8 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
     const std::set<int>& visitedToday, const std::vector<int>& remainingStock,
     const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
     const std::set<int>& claimedSpots, bool officialRanking,
-    bool exclusiveClaims, PathCache* pathCache) {
+    bool exclusiveClaims, PathCache* pathCache,
+    const std::set<int>& preferredSpots) {
     auto localCurrent = pathCache ? SSSPResult{} :
         PathFinder::computeSSSP(currentPos, map, fuelRemaining, 1.0);
     const auto& fromCurrent = pathCache ? pathCache->get(currentPos, fuelRemaining, 1.0) :
@@ -50,6 +51,8 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                     firstPath.totalFuel, fuelRemaining),
                 dailyBrands.count(config.spots[first].brand) ? 0 : 1,
                 0, 0, -firstPath.totalSteps, -firstPath.totalFuel};
+            pairRank[2] = preferredSpots.empty() ||
+                          preferredSpots.count(static_cast<int>(first)) ? 1 : 0;
             firstCandidates.push_back({static_cast<int>(first), std::move(firstPath), pairRank});
         }
         std::sort(firstCandidates.begin(), firstCandidates.end(),
@@ -97,6 +100,8 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                             secondPath.totalFuel, fuelRemaining - firstPath.totalFuel),
                         nextDailyBrands.count(config.spots[second].brand) ? 0 : 1,
                         0, 0, -secondPath.totalSteps, -secondPath.totalFuel};
+                    secondRank[2] = preferredSpots.empty() ||
+                                    preferredSpots.count(static_cast<int>(second)) ? 1 : 0;
                     auto withSecond = pairRank;
                     for (size_t i = 0; i < withSecond.size(); ++i) withSecond[i] += secondRank[i];
                     if (withSecond > pairRank) pairRank = withSecond;
@@ -140,7 +145,8 @@ std::vector<int> PatrolPlanner::planDay(
     bool officialRanking,
     bool exclusiveClaims,
     PathCache* pathCache,
-    int firstTargetSpot
+    int firstTargetSpot,
+    const std::set<int>& preferredSpots
 ) {
     std::vector<int> allActions;
     int stepsUsed = 0;
@@ -166,7 +172,7 @@ std::vector<int> PatrolPlanner::planDay(
                 currentPos, config, map,
                 fuelRemaining, stepsRemaining,
                 visitedToday, remainingStock, matchBrands, dailyBrands, claimedSpots,
-                officialRanking, exclusiveClaims, pathCache
+                officialRanking, exclusiveClaims, pathCache, preferredSpots
             );
         }
 

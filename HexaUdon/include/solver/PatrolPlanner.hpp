@@ -52,6 +52,7 @@ public:
         bool officialRanking = true,
         bool exclusiveClaims = false,
         PathCache* pathCache = nullptr,
-        int firstTargetSpot = -2
+        int firstTargetSpot = -2,
+        const std::set<int>& preferredSpots = {}
     );
 };

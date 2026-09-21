@@ -54,13 +54,18 @@ DaySimulation MoveSimulator::simulateDay(const GameConfig& config,
 
     std::vector<size_t> cursor(n, 0);
     std::vector<int> remaining(n, 0), destination(n, -1);
+    std::vector<int> departureFuel(n, 0);
+    std::vector<bool> beganAction(n, false);
     // ponytail: O(daySteps * agents^2) reference simulation; use events if
     // benchmarks show large day durations make the reference too expensive.
     for (int time = 0; time < steps; ++time) {
+        std::fill(departureFuel.begin(), departureFuel.end(), 0);
+        std::fill(beganAction.begin(), beganAction.end(), false);
         for (int i = 0; i < n; ++i) {
             if (remaining[i] != 0) continue;
             if (cursor[i] == actions[i].size()) return fail("Plan ends early");
             int act = actions[i][cursor[i]++];
+            beganAction[i] = true;
             destination[i] = -1;
             if (act < 0) {
                 if (act == INT_MIN || -act > steps - time)
@@ -72,21 +77,23 @@ DaySimulation MoveSimulator::simulateDay(const GameConfig& config,
                 auto next = map.nextPosition(pos, act);
                 if (!map.canMove(next)) return fail("Invalid destination");
                 int duration = map.getTravelTime(pos);
-                int fuel = out.agents[i].kind == 0 ? map.getFuelCost(pos) : 0;
-                if (duration > steps - time || fuel > out.agents[i].fuel)
-                    return fail("Insufficient time or fuel");
-                out.agents[i].fuel -= fuel;
+                if (duration > steps - time) return fail("Insufficient time");
+                departureFuel[i] = out.agents[i].kind == 0
+                    ? map.getFuelCost(pos) : 0;
                 remaining[i] = duration;
                 destination[i] = map.coordinateToPos(next);
             }
         }
         // Occupancy is at the departure cell for the full movement interval.
-        // Conservative default: a full shared waiting step guarantees refueling.
+        // The official engine refuels a patrol before it departs when a supply
+        // is waiting on the same cell. The optional rule also permits a moving
+        // supply to refuel, which has not been observed in recorded matches.
         for (int i = 0; i < n; ++i) {
             const auto& agent = out.agents[i];
             if (map.getCell(map.posToCoordinate(agent.pos)) == 1)
                 ++out.roadOccupancy[agent.pos];
-            if (agent.kind != 0 || (!rules.refuelDuringMovement && destination[i] >= 0))
+            if (agent.kind != 0 ||
+                (!rules.refuelDuringMovement && destination[i] >= 0 && !beganAction[i]))
                 continue;
             for (int j = 0; j < n; ++j) {
                 if (out.agents[j].kind == 1 && out.agents[j].pos == agent.pos &&
@@ -98,6 +105,11 @@ DaySimulation MoveSimulator::simulateDay(const GameConfig& config,
                     break;
                 }
             }
+        }
+        for (int i = 0; i < n; ++i) {
+            if (departureFuel[i] > out.agents[i].fuel)
+                return fail("Insufficient fuel");
+            out.agents[i].fuel -= departureFuel[i];
         }
         for (int i = 0; i < n; ++i) {
             if (--remaining[i] == 0 && destination[i] >= 0) {

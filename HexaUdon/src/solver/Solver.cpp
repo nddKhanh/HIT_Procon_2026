@@ -13,11 +13,56 @@
 
 namespace {
 
+constexpr bool kEnablePatrolRegions = false;
+
+std::vector<std::set<int>> assignPatrolRegions(
+    const GameConfig& config, const GameState& state, const Map& map,
+    const std::vector<int>& patrols, int daySteps, PathCache& pathCache) {
+    std::vector<std::set<int>> regions(state.agents.size());
+    std::vector<int> workload(state.agents.size());
+    std::vector<std::set<int>> brands(state.agents.size());
+    std::vector<int> spots(config.spots.size());
+    std::iota(spots.begin(), spots.end(), 0);
+    std::stable_sort(spots.begin(), spots.end(), [&](int a, int b) {
+        return config.spots[a].stocks > config.spots[b].stocks;
+    });
+
+    for (int spot : spots) {
+        int bestPatrol = -1;
+        int bestCost = std::numeric_limits<int>::max();
+        int bestDistance = std::numeric_limits<int>::max();
+        for (int patrol : patrols) {
+            const auto& agent = state.agents[patrol];
+            const auto& paths = pathCache.get(
+                map.posToCoordinate(agent.pos), agent.fuel, 1.0);
+            auto path = paths.extractPath(config.spots[spot].pos);
+            if (!path.found || path.totalSteps > daySteps) continue;
+
+            int duplicateBrandPenalty = brands[patrol].count(config.spots[spot].brand)
+                ? std::max(1, daySteps / 4) : 0;
+            int cost = path.totalSteps + workload[patrol] + duplicateBrandPenalty;
+            if (cost < bestCost ||
+                (cost == bestCost && path.totalSteps < bestDistance) ||
+                (cost == bestCost && path.totalSteps == bestDistance && patrol < bestPatrol)) {
+                bestPatrol = patrol;
+                bestCost = cost;
+                bestDistance = path.totalSteps;
+            }
+        }
+        if (bestPatrol < 0) continue;
+        regions[bestPatrol].insert(spot);
+        workload[bestPatrol] += std::max(1, config.spots[spot].stocks);
+        brands[bestPatrol].insert(config.spots[spot].brand);
+    }
+    return regions;
+}
+
 std::vector<int> assignFirstSpots(
     const GameConfig& config, const GameState& state, const Map& map,
     const std::vector<int>& patrols, int daySteps,
     const std::vector<int>& remainingStock,
-    const std::vector<std::set<int>>& visitedToday, PathCache& pathCache) {
+    const std::vector<std::set<int>>& visitedToday, PathCache& pathCache,
+    const std::vector<std::set<int>>& regions) {
     std::vector<int> assigned(state.agents.size(), -2);
     if (patrols.size() < 2 || config.spots.empty()) return assigned;
     for (int patrol : patrols) assigned[patrol] = -1;
@@ -35,8 +80,11 @@ std::vector<int> assignFirstSpots(
             if (remainingStock[spot] <= 0 || visitedToday[agent].count(static_cast<int>(spot)))
                 continue;
             auto path = paths.extractPath(config.spots[spot].pos);
-            if (path.found && path.totalSteps <= daySteps)
-                travel[p][spot] = path.totalSteps;
+            if (path.found && path.totalSteps <= daySteps) {
+                int regionPenalty = regions[agent].empty() ||
+                    regions[agent].count(static_cast<int>(spot)) ? 0 : daySteps;
+                travel[p][spot] = path.totalSteps + regionPenalty;
+            }
         }
     }
 
@@ -94,44 +142,53 @@ std::vector<int> assignFirstSpots(
 // AgentStrategy — Quyết định đội hình xe
 // =============================================================================
 
-std::vector<int> AgentStrategy::decideAgentTypes(const GameConfig& config) {
+std::vector<int> AgentStrategy::decideAgentTypes(
+    const GameConfig& config, bool* selectedUseRegions) {
     const int agentCount = static_cast<int>(config.initialAgentPositions.size());
     std::vector<int> bestTypes(agentCount, 0);
     int bestServings = -1;
+    bool bestUseRegions = false;
 
     for (int supplyCount = 0; supplyCount <= agentCount / 2; ++supplyCount) {
         std::vector<int> types(agentCount, 0);
         for (int i = 0; i < supplyCount; ++i) types[agentCount - 1 - i] = 1;
 
-        GameState state{};
-        for (int i = 0; i < agentCount; ++i) {
-            state.agents.push_back({types[i], config.initialAgentPositions[i], config.fuelLimit});
-        }
-
-        Map map(config.map.height, config.map.width, config.map.cells);
-        Solver solver;
-        int servings = 0;
-        bool valid = true;
-        for (int day = 0; day < static_cast<int>(config.daySteps.size()); ++day) {
-            state.day = day;
-            auto actions = solver.solve(config, state, map);
-            auto result = MoveSimulator::simulateDay(config, state, actions, map);
-            if (!result.valid) {
-                valid = false;
-                break;
+        for (bool useRegions : {false, true}) {
+            if (useRegions && !kEnablePatrolRegions) continue;
+            GameState state{};
+            for (int i = 0; i < agentCount; ++i) {
+                state.agents.push_back(
+                    {types[i], config.initialAgentPositions[i], config.fuelLimit});
             }
-            servings += static_cast<int>(result.collections.size());
-            state.agents = std::move(result.agents);
-            solver.commitLastPlan();
-        }
 
-        std::cerr << "[FORMATION] supply=" << supplyCount
-                  << " servings=" << (valid ? std::to_string(servings) : "invalid")
-                  << '\n';
+            Map map(config.map.height, config.map.width, config.map.cells);
+            Solver solver;
+            solver.useRegions_ = useRegions;
+            int servings = 0;
+            bool valid = true;
+            for (int day = 0; day < static_cast<int>(config.daySteps.size()); ++day) {
+                state.day = day;
+                auto actions = solver.solve(config, state, map);
+                auto result = MoveSimulator::simulateDay(config, state, actions, map);
+                if (!result.valid) {
+                    valid = false;
+                    break;
+                }
+                servings += static_cast<int>(result.collections.size());
+                state.agents = std::move(result.agents);
+                solver.commitLastPlan();
+            }
 
-        if (valid && servings > bestServings) {
-            bestServings = servings;
-            bestTypes = std::move(types);
+            std::cerr << "[FORMATION] supply=" << supplyCount
+                      << " regions=" << (useRegions ? "on" : "off")
+                      << " servings=" << (valid ? std::to_string(servings) : "invalid")
+                      << '\n';
+
+            if (valid && servings > bestServings) {
+                bestServings = servings;
+                bestTypes = types;
+                bestUseRegions = useRegions;
+            }
         }
     }
 
@@ -140,13 +197,15 @@ std::vector<int> AgentStrategy::decideAgentTypes(const GameConfig& config) {
         if (i > 0) std::cerr << ',';
         std::cerr << bestTypes[i];
     }
-    std::cerr << "]\n";
+    std::cerr << "] regions=" << (bestUseRegions ? "on" : "off") << '\n';
+
+    if (selectedUseRegions) *selectedUseRegions = bestUseRegions;
 
     return bestTypes;
 }
 
 std::vector<int> Solver::decideAgentTypes(const GameConfig& config) {
-    return AgentStrategy::decideAgentTypes(config);
+    return AgentStrategy::decideAgentTypes(config, &useRegions_);
 }
 
 void Solver::commitLastPlan() {
@@ -264,6 +323,9 @@ std::vector<std::vector<int>> Solver::solve(
     std::iota(original.begin(), original.end(), 0);
     std::vector<int> patrols;
     for (int i : original) if (state.agents[i].kind == 0) patrols.push_back(i);
+    const auto regions = assignPatrolRegions(
+        config, state, map, patrols, daySteps, pathCache);
+    const std::vector<std::set<int>> noRegions(numAgents);
     std::vector<std::vector<int>> orders;
     auto addOrder = [&](const std::vector<int>& order) {
         if (std::find(orders.begin(), orders.end(), order) == orders.end())
@@ -292,7 +354,8 @@ std::vector<std::vector<int>> Solver::solve(
     }
 
     auto planCandidate = [&](const std::vector<int>& order,
-                             bool officialRanking, bool exclusiveClaims) {
+                             bool officialRanking, bool exclusiveClaims,
+                             const std::vector<std::set<int>>& candidateRegions) {
         resetDailyState(config, numAgents);
         Candidate candidate;
         candidate.actions.resize(numAgents);
@@ -312,7 +375,7 @@ std::vector<std::vector<int>> Solver::solve(
         }
         const auto firstSpots = assignFirstSpots(
             config, state, map, patrols, daySteps, remainingStock_,
-            visitedSpotsToday_, pathCache);
+            visitedSpotsToday_, pathCache, candidateRegions);
         for (int i : order) {
             const Agent& agent = state.agents[i];
             if (agent.kind != 0) continue;
@@ -321,7 +384,7 @@ std::vector<std::vector<int>> Solver::solve(
                 remainingStock_, visitedSpotsToday_[i], matchBrands, dailyBrands,
                 currentTargets_[i], currentTargetPositions_[i], plannedStepSpots_[i],
                 plannedStepPositions_[i], claimedSpots_, officialRanking, exclusiveClaims,
-                &pathCache, firstSpots[i]);
+                &pathCache, firstSpots[i], candidateRegions[i]);
         }
         std::set<int> suppliedPatrols;
         for (int i = 0; i < numAgents; ++i) {
@@ -371,7 +434,8 @@ std::vector<std::vector<int>> Solver::solve(
                 config, map, patrolPos, daySteps - resumeAt, config.fuelLimit,
                 remainingStock_, visitedSpotsToday_[patrol], matchBrands, dailyBrands,
                 suffixTarget, suffixTargetPos, suffixSpots, suffixPositions,
-                claimedSpots_, officialRanking, exclusiveClaims, &pathCache);
+                claimedSpots_, officialRanking, exclusiveClaims, &pathCache,
+                -2, candidateRegions[patrol]);
 
             candidate.actions[patrol] = std::move(patrolPrefix);
             candidate.actions[patrol].push_back(-(resumeAt - patrolReadyAt));
@@ -422,10 +486,11 @@ std::vector<std::vector<int>> Solver::solve(
 
     // Preserve the former policy as a candidate, then try official-score
     // ranking under multiple patrol orders and select by simulated outcome.
-    best = planCandidate(original, false, true);
+    const auto& selectedRegions = useRegions_ ? regions : noRegions;
+    best = planCandidate(original, false, true, selectedRegions);
     for (const auto& order : orders) {
         if (!hasSearchTime()) break;
-        auto candidate = planCandidate(order, true, false);
+        auto candidate = planCandidate(order, true, false, selectedRegions);
         if (candidate.rank > best.rank) best = std::move(candidate);
     }
     actions = std::move(best.actions);
