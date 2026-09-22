@@ -1,7 +1,9 @@
 #include "solver/SupplyPlanner.hpp"
 #include "solver/MoveSimulator.hpp"
 #include "solver/PathFinder.hpp"
+#include "solver/PatrolPlanner.hpp"
 #include <algorithm>
+#include <chrono>
 #include <climits>
 #include <tuple>
 
@@ -129,35 +131,15 @@ std::vector<int> SupplyPlanner::planDay(
             auto route = reachable.extractPath(config.spots[si].pos);
             extensionPotential += route.found && route.totalSteps <= usableSteps;
         }
-        auto rank = std::make_tuple(deficit, extensionPotential, usableSteps);
+        auto rank = std::make_tuple(extensionPotential, usableSteps, deficit);
         if (rank > bestRank) {
             bestRank = rank;
             targetPatrol = i;
             targetPos = point.pos;
         }
     }
-    if (targetPatrol < 0) {
-        targetPatrol = findTargetPatrol(allAgents, supplyIdx, config, map,
-                                        collectedBrands, remainingStock, agentPos,
-                                        excludedPatrols);
-        if (targetPatrol >= 0)
-            targetPos = map.posToCoordinate(allAgents[targetPatrol].pos);
-    }
-    if (targetPatrol < 0) {
-        // Zero-Wait Policy for Supply car: move to any adjacent passable cell if possible
-        for (int dir = 0; dir < 6; ++dir) {
-            Position nPos = map.nextPosition(agentPos, dir);
-            if (map.canMove(nPos)) {
-                int travelTime = map.getTravelTime(agentPos);
-                if (travelTime <= daySteps) {
-                    std::vector<int> actions = {dir};
-                    MoveSimulator::padWithWait(actions, travelTime, daySteps);
-                    return actions;
-                }
-            }
-        }
-        return {-daySteps};
-    }
+    // Without a timed encounter, do not chase a patrol's obsolete start position.
+    if (targetPatrol < 0) return {-daySteps};
     plannedTargetPatrol = targetPatrol;
 
     for (size_t si = 0; si < config.spots.size(); ++si) {
@@ -181,4 +163,140 @@ std::vector<int> SupplyPlanner::planDay(
     std::vector<int> actions = sim.actions;
     MoveSimulator::padWithWait(actions, sim.stepsUsed, daySteps);
     return actions;
+}
+
+void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
+    const Map& inputMap, std::vector<std::vector<int>>& actions,
+    const std::set<int>& matchBrands, long long deadlineMs) {
+    Map map = inputMap;
+    map.updateTraffic(state.traffics);
+    const int steps = config.getDaySteps(state.day);
+    const int n = static_cast<int>(state.agents.size());
+    auto result = MoveSimulator::simulateDay(config, state, actions, map);
+    if (!result.valid) return;
+    PathCache cache(map);
+    auto rank = [&](const DaySimulation& day) {
+        int fresh = 0, fuel = 0;
+        for (int b : day.brands) fresh += !matchBrands.count(b);
+        for (const auto& a : day.agents) if (a.kind == 0) fuel += a.fuel;
+        return std::make_tuple(fresh, day.brands.size(), day.collections.size(), fuel);
+    };
+    auto inTime = [&] {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count() < deadlineMs;
+    };
+    struct Wait { int agent, begin, end, pos; };
+    // Only split at action boundaries or inside a wait, never in transit.
+    auto prefix = [&](int agent, int until) {
+        std::vector<int> out;
+        int time = 0;
+        auto pos = map.posToCoordinate(state.agents[agent].pos);
+        for (int a : actions[agent]) {
+            if (time == until) break;
+            int duration = a < 0 ? -a : map.getTravelTime(pos);
+            if (time + duration > until) { out.push_back(-(until - time)); break; }
+            out.push_back(a);
+            time += duration;
+            if (a >= 0) pos = map.nextPosition(pos, a);
+        }
+        return out;
+    };
+    // ponytail: bounded greedy joint repair (24 meetings/round, at most 2*n rounds).
+    // Expand to a beam only when this measured search ceiling leaves useful rescues.
+    for (int round = 0; round < 2 * n && inTime(); ++round) {
+        std::vector<Wait> waits;
+        for (int i = 0; i < n; ++i) {
+            int time = 0;
+            auto pos = map.posToCoordinate(state.agents[i].pos);
+            for (int a : actions[i]) {
+                int duration = a < 0 ? -a : map.getTravelTime(pos);
+                if (a < 0) waits.push_back({i, time, time + duration, map.coordinateToPos(pos)});
+                else pos = map.nextPosition(pos, a);
+                time += duration;
+            }
+        }
+        struct Meeting {
+            int supply, patrol, depart, meet, pos;
+            PathResult path;
+            std::tuple<int,int,int,int,int> priority;
+        };
+        std::vector<Meeting> meetings;
+        for (const auto& sw : waits) {
+            if (state.agents[sw.agent].kind != 1) continue;
+            std::set<int> departures{sw.begin};
+            // Reuse the supply immediately after any already planned encounter.
+            for (int t = std::max(1, sw.begin); t < sw.end; ++t)
+                for (int p = 0; p < n; ++p)
+                    if (state.agents[p].kind == 0 && result.positionsAtTime[p][t] == sw.pos &&
+                        result.fuelAtTime[p][t] > result.fuelAtTime[p][t-1]) departures.insert(t);
+            const auto& paths = cache.get(map.posToCoordinate(sw.pos));
+            for (const auto& pw : waits) {
+                if (state.agents[pw.agent].kind != 0) continue;
+                auto path = paths.extractPath(pw.pos);
+                if (!path.found) continue;
+                for (int depart : departures) {
+                    int meet = std::max({1, pw.begin, depart + path.totalSteps});
+                    if (meet >= steps || meet > pw.end || result.fuelAtTime[pw.agent][meet] >= config.fuelLimit)
+                        continue;
+                    std::set<int> visited;
+                    for (const auto& e : result.collections)
+                        if (e.agent == pw.agent && e.step <= meet) visited.insert(e.spot);
+                    int fresh = 0, daily = 0, potential = 0;
+                    const auto& onward = cache.get(map.posToCoordinate(pw.pos), config.fuelLimit, 1.0);
+                    for (size_t s = 0; s < config.spots.size(); ++s) {
+                        if (visited.count(static_cast<int>(s)) || result.remainingStock[s] <= 0) continue;
+                        auto route = onward.extractPath(config.spots[s].pos);
+                        if (!route.found || route.totalSteps > steps - meet) continue;
+                        fresh += !matchBrands.count(config.spots[s].brand);
+                        daily += !result.brands.count(config.spots[s].brand);
+                        ++potential;
+                    }
+                    meetings.push_back({sw.agent, pw.agent, depart, meet, pw.pos, path,
+                        {fresh, daily, potential, pw.end - meet, -path.totalSteps}});
+                }
+            }
+        }
+        std::stable_sort(meetings.begin(), meetings.end(), [](const Meeting& a, const Meeting& b) {
+            return a.priority > b.priority;
+        });
+        if (meetings.size() > 24) meetings.resize(24);
+        auto bestRank = rank(result);
+        auto bestActions = actions;
+        auto bestResult = result;
+        for (const auto& m : meetings) {
+            if (!inTime()) break;
+            auto candidate = actions;
+            candidate[m.supply] = prefix(m.supply, m.depart);
+            candidate[m.supply].insert(candidate[m.supply].end(), m.path.directions.begin(), m.path.directions.end());
+            MoveSimulator::padWithWait(candidate[m.supply], m.depart + m.path.totalSteps, steps);
+            candidate[m.patrol] = prefix(m.patrol, m.meet);
+            std::vector<int> stock;
+            for (const auto& s : config.spots) stock.push_back(s.stocks);
+            std::set<int> visited, daily, brands = matchBrands, claims;
+            for (const auto& e : result.collections) {
+                if (e.agent == m.patrol && e.step > m.meet) continue;
+                --stock[e.spot];
+                daily.insert(e.brand);
+                brands.insert(e.brand);
+                if (e.agent == m.patrol) visited.insert(e.spot);
+            }
+            int target = -1;
+            Position targetPos;
+            std::vector<int> stepSpots;
+            std::vector<Position> stepPositions;
+            auto suffix = PatrolPlanner::planDay(config, map, map.posToCoordinate(m.pos), steps-m.meet,
+                config.fuelLimit, stock, visited, brands, daily, target, targetPos,
+                stepSpots, stepPositions, claims, true, false, &cache);
+            candidate[m.patrol].insert(candidate[m.patrol].end(), suffix.begin(), suffix.end());
+            auto simulated = MoveSimulator::simulateDay(config, state, candidate, map);
+            if (simulated.valid && rank(simulated) > bestRank) {
+                bestRank = rank(simulated);
+                bestActions = std::move(candidate);
+                bestResult = std::move(simulated);
+            }
+        }
+        if (bestRank <= rank(result)) break;
+        actions = std::move(bestActions);
+        result = std::move(bestResult);
+    }
 }

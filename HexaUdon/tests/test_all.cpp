@@ -14,6 +14,7 @@
 #include "solver/MoveSimulator.hpp"
 #include "solver/PatrolPlanner.hpp"
 #include "solver/SupplyPlanner.hpp"
+#include "io/DiaryWriter.hpp"
 #include "solver\SpotScorer.hpp"
 
 // =============================================================================
@@ -535,6 +536,8 @@ void test_server_replay() {
     for (const auto& s : c["spots"])
         config.spots.push_back({s["brand"], s["pos"], s["stocks"]});
     Map map(config.map.height, config.map.width, config.map.cells);
+    std::vector<std::vector<long long>> totalOccupancy(config.daySteps.size(),
+        std::vector<long long>(config.map.height * config.map.width));
     for (const auto& team : replay["teams"]) {
         GameState state{};
         for (size_t i = 0; i < team["kinds"].size(); ++i)
@@ -563,6 +566,26 @@ void test_server_replay() {
                           << "\ncollections=" << collections << "\noccupancy=" << occupancy << '\n';
             }
             assert(matches);
+            if (team["name"] == "HaUI.Something" && state.day == 3) {
+                auto repaired = actions;
+                SupplyPlanner::improveDay(config, state, map, repaired, score.brands);
+                auto rescue = MoveSimulator::simulateDay(config, state, repaired, map);
+                std::cerr << "[RESCUE] day4 servings=" << rescue.collections.size() << " supply5=";
+                for (int a : repaired[5]) std::cerr << a << ',';
+                std::cerr << '\n';
+                assert(rescue.valid && rescue.brands.size() >= result.brands.size());
+                assert(rescue.collections.size() > result.collections.size());
+                bool served2 = false, then0 = false;
+                for (int t = 1; t <= config.daySteps[state.day]; ++t) {
+                    if (rescue.positionsAtTime[5][t] == rescue.positionsAtTime[2][t] &&
+                        rescue.fuelAtTime[2][t] > rescue.fuelAtTime[2][t-1]) served2 = true;
+                    if (served2 && t < 30 && rescue.positionsAtTime[5][t] == rescue.positionsAtTime[0][t] &&
+                        rescue.fuelAtTime[0][t] > rescue.fuelAtTime[0][t-1]) then0 = true;
+                }
+                assert(then0);
+            }
+            for (size_t p = 0; p < result.roadOccupancy.size(); ++p)
+                totalOccupancy[state.day][p] += result.roadOccupancy[p];
             score.add(result);
             state.agents = result.agents; // Carry predictions, never reset to the server's answer.
             ++state.day;
@@ -570,7 +593,14 @@ void test_server_replay() {
         assert(score.rank() == std::make_tuple(team["score"][0].get<int>(),
             team["score"][1].get<int>(), team["score"][2].get<int>()));
     }
-    std::cout << "[PASS] Server replay: 14 team-days, 112 agent states, collections, stock and traffic occupancy.\n";
+    for (size_t day = 0; day + 1 < config.daySteps.size(); ++day) {
+        auto next = MoveSimulator::nextTraffic(config,
+            day ? totalOccupancy[day - 1] : std::vector<long long>{}, totalOccupancy[day]);
+        json actual = json::array();
+        for (const auto& t : next) actual.push_back({t.pos, t.status});
+        assert(actual == replay["traffic"][day + 1]);
+    }
+    std::cout << "[PASS] Server replay: 14 team-days, 112 agent states, collections, stock, occupancy and 6 traffic transitions.\n";
 }
 
 void test_joint_simulator() {
@@ -600,8 +630,11 @@ void test_joint_simulator() {
         {{-1, 2, 2}, {-5}}, map);
     assert(refill.valid && refill.refuels == 1);
     assert(refill.agents[0].pos == 2 && refill.agents[0].fuel == 1);
-    assert(refill.fuelAtTime[0] == std::vector<int>({0, 3, 2, 2, 1, 1}));
+    assert(refill.fuelAtTime[0] == std::vector<int>({0, 3, 3, 2, 2, 1}));
     assert(refill.collections.size() == 2);
+    // A future refill cannot make a zero-fuel departure legal.
+    assert(!MoveSimulator::simulateDay(config, state, {{2, 2, -1}, {-5}}, map).valid);
+    state.agents[0].fuel = 1;
     auto departWhileRefueling = MoveSimulator::simulateDay(config, state,
         {{2, 2, -1}, {-5}}, map);
     assert(departWhileRefueling.valid && departWhileRefueling.refuels == 1);
@@ -611,11 +644,9 @@ void test_joint_simulator() {
     config.daySteps[0] = 2;
     state.agents = {{0, 0, 0}, {1, 1, 0}};
     auto late = MoveSimulator::simulateDay(config, state, {{-2}, {5}}, map);
-    assert(late.valid && late.refuels == 0 && late.agents[0].fuel == 0);
+    assert(late.valid && late.refuels == 1 && late.agents[0].fuel == 3);
     state.agents = {{0, 1, 1}};
     assert(MoveSimulator::simulateDay(config, state, {{-2}}, map).collections.size() == 1);
-    assert(MoveSimulator::simulateDay(config, state, {{-2}}, map,
-        {false, false}).collections.empty());
 
     config.daySteps[0] = 4;
     state.agents = {{0, 1, 3}};
@@ -632,8 +663,92 @@ void test_joint_simulator() {
     state.agents = {{0, 0, 3}};
     state.traffics = {{0, 1}};
     auto road = MoveSimulator::simulateDay(config, state, {{2}}, roads);
-    assert(road.valid && road.roadOccupancy[0] == 2 && road.agents[0].fuel == 1);
+    assert(road.valid && road.roadOccupancy[0] == 1 && road.agents[0].fuel == 1);
     std::cout << "[PASS] Joint simulation, collection, refueling and score tests passed!" << std::endl;
+}
+
+void test_simulator_step_boundaries() {
+    GameConfig config{};
+    config.daySteps = {2};
+    config.fuelLimit = 5;
+    config.spots = {{7, 1, 1}};
+    GameState state{};
+    Map plain(1, 3, {{0, 0, 0}});
+    state.agents = {{0, 0, 1}, {1, 2, 5}};
+    auto meeting = MoveSimulator::simulateDay(config, state, {{2}, {5}}, plain);
+    assert(meeting.valid && meeting.agents[0].fuel == 5 && meeting.refuels == 1);
+    assert(meeting.fuelAtTime[0] == std::vector<int>({1, 1, 5}));
+    assert(meeting.collections.size() == 1 && meeting.collections[0].step == 2);
+
+    // Swapping adjacent cells is not a same-cell encounter at a step boundary.
+    state.agents[1].pos = 1;
+    auto crossing = MoveSimulator::simulateDay(config, state, {{2}, {5}}, plain);
+    assert(crossing.valid && crossing.refuels == 0 && crossing.agents[0].fuel == 0);
+
+    config.daySteps = {4};
+    config.spots.clear();
+    Map terrain(1, 3, {{2, 1, 0}});
+    state.agents = {{0, 0, 2}, {1, 1, 5}};
+    auto transit = MoveSimulator::simulateDay(config, state, {{2, 2}, {5, 2}}, terrain);
+    assert(transit.valid && transit.refuels == 1);
+    assert(transit.fuelAtTime[0] == std::vector<int>({2, 5, 5, 3, 1}));
+    assert(transit.agents[0].pos == 2 && transit.agents[0].fuel == 1);
+    assert(transit.roadOccupancy == std::vector<long long>({0, 2, 0}));
+
+    // Arrivals on roads count on the last boundary, and one-step road moves finish.
+    config.daySteps = {1};
+    Map roads(1, 2, {{1, 1}});
+    state.agents = {{0, 0, 2}};
+    auto last = MoveSimulator::simulateDay(config, state, {{2}}, roads);
+    assert(last.valid && last.agents[0].pos == 1 && last.agents[0].fuel == 0);
+    assert(last.roadOccupancy == std::vector<long long>({0, 1}));
+
+    config.map = {1, 2, {{1, 1}}};
+    config.players = 2;
+    config.busyThreshold = 2;
+    config.jammedThreshold = 4;
+    auto traffic = MoveSimulator::nextTraffic(config, {1, 3}, {3, 5});
+    assert(traffic.size() == 2 && traffic[0].status == 1 && traffic[1].status == 2);
+    assert(MoveSimulator::nextTraffic(config, {}, {0, 0}).empty());
+    bool rejected = false;
+    try { MoveSimulator::nextTraffic(config, {}, {-1, 0}); }
+    catch (const std::invalid_argument&) { rejected = true; }
+    assert(rejected);
+    std::cout << "[PASS] Arrival fuel, moving/final-step refueling and traffic boundaries.\n";
+}
+
+void test_diary_uses_canonical_simulation() {
+    GameConfig config{};
+    config.map = {1, 2, {{1, 0}}};
+    config.daySteps = {2};
+    config.fuelLimit = 3;
+    GameState state{};
+    state.agents = {{0, 0, 3}};
+    state.traffics = {{0, 1}};
+    Map staleMap(1, 2, config.map.cells);
+    Solver solver;
+    auto root = std::filesystem::path(__FILE__).parent_path().parent_path() /
+        ".build" / "diary_simulator_test";
+    assert(DiaryWriter::writeDay(root.string(), "valid", 0, 2,
+        config, state, staleMap, solver, {{2}}, false));
+    std::ifstream valid(root / "valid" / "day_0.md");
+    std::string text((std::istreambuf_iterator<char>(valid)), {});
+    assert(text.find("| 0-1 |") != std::string::npos);
+    assert(DiaryWriter::writeDay(root.string(), "invalid", 0, 2,
+        config, state, staleMap, solver, {{-3}}, false));
+    std::ifstream invalid(root / "invalid" / "day_0.md");
+    text.assign(std::istreambuf_iterator<char>(invalid), {});
+    assert(text.find("Wait exceeds day") != std::string::npos);
+    assert(text.find("`[-3]`") != std::string::npos);
+    assert(text.find("|---") == std::string::npos);
+    valid.close();
+    invalid.close();
+    for (const auto* name : {"valid", "invalid"}) {
+        std::filesystem::remove(root / name / "day_0.md");
+        std::filesystem::remove(root / name);
+    }
+    std::filesystem::remove(root);
+    std::cout << "[PASS] Diary uses snapshot traffic and reports invalid simulation without predictions.\n";
 }
 
 void test_joint_refuel_extends_patrol_route() {
@@ -760,6 +875,9 @@ void test_day_steps_are_per_day() {
 
 void test_agent_strategy_simulates_supply_counts() {
     GameConfig config{};
+    config.players = 2;
+    config.busyThreshold = 2;
+    config.jammedThreshold = 4;
     config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
     assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>(6, 0));
 
@@ -781,8 +899,9 @@ void test_agent_strategy_simulates_supply_counts() {
     };
     config.initialAgentPositions = {29, 0, 19, 28};
     config.fuelLimit = 7;
+    // Official ranking prefers 4/20/45 with one supply over 4/19/46 with two.
     assert(AgentStrategy::decideAgentTypes(config) ==
-           std::vector<int>({0, 0, 1, 1}));
+           std::vector<int>({0, 0, 0, 1}));
     std::cout << "[PASS] Simulated supply-count strategy test passed!" << std::endl;
 }
 
@@ -910,6 +1029,9 @@ void test_multiple_supplies_reserve_distinct_patrols() {
 }
 
 int main() {
+    test_server_replay();
+    test_simulator_step_boundaries();
+    test_diary_uses_canonical_simulation();
     test_day_steps_are_per_day();
     test_agent_strategy_simulates_supply_counts();
     test_patrol_region_is_a_soft_preference();

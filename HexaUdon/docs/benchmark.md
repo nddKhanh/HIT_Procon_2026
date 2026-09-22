@@ -1,131 +1,107 @@
-# Offline simulation and baseline benchmark
+# Simulation verification and offline evaluation
 
-From the repository root on Windows:
+Run from the repository root:
 
 ```powershell
-.\build.bat test
-.\build.bat benchmark
-# Once compiled, CSV can be captured without compiler output:
-.\benchmark.exe > baseline.csv
+cmd /c build.bat test
+cmd /c build.bat
 ```
 
-CMake also exposes a `benchmark` target. The Windows benchmark build uses
-`-O2`; compare timings only with the same build flags and machine.
+`MoveSimulator::simulateDay` is shared by production validation, candidate
+ranking, formation rollouts and diary fuel output. Invalid results may contain
+partial state/events: never score or carry them into another day.
+`MatchScore` compares `(match brands, daily brands, servings)` lexicographically.
 
-## Scope
+## Verified server replay
 
-`MoveSimulator::simulateDay` evaluates a whole team's actions against one
-clock. It records final positions/fuel, incidental spot collections, shared
-stock, daily brands, road occupancy and refueling events. An invalid result
-contains a diagnostic and may contain partial events; do not score or commit
-it. `MatchScore::add` ignores invalid results.
+`tests/replay_5cc3b9ea.json` records the completed match
+[5cc3b9ea-8134-4862-9874-5ddf1df4b046](https://procon26.haui.ac.vn/matches/5cc3b9ea-8134-4862-9874-5ddf1df4b046).
+The source is the authenticated match response's accepted actions, history
+states, stock, collected Udon and road conditions, not the browser animation.
+No tokens, cookies or account identifiers are included. Field encodings:
 
-The production validator and planner are unchanged. This reference simulator
-must be checked against the official engine before it becomes the production
-authority for refueling legality.
+- `traffic[day]`: non-smooth `[position, status]` pairs for that day.
+- `teams[].kinds`: fixed vehicle types; initial positions/fuel come from config.
+- `teams[].days[].agents`: expected end-of-day `[position, fuel]` pairs.
+- `collections`: ordered `[agent index, brand]` pairs (this map has one spot per brand).
+- `stock`: expected remaining quantities in config spot order.
+- `occupancy`: expected road-position to occupied-step count for this team.
+- `actions`: accepted action arrays; `score`: expected final score tuple.
 
-## Explicit assumptions
+`test_server_replay()` carries predicted positions/fuel forward, rather than
+resetting them to each server snapshot. It checks both teams over seven days:
+112 vehicle states, all 380 ordered collection events, remaining stock, road
+occupancy, six next-day traffic transitions and final scores:
 
-- Fuel is charged when a move begins; arrival happens after its full duration.
-- Road occupancy counts departure-cell occupancy during movement and waiting.
-- Collections occur on every movement arrival, including the final boundary.
-- Starting a day on a spot triggers collection. Pass
-  `SimulationRules{false, ...}` only for legacy fixtures.
-- Default: refueling requires both vehicles to wait in the same cell for a
-  whole step. Set `refuelDuringMovement` to allow shared departure-cell
-  occupancy during a move as well. A refill cannot fund a movement command
-  that was already invalid when issued.
-- Refueling is processed before arrivals at the end of each step. Arriving
-  together at the day boundary does not provide an overlap step.
-- Simultaneous collections use agent-index order. This may affect which
-  patrol gets the final serving and must be verified against the official engine.
-- Stock resets daily; each patrol gets at most one serving per spot per day.
+| Team | Match brands | Daily brands | Servings |
+|---|---:|---:|---:|
+| HaUI.Something | 20 | 135 | 204 |
+| Chaosql | 20 | 134 | 176 |
 
-## Benchmark corpus
+The old simulator fails this replay (already on HaUI.Something day 2,
+vehicle 4: predicts fuel 12 while the server records 22).
 
-Thirty fixed seeds generate connected 8x8, 12x12 and 16x16 maps with plain,
-road and mountain terrain, 3-6 agents, eight spots, four brands, varying
-stock and fuel, and four days. Positions/fuel carry over from the simulated
-previous day, rather than reading unrelated daily snapshots.
+## Step semantics
 
-This is a **single-team synthetic baseline**, not a competitive win-rate
-evaluation. Traffic uses the team's preceding two days of road occupancy
-with one player. There are no ponds, opponent trajectories, server latency
-or measured deadline misses in this initial corpus.
+1. Collect on initial spots in agent-index order.
+2. Start ready actions; validate direction, passability, time and departure fuel.
+3. Advance all actions by one step. Complete arrivals and charge their movement
+   fuel. Movement time and fuel cost are determined by the departure terrain.
+4. Collect on arrival, including the last boundary of the day; ties use agent
+   index. Stock resets daily and a patrol collects at most once per spot/day.
+5. Refuel patrols sharing the post-step discrete position with any supply.
+   Neither vehicle needs to wait. This also happens at the final boundary.
+6. Record fuel and road occupancy at the post-step positions. Vehicles in transit
+   retain their source position until arrival. Initial boundary 0 is excluded
+   from road occupancy; boundaries 1 through daySteps are included.
 
-Each row reports seed, distinct match brands, sum of daily distinct brands,
-servings, successful fuel increases, invalid plans and total solve milliseconds.
-Stderr reports median, p95 and maximum per-day planning times. Invalid plans
-are replaced with waits for continuation and cause a nonzero benchmark exit.
+`fuelAtTime[agent][0]` is the supplied initial fuel; subsequent entries include
+arrival debits and refueling. Short path `simulate()` is only a movement-prefix
+budget helper: use `simulateDay()` to score a whole team's interacting actions.
 
-Preserve a CSV for each solver revision. Compare identical seeds
-lexicographically by (types, daily_types, servings), and inspect invalid counts
-before comparing scores. Runtime is measured separately and is not server
-response time. The current solver commits its own predicted brands, so the
-benchmark can expose consequences of its incomplete collection bookkeeping.
+`nextTraffic(config, previousDay, currentDay)` requires occupancy totals across
+**all teams**, for the two most recently completed days. An empty previousDay
+represents the first completed day. For each road cell, compare the sum against
+`players * jammedThreshold`, then `players * busyThreshold` (inclusive). It does
+not average over the number of days. All six recorded transitions match.
 
-The first run's deterministic scores are saved in
-`tests/baseline_scores.csv`: 29/30 matches collected all four brands,
-with zero invalid plans across 120 days. Observed optimized-build planning
-times were median 0.6652 ms, p95 2.6682 ms, maximum 3.3306 ms.
-These are local observations, not performance guarantees.
+## Evaluating new algorithms
 
-The optimized team selector evaluates the former weighted/exclusive policy
-plus official-score candidates in original, reverse and low-fuel-first patrol
-orders. Shared stock is authoritative; claims are retained only for the legacy
-candidate. On the same corpus it produced 25 wins, 4 losses and 1 tie against
-the saved baseline, raised total daily types from 390 to 410 and servings from
-637 to 935, and produced zero invalid days. Its observed per-day runtime was
-median 1.82 ms, p95 8.03 ms and maximum 16.17 ms. The four losses show that
-selecting the best current day can worsen later starting positions; a bounded
-multi-day rollout is the next scoring improvement.
+For an exact replay, supply the actual traffic snapshot for each day, or simulate
+all teams and generate it with `nextTraffic`. Keep team stocks and refueling
+separate. Carry predicted positions/fuel and accumulated score between days.
+Use identical inputs and opponent policies when comparing algorithms. A changed
+route can change future traffic, so replaying recorded future traffic while
+changing your actions is a fixed-traffic experiment, not an exact counterfactual.
 
-Pareto-correct fuel routing now retains nondominated `(steps, fuel)` arrivals
-and shares them through a per-day cache across all candidate patrol orders.
-This fixes cases where a fast fuel-heavy prefix made a feasible destination
-appear unreachable. On the same synthetic corpus it produced 22 wins, 5
-losses and 3 ties against the original baseline, aggregate daily types 413,
-servings 929, and zero invalid days. Observed runtime was median 2.55 ms, p95
-11.48 ms and maximum 20.13 ms. These numbers are a correctness/performance
-checkpoint: route search must next expose several Pareto alternatives to the
-team beam search rather than select one weighted path prematurely.
+Formation selection now uses the official score tuple and advances traffic.
+Because future opponent actions are unknown, it explicitly uses a scenario in
+which opponents mirror its own occupancy; this assumption is logged and marked
+with a `ponytail:` comment. It is not a guarantee of a real-match score.
 
-A multi-rendezvous supply experiment scored well in this synthetic simulator
-but regressed on the official server (daily types 10 to 7, servings 10 to 8).
-It was removed because official match outcomes take precedence over unverified
-simulation assumptions. The solver still skips the low-fuel patrol order when
-it is identical to the original order, removing a redundant day-one candidate.
+The routing experiment now uses `tests/benchmark.cpp` as an offline comparison
+runner: 3/2 supplies, fixed recorded/mirrored dynamic traffic, and start rotations
+0/2 on the eight-agent replay map. It carries predicted states through seven days
+and emits JSON scores, missing brands, waits and timings. These are controlled
+scenarios, not a live-opponent win-rate measurement. Read
+[the WIP checkpoint](CHECKPOINT_2026-09-22.md) before interpreting results.
 
-The coverage-first selector now exhausts all patrol planning orders for up to
-four patrols (six orders for the common `P P P R` formation). Candidate ranking
-also places the number of brands reachable on the next day ahead of current-day
-servings. This prevents a locally profitable route from unnecessarily stranding
-the team before the next daily-types round. On the same corpus it produced 23
-wins, 4 losses and 3 ties against the original baseline, aggregate daily types
-418 and servings 989, with zero invalid days. Observed per-day runtime was
-median 6.44 ms, p95 39.71 ms and maximum 77.36 ms.
+```powershell
+cmd /c build.bat benchmark
+```
 
-Supply targeting now uses each patrol's submitted route to project its final
-fuel and stable rendezvous time. It prioritizes the largest projected deficit
-and rejects meetings that cannot leave one complete overlap step. This removes
-the former `+600` brand-utility case that could repeatedly support a healthy
-patrol while another ran dry. Combined with coverage-first selection, the same
-corpus produced 26 wins, 2 losses and 2 ties, aggregate daily types 424 and
-servings 1008, with zero invalid days. Observed per-day runtime was median
-4.70 ms, p95 20.77 ms and maximum 24.91 ms.
+Previously documented synthetic baseline scores were produced with different
+code and uncalibrated rules; they are not evidence for the current simulator.
 
-### Recorded match checkpoint
+## Coverage limits
 
-Match `6c560a25-4fb6-4494-bf35-99d73d645076` produced daily servings
-`18, 26, 27, 25, 24` (120 total), covered all eight brands each day, and
-left Patrol vehicles waiting for 388 steps in the submitted traces. The unit
-regression pins the resulting score `(8 match brands, 40 daily brands, 120
-servings)`; an exact action replay still requires the historical per-day
-statuses, traffic, and accepted answers from the server.
+The verified sample is one match with two teams, plain/road/mountain/pond terrain,
+three traffic states, simultaneous arrivals and moving/final-step refueling.
+Small regressions also pin arrival fuel timing, one-step road movement,
+same-cell encounters versus edge swaps, stock limits and invalid actions.
 
-## Next work
-
-1. Differential tests against official event semantics.
-2. Recorded matches and connected maps with ponds, larger teams and maps.
-3. Candidate-versus-baseline comparison and separate tuning/held-out seeds.
-4. Extend recorded-match coverage for the joint patrol/refuel suffix planner.
+We retain conservative departure-fuel validation: a future refill cannot fund
+an otherwise invalid command. The accepted replay does not establish the server's
+behavior for rejected plans or a synthetic zero-fuel patrol co-located with supply
+at initial time 0. No special initial refueling is assumed. Add independent real
+replays when available; matching this sample is not proof of every engine case.

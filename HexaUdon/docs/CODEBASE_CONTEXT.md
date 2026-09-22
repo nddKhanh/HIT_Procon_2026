@@ -4,8 +4,13 @@
 > Đọc file này trước, sau đó chỉ mở những file nằm trong phạm vi thay đổi. Không cần
 > quét lại toàn bộ repository nếu snapshot này vẫn còn phù hợp.
 >
-> **Snapshot:** 2026-09-20, sau thay đổi gán độc quyền spot đầu tiên cho patrol.
+> **Snapshot:** 2026-09-22, sau hiệu chỉnh simulator bằng replay server của hai đội.
 > Khi thuật toán, API, cấu trúc file hoặc test thay đổi, cập nhật file này trong cùng diff.
+
+> **Checkpoint đang phát triển:** đọc [CHECKPOINT_2026-09-22.md](CHECKPOINT_2026-09-22.md)
+> trước khi tiếp tục. Simulator đã kiểm chứng; cải tiến routing còn dang dở, có test
+> cũ đang fail và benchmark thử nghiệm có regression. Các mục routing bên dưới
+> chưa phản ánh đầy đủ policy thử nghiệm; không coi checkpoint là bản production.
 
 ## 1. Trạng thái hiện tại trong một phút
 
@@ -15,8 +20,9 @@
   1. số brand khác nhau toàn trận;
   2. tổng số brand khác nhau theo từng ngày;
   3. tổng servings.
-- Đội hình hiện tại dành `floor(n/3)` xe làm Supply; với 6 xe là
-  **4 Patrol + 2 Supply**.
+- Đội hình được chọn bằng rollout các số Supply từ `0` đến `floor(n/2)`,
+  so điểm `(match brands, daily brands, servings)`. Traffic được cập nhật mỗi
+  ngày; khi chưa có action đối thủ, giả định đối thủ tạo traffic giống đội mình.
 - Patrol dùng pathfinding Pareto theo `(steps, fuel)`, lookahead hai spot và chaining
   nhiều spot trong ngày.
 - Khi có từ hai patrol trở lên, Solver giải bài toán matching để mỗi patrol có tối đa
@@ -383,10 +389,25 @@ route ăn quá nửa fuel hiện có.
 
 ### 7.7 Mô phỏng và validation
 
-- `simulateDay()` chạy tất cả xe trên một clock chung.
-- Collection cùng thời điểm được resolve theo agent index.
-- Mặc định thu ở đầu ngày (`collectAtDayStart=true`).
-- Assumption offline hiện tại: `refuelDuringMovement=false`.
+- `simulateDay()` chạy các xe của một đội trên một clock chung. Stock riêng từng
+  đội, reset mỗi ngày; mỗi patrol thu tối đa một suất/spot/ngày.
+- Thu ở đầu ngày và khi đến spot, kể cả bước cuối; cùng thời điểm theo agent index.
+- Trừ fuel khi hoàn thành di chuyển, rồi tiếp tế tại vị trí sau bước cho tất cả
+  patrol cùng ô với Supply, kể cả xe đang di chuyển và boundary cuối ngày.
+- Vẫn kiểm tra đủ fuel trước khi xuất phát; không dựa vào lần tiếp tế tương lai
+  để hợp thức hóa lệnh thiếu nhiên liệu. Replay chưa phân biệt được cách server
+  xử lý các lệnh không hợp lệ hoặc xe thiếu fuel cùng Supply tại t=0.
+- `fuelAtTime` lưu fuel sau arrival/refuel, index 0 là fuel đầu vào.
+- `roadOccupancy` đếm vị trí sau từng bước `1..daySteps`, bỏ boundary đầu ngày.
+- `nextTraffic()` nhận tổng occupancy của **tất cả đội** trong hai ngày vừa qua;
+  so tổng với `players * busyThreshold` và `players * jammedThreshold`.
+- Bỏ `SimulationRules`: chỉ dùng một bộ luật đã hiệu chỉnh cho production/test.
+- `tests/replay_5cc3b9ea.json` chứa config, action và kết quả server đã loại thông tin
+  tài khoản. Test nối trạng thái dự đoán qua 7 ngày cho cả hai đội: 112 trạng thái xe,
+  380 collection event có thứ tự, stock, occupancy, 6 chuyển traffic và điểm cuối
+  `(20,135,204)` / `(20,134,176)` đều phải khớp.
+- Nhật ký dùng cùng simulator và traffic đầu ngày; nếu invalid, giữ action và báo
+  lỗi, không tự tạo bảng fuel từ phép trừ dự phòng.
 - `ActionValidator` là cổng cuối trước submit; invalid plan bị thay bằng `[-daySteps]`
   cho từng xe.
 
@@ -421,12 +442,14 @@ replay từng ngày. Muốn định lượng cần admin replay, export action/h
 - Độ phức tạp matching là exponential theo số patrol; phù hợp trận hiện tại 5 patrol,
   cần Hungarian/min-cost flow nếu quy mô tăng mạnh.
 - Ownership chỉ áp dụng mục tiêu đầu tiên; spot tiếp theo vẫn có thể bị nhiều xe chọn.
-- Opponent (`state.others`) được parse nhưng Solver chưa dùng để né/cạnh tranh spot.
-- Traffic chỉ dùng snapshot hiện tại, không dự đoán thay đổi.
+- Opponent (`state.others`) được parse; stock của mỗi đội độc lập, nhưng action
+  đối thủ ảnh hưởng traffic ngày sau. Formation rollout dùng giả định mirrored
+  traffic; cần action đối thủ thật để đánh giá chính xác nhiều ngày.
 - Supply dùng một rendezvous ổn định ở cuối prefix, chưa beam-search các điểm hẹn giữa route.
 - Mỗi patrol chỉ được nối một refuel suffix/ngày.
 - Pareto frontier bị cap 16 nhãn/cell.
-- Offline simulator có assumption cần đối chiếu engine thật, đặc biệt thời điểm refuel.
+- Simulator đã khớp replay của một trận hai đội. Thêm replay khác làm tập kiểm tra
+  độc lập khi có dữ liệu; không xem khớp một trận là chứng minh mọi trường hợp.
 - `main.cpp` API loop dùng `Sleep`, WinINet và build link `wininet`; đường production
   hiện thiên về Windows.
 - `docs/logic.md` có mô tả cũ như Solver đơn giản/score bonus cũ; không dùng nó làm

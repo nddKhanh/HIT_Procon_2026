@@ -105,6 +105,7 @@ void DiaryWriter::writeAgentTimeline(
             output << "- Địa điểm đích kế hoạch: " << describeCurrentTarget(targetSpot, config, targetPosition) << "\n";
         }
         output << "- Mảng hành động đã gửi server: " << formatActions(actions) << "\n\n";
+        if (!simulation) return; // Keep the submitted actions, never invent fallback predictions.
         output << "Bảng dưới đây là mô phỏng theo action đã gửi, không phải trạng thái server xác nhận sau từng bước.\n\n";
          output << "| Bước dự kiến | Hành động đã gửi | Từ ô theo mô phỏng | Đến ô dự kiến | "
              << (isSupply ? "Điểm hẹn kế hoạch" : "Mục tiêu kế hoạch")
@@ -140,9 +141,6 @@ void DiaryWriter::writeAgentTimeline(
             }
         } else if (action <= 5) {
             duration = map.getTravelTime(currentPosition);
-            if (!simulation && agent.kind == 0) {
-                currentFuel -= map.getFuelCost(currentPosition);
-            }
             nextPosition = map.nextPosition(currentPosition, action);
             targetDescription = "Dự kiến di chuyển đến " + formatPosition(nextPosition);
 
@@ -225,6 +223,10 @@ bool DiaryWriter::writeDay(
             << "action đã gửi, vì API không trả trạng thái sau từng bước.\n\n";
 
     const auto simulation = MoveSimulator::simulateDay(config, state, actions, map);
+    if (!simulation.valid)
+        output << "> Không có dự đoán: mô phỏng không hợp lệ (" << simulation.error << ").\n\n";
+    Map timelineMap = map;
+    timelineMap.updateTraffic(state.traffics);
 
     for (size_t i = 0; i < state.agents.size(); ++i) {
         const std::vector<int> emptyActions;
@@ -251,7 +253,7 @@ bool DiaryWriter::writeDay(
                 return positions;
             }(),
             config,
-            map,
+            timelineMap,
             agentActions,
             simulation.valid ? &simulation : nullptr
         );

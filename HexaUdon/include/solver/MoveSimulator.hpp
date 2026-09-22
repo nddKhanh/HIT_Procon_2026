@@ -8,12 +8,6 @@
 #include <tuple>
 #include <vector>
 
-// Offline rule assumptions, pending comparison with the official engine.
-struct SimulationRules {
-    bool collectAtDayStart = true;
-    bool refuelDuringMovement = false;
-};
-
 struct CollectionEvent {
     int step, agent, spot, brand;
 };
@@ -22,10 +16,11 @@ struct DaySimulation {
     bool valid = false;
     std::string error;
     std::vector<Agent> agents;
-    // Fuel at each step boundary: [agent][0] is start-of-day fuel.
+    // Fuel after arrivals and refueling; [agent][0] is the supplied initial fuel.
     std::vector<std::vector<int>> fuelAtTime;
+    std::vector<std::vector<int>> positionsAtTime; // Same step boundaries as fuelAtTime.
     std::vector<int> remainingStock;
-    std::vector<long long> roadOccupancy;
+    std::vector<long long> roadOccupancy; // Post-step positions, boundaries 1..daySteps.
     std::vector<CollectionEvent> collections;
     std::set<int> brands;
     int refuels = 0; // Only events that increase fuel.
@@ -64,12 +59,19 @@ struct SimResult {
  */
 class MoveSimulator {
 public:
-    // All agents advance on one clock. Traffic is copied from state.
-    // Equal-time collections are resolved in agent-index order.
+    // One team's clock and stock. Traffic is copied from state; opponents affect
+    // future traffic, not this team's stock or refueling. Arrival fuel is charged
+    // before refueling at every completed step, including the final boundary.
+    // Collect at day start and arrivals; ties use agent-index order.
     static DaySimulation simulateDay(
         const GameConfig& config, const GameState& state,
-        const std::vector<std::vector<int>>& actions, const Map& map,
-        SimulationRules rules = {});
+        const std::vector<std::vector<int>>& actions, const Map& map);
+
+    // Occupancy totals across ALL teams for the last two completed days.
+    // An empty previousDay represents the first day. Throws on invalid inputs.
+    static std::vector<Traffic> nextTraffic(const GameConfig& config,
+        const std::vector<long long>& previousDay,
+        const std::vector<long long>& currentDay);
     /**
      * @brief Biến path directions -> chuỗi hành động + mô phỏng kết quả.
      *

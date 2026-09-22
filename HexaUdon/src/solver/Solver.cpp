@@ -146,8 +146,9 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     const GameConfig& config, bool* selectedUseRegions) {
     const int agentCount = static_cast<int>(config.initialAgentPositions.size());
     std::vector<int> bestTypes(agentCount, 0);
-    int bestServings = -1;
+    auto bestRank = std::make_tuple(-1, -1, -1);
     bool bestUseRegions = false;
+    std::cerr << "[FORMATION] traffic scenario: opponents mirror own road occupancy\n";
 
     for (int supplyCount = 0; supplyCount <= agentCount / 2; ++supplyCount) {
         std::vector<int> types(agentCount, 0);
@@ -164,7 +165,8 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             Map map(config.map.height, config.map.width, config.map.cells);
             Solver solver;
             solver.useRegions_ = useRegions;
-            int servings = 0;
+            MatchScore score;
+            std::vector<long long> previousOccupancy;
             bool valid = true;
             for (int day = 0; day < static_cast<int>(config.daySteps.size()); ++day) {
                 state.day = day;
@@ -174,25 +176,35 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                     valid = false;
                     break;
                 }
-                servings += static_cast<int>(result.collections.size());
+                score.add(result);
                 state.agents = std::move(result.agents);
+                if (day + 1 < static_cast<int>(config.daySteps.size())) {
+                    // ponytail: unknown opponents mirror this team's traffic;
+                    // use recorded/explicit opponent actions for exact match evaluation.
+                    for (auto& count : result.roadOccupancy) count *= config.players;
+                    state.traffics = MoveSimulator::nextTraffic(
+                        config, previousOccupancy, result.roadOccupancy);
+                    previousOccupancy = std::move(result.roadOccupancy);
+                }
                 solver.commitLastPlan();
             }
 
             std::cerr << "[FORMATION] supply=" << supplyCount
                       << " regions=" << (useRegions ? "on" : "off")
-                      << " servings=" << (valid ? std::to_string(servings) : "invalid")
+                      << " score=" << score.brands.size() << '/' << score.dailyTypes
+                      << '/' << score.servings << (valid ? "" : " invalid")
                       << '\n';
 
-            if (valid && servings > bestServings) {
-                bestServings = servings;
+            if (valid && score.rank() > bestRank) {
+                bestRank = score.rank();
                 bestTypes = types;
                 bestUseRegions = useRegions;
             }
         }
     }
 
-    std::cerr << "[FORMATION] selected servings=" << bestServings << " types=[";
+    std::cerr << "[FORMATION] selected score=" << std::get<0>(bestRank) << '/'
+              << std::get<1>(bestRank) << '/' << std::get<2>(bestRank) << " types=[";
     for (int i = 0; i < agentCount; ++i) {
         if (i > 0) std::cerr << ',';
         std::cerr << bestTypes[i];
@@ -355,7 +367,8 @@ std::vector<std::vector<int>> Solver::solve(
 
     auto planCandidate = [&](const std::vector<int>& order,
                              bool officialRanking, bool exclusiveClaims,
-                             const std::vector<std::set<int>>& candidateRegions) {
+                             const std::vector<std::set<int>>& candidateRegions,
+                             int responsiblePatrol = -1, int requiredSpot = -1) {
         resetDailyState(config, numAgents);
         Candidate candidate;
         candidate.actions.resize(numAgents);
@@ -373,9 +386,13 @@ std::vector<std::vector<int>> Solver::solve(
                 break;
             }
         }
-        const auto firstSpots = assignFirstSpots(
+        auto firstSpots = assignFirstSpots(
             config, state, map, patrols, daySteps, remainingStock_,
             visitedSpotsToday_, pathCache, candidateRegions);
+        if (responsiblePatrol >= 0) {
+            for (int p : patrols) if (firstSpots[p] == requiredSpot) firstSpots[p] = -2;
+            firstSpots[responsiblePatrol] = requiredSpot;
+        }
         for (int i : order) {
             const Agent& agent = state.agents[i];
             if (agent.kind != 0) continue;
@@ -493,7 +510,54 @@ std::vector<std::vector<int>> Solver::solve(
         auto candidate = planCandidate(order, true, false, selectedRegions);
         if (candidate.rank > best.rank) best = std::move(candidate);
     }
-    actions = std::move(best.actions);
+    // Assign a named patrol to each still-missing brand; never hard-code a brand
+    // number or map corner. Replan the rest after that patrol reserves its route.
+    for (size_t spot = 0; spot < config.spots.size() && hasSearchTime(); ++spot) {
+        auto current = MoveSimulator::simulateDay(config, state, best.actions, map);
+        if (!current.valid || current.brands.count(config.spots[spot].brand)) continue;
+        for (int p : patrols) {
+            if (!hasSearchTime()) break;
+            auto route = pathCache.get(map.posToCoordinate(state.agents[p].pos),
+                state.agents[p].fuel, 1.0).extractPath(config.spots[spot].pos);
+            if (!route.found || route.totalSteps > daySteps) continue;
+            auto order = patrols;
+            order.erase(std::find(order.begin(), order.end(), p));
+            order.insert(order.begin(), p);
+            auto candidate = planCandidate(order, true, false, selectedRegions, p, static_cast<int>(spot));
+            if (candidate.rank > best.rank) best = std::move(candidate);
+        }
+    }
+    actions = best.actions;
+    if (hasSearchTime()) SupplyPlanner::improveDay(config, state, map, actions,
+        collectedBrandsTotal_, deadlineMs < nowEpochMs - 60000 ? LLONG_MAX : deadlineMs);
+    auto improved = MoveSimulator::simulateDay(config, state, actions, map);
+    if (improved.valid) {
+        best.brands = collectedBrandsTotal_;
+        best.brands.insert(improved.brands.begin(), improved.brands.end());
+        for (int i = 0; i < numAgents; ++i) {
+            if (actions[i] == best.actions[i]) continue;
+            best.supported[i] = -1; // A multi-stop supply has no single supported patrol.
+            auto pos = map.posToCoordinate(state.agents[i].pos);
+            int time = 0;
+            best.stepSpots[i].assign(daySteps, -1);
+            best.stepPositions[i].assign(daySteps, pos);
+            for (int a : actions[i]) {
+                int duration = a < 0 ? -a : map.getTravelTime(pos);
+                auto to = a < 0 ? pos : map.nextPosition(pos, a);
+                int spot = -1;
+                for (size_t s = 0; s < config.spots.size(); ++s)
+                    if (config.spots[s].pos == map.coordinateToPos(to)) spot = static_cast<int>(s);
+                for (int t = time; t < time + duration; ++t) {
+                    best.stepSpots[i][t] = spot;
+                    best.stepPositions[i][t] = to;
+                }
+                time += duration;
+                pos = to;
+                best.targets[i] = spot;
+                best.targetPositions[i] = to;
+            }
+        }
+    }
     currentTargets_ = std::move(best.targets);
     currentTargetPositions_ = std::move(best.targetPositions);
     supportedPatrols_ = std::move(best.supported);

@@ -3,6 +3,8 @@
 #include "model/GameConfig.hpp"
 #include "model/Agent.hpp"
 #include "map/Map.hpp"
+#include "GameState.hpp"
+#include <climits>
 #include <vector>
 #include <set>
 
@@ -14,6 +16,11 @@
  */
 class SupplyPlanner {
 public:
+    // Refine an already valid joint plan; keep every accepted change simulator-valid.
+    // Reuse a supply after a meeting and replan the rescued patrol's suffix.
+    static void improveDay(const GameConfig& config, const GameState& state,
+        const Map& map, std::vector<std::vector<int>>& actions,
+        const std::set<int>& matchBrands, long long deadlineMs = LLONG_MAX);
     /**
      * @brief Tìm xe Patrol đang cần xăng nhất.
      *

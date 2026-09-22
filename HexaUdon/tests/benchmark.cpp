@@ -1,100 +1,76 @@
+#include <chrono>
+#include <fstream>
 #include <iostream>
-#include <iomanip>
-#ifdef _WIN32
-#include <windows.h>
-#endif
-#include "io/JsonReader.hpp"
-#include "map/Map.hpp"
+#include <nlohmann/json.hpp>
 #include "solver/Solver.hpp"
-#include "solver/ActionValidator.hpp"
+#include "solver/MoveSimulator.hpp"
 
-/**
- * @brief Chương trình Runner & Test Visualizer hiển thị Tiếng Việt có dấu và chú thích Tiếng Anh
- */
-int main() {
-#ifdef _WIN32
-    // Cấu hình Console Output hiển thị chuẩn UTF-8 (Tiếng Việt & Nhật) trên Windows
-    SetConsoleOutputCP(65001);
-#endif
-
-    std::cout << "========================================================================\n";
-    std::cout << "  HE THTONG KIEM THU & CONG CU DEBUG THEO DOI AGENT (TEST VISUALIZER)   \n";
-    std::cout << "========================================================================\n\n";
-
-    // 1. Đọc thông tin GameConfig từ stdin
-    std::cout << "[BƯỚC 1 / STEP 1] Đang đọc cấu hình trận đấu (GameConfig) từ stdin...\n";
-    GameConfig config = JsonReader::readGameConfig();
-    Map map(config.map.height, config.map.width, config.map.cells);
-
-    std::cout << " -> Kích thước bản đồ (Map Size)     : " << config.map.width << "x" << config.map.height << "\n";
-    std::cout << " -> Số lượng xe (Agent Count)        : " << config.initialAgentPositions.size() << "\n";
-    std::cout << " -> Số gian hàng Udon (Spot Count)   : " << config.spots.size() << "\n";
-    std::cout << " -> Số ngày thi đấu (Total Days)     : " << config.daySteps.size() << "\n";
-    std::cout << " -> Giới hạn bình nhiên liệu (Fuel)  : " << config.fuelLimit << "\n\n";
-
-    Solver solver;
-
-    // 2. Lựa chọn phân bổ loại xe Agent
-    auto agentTypes = solver.decideAgentTypes(config);
-    std::cout << "[BƯỚC 2 / STEP 2] Quyền phân bổ loại xe (Agent Types: 0 = Patrol, 1 = Supply):\n";
-    for (size_t i = 0; i < agentTypes.size(); ++i) {
-        std::cout << " -> Xe (Agent) [" << i << "]: " 
-                  << (agentTypes[i] == 0 ? "Xe Tuần Tra (Patrol Car)" : "Xe Tiếp Tế (Supply Car)") << "\n";
-    }
-    std::cout << "\n";
-
-    // 3. Duyệt kiểm tra từng ngày thi đấu và in chỉ số xe
-    for (size_t day = 0; day < config.daySteps.size(); ++day) {
-        std::cout << "------------------------------------------------------------------------\n";
-        std::cout << "       NGÀY THI ĐẤU " << day << " (DAY " << day << " - Bước quy định / Steps: " << config.getDaySteps(day) << ")\n";
-        std::cout << "------------------------------------------------------------------------\n";
-
-        GameState state = JsonReader::readGameState();
-
-        std::cout << " [THEO DÕI TRẠNG THÁI AGENT TRƯỚC KHI TÍNH TOÁN / INSPECTING AGENTS]:\n";
-        for (size_t i = 0; i < state.agents.size(); ++i) {
-            Position pos = map.posToCoordinate(state.agents[i].pos);
-            std::cout << "  * Xe (Agent) #" << i 
-                      << " | Vị trí (Pos Index): " << std::setw(3) << state.agents[i].pos 
-                      << " (Tọa độ 2D: x=" << pos.x << ", y=" << pos.y << ")"
-                      << " | Nhiên liệu (Fuel): " << std::setw(2) << state.agents[i].fuel
-                      << " | Loại xe (Kind): " << (state.agents[i].kind == 0 ? "Xe Tuần Tra (Patrol)" : "Xe Tiếp Tế (Supply)") << "\n";
-        }
-
-        // Tính toán kế hoạch nước đi
-        auto actions = solver.solve(config, state, map);
-        bool isValid = ActionValidator::validate(config, state, actions, map);
-
-        std::cout << "\n [KẾT QUẢ KẾ HOẠCH HÀNH ĐỘNG & KIỂM TRA / ACTION PLAN & VALIDATION]:\n";
-        std::cout << "  * Kết quả kiểm tra (Validation): " 
-                  << (isValid ? "HỢP LỆ (VALID - CHÍNH XÁC)" : "KHÔNG HỢP LỆ (INVALID - LỖI LOGIC!)") << "\n";
-
-        for (size_t i = 0; i < actions.size(); ++i) {
-            std::cout << "  * Xe (Agent) #" << i << " Lệnh (Actions): [";
-            int stepSum = 0;
-            Position currentPos = map.posToCoordinate(state.agents[i].pos);
-            
-            for (size_t k = 0; k < actions[i].size(); ++k) {
-                int act = actions[i][k];
-                if (act < 0) {
-                    stepSum += (-act);
-                    std::cout << "Chờ(Wait " << -act << ")";
-                } else {
-                    int tTime = map.getTravelTime(currentPos);
-                    stepSum += tTime;
-                    std::cout << "Đi_hướng_" << act << "(tốn " << tTime << " step)";
-                    currentPos = map.nextPosition(currentPos, act);
-                }
-                if (k + 1 < actions[i].size()) std::cout << ", ";
+// Same inputs for every revision; never submits actions to a server.
+int main(int argc, char** argv) {
+    using nlohmann::json;
+    std::ifstream input(argc > 1 ? argv[1] : "HexaUdon/tests/replay_5cc3b9ea.json");
+    if (!input) { std::cerr << "Replay file not found\n"; return 1; }
+    json replay; input >> replay;
+    const auto& c = replay["config"];
+    GameConfig config{};
+    config.map = {c["map"]["height"], c["map"]["width"],
+        c["map"]["cells"].get<std::vector<std::vector<int>>>()};
+    config.daySteps = c["daySteps"].get<std::vector<int>>();
+    config.initialAgentPositions = c["agents"].get<std::vector<int>>();
+    config.fuelLimit = c["fuelLimits"];
+    config.players = c["players"];
+    config.busyThreshold = c["busyThreshold"];
+    config.jammedThreshold = c["jammedThreshold"];
+    for (const auto& s : c["spots"]) config.spots.push_back({s["brand"], s["pos"], s["stocks"]});
+    json output = json::array();
+    for (int shift : {0, 2}) for (bool fixed : {true, false}) for (int supplies : {3, 2}) {
+        auto scenario = config;
+        std::rotate(scenario.initialAgentPositions.begin(), scenario.initialAgentPositions.begin() + shift,
+                    scenario.initialAgentPositions.end());
+        Map map(scenario.map.height, scenario.map.width, scenario.map.cells);
+        GameState state{};
+        int n = static_cast<int>(scenario.initialAgentPositions.size());
+        for (int i = 0; i < n; ++i)
+            state.agents.push_back({i >= n - supplies ? 1 : 0, scenario.initialAgentPositions[i], scenario.fuelLimit});
+        Solver solver;
+        MatchScore score;
+        std::vector<long long> previous;
+        json days = json::array();
+        double totalMs = 0;
+        for (int day = 0; day < static_cast<int>(scenario.daySteps.size()); ++day) {
+            state.day = day;
+            if (fixed) {
+                state.traffics.clear();
+                for (const auto& t : replay["traffic"][day]) state.traffics.push_back({t[0],t[1]});
             }
-            std::cout << "] (Tổng bước / Total steps: " << stepSum << "/" << config.getDaySteps(day) << ")\n";
+            auto start = std::chrono::steady_clock::now();
+            auto actions = solver.solve(scenario, state, map);
+            double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now()-start).count();
+            totalMs += ms;
+            auto result = MoveSimulator::simulateDay(scenario, state, actions, map);
+            if (!result.valid) { std::cerr << "Invalid day " << day << ": " << result.error << '\n'; return 2; }
+            int patrolWait = 0, supplyWait = 0;
+            for (int i = 0; i < n; ++i) for (int a : actions[i]) if (a < 0)
+                (state.agents[i].kind ? supplyWait : patrolWait) -= a;
+            std::set<int> missing;
+            for (const auto& s : scenario.spots) if (!result.brands.count(s.brand)) missing.insert(s.brand);
+            days.push_back({{"brands", result.brands.size()}, {"servings", result.collections.size()},
+                {"missing", missing}, {"patrol_wait",patrolWait}, {"supply_wait",supplyWait}, {"ms",ms}});
+            score.add(result);
+            state.agents = result.agents;
+            if (!fixed) {
+                for (auto& x : result.roadOccupancy) x *= scenario.players;
+                state.traffics = MoveSimulator::nextTraffic(scenario, previous, result.roadOccupancy);
+                previous = result.roadOccupancy;
+            }
+            solver.commitLastPlan();
         }
-        std::cout << "\n";
+        output.push_back({{"shift",shift},{"traffic",fixed?"recorded-fixed":"mirrored-dynamic"},
+            {"supplies",supplies},{"score",{score.brands.size(),score.dailyTypes,score.servings}},
+            {"ms",totalMs},{"days",days}});
+        std::cerr << "shift=" << shift << " fixed=" << fixed << " supply=" << supplies
+                  << " score=" << score.brands.size() << '/' << score.dailyTypes << '/' << score.servings
+                  << " ms=" << totalMs << '\n';
     }
-
-    std::cout << "========================================================================\n";
-    std::cout << "          HOÀN THÀNH QUÁ TRÌNH KIỂM THỬ (RUNNER COMPLETED)             \n";
-    std::cout << "========================================================================\n";
-
-    return 0;
+    std::cout << output.dump(2) << '\n';
 }
