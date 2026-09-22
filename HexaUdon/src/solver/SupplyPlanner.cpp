@@ -93,7 +93,12 @@ std::vector<int> SupplyPlanner::planDay(
     Position agentPos = map.posToCoordinate(supplyAgent.pos);
     int targetPatrol = -1;
     Position targetPos = agentPos;
-    std::tuple<int, int, int> bestRank{-1, INT_MIN, INT_MIN};
+    std::set<int> plannedDailyBrands;
+    for (size_t si = 0; si < config.spots.size() && si < remainingStock.size(); ++si) {
+        if (remainingStock[si] < config.spots[si].stocks)
+            plannedDailyBrands.insert(config.spots[si].brand);
+    }
+    std::tuple<int, int, int, int> bestRank{-1, -1, INT_MIN, INT_MIN};
     for (int i = 0; i < static_cast<int>(allAgents.size()); ++i) {
         if (i == supplyIdx || allAgents[i].kind != 0 ||
             i >= static_cast<int>(patrolActions.size()) || excludedPatrols.count(i)) continue;
@@ -124,14 +129,19 @@ std::vector<int> SupplyPlanner::planDay(
         int overlapAt = std::max(supplyPath.totalSteps, point.readyAt);
         if (overlapAt + 1 > daySteps) continue;
         int extensionPotential = 0;
+        std::set<int> missingDailyBrands;
         int usableSteps = daySteps - overlapAt - 1;
         auto reachable = PathFinder::computeSSSP(point.pos, map, config.fuelLimit, 1.0);
         for (size_t si = 0; si < config.spots.size(); ++si) {
             if (si >= remainingStock.size() || remainingStock[si] <= 0) continue;
             auto route = reachable.extractPath(config.spots[si].pos);
-            extensionPotential += route.found && route.totalSteps <= usableSteps;
+            if (!route.found || route.totalSteps > usableSteps) continue;
+            ++extensionPotential;
+            if (!plannedDailyBrands.count(config.spots[si].brand))
+                missingDailyBrands.insert(config.spots[si].brand);
         }
-        auto rank = std::make_tuple(extensionPotential, usableSteps, deficit);
+        auto rank = std::make_tuple(static_cast<int>(missingDailyBrands.size()),
+                                    extensionPotential, usableSteps, deficit);
         if (rank > bestRank) {
             bestRank = rank;
             targetPatrol = i;
@@ -205,6 +215,13 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
     // Expand to a beam only when this measured search ceiling leaves useful rescues.
     for (int round = 0; round < 2 * n && inTime(); ++round) {
         std::vector<Wait> waits;
+        // A previous target choice must not lock the refinement pass. Treat the
+        // supply's initial position as a full-day departure window so a better
+        // rendezvous can replace its route from step zero.
+        for (int i = 0; i < n; ++i) {
+            if (state.agents[i].kind == 1)
+                waits.push_back({i, 0, steps, state.agents[i].pos});
+        }
         for (int i = 0; i < n; ++i) {
             int time = 0;
             auto pos = map.posToCoordinate(state.agents[i].pos);

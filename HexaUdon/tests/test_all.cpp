@@ -1075,6 +1075,30 @@ void test_multiple_supplies_reserve_distinct_patrols() {
     std::cout << "[PASS] Multiple supplies reserve distinct patrols test passed!" << std::endl;
 }
 
+void test_supply_refinement_can_restart_from_day_start() {
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 7;
+    config.map.cells = {{0, 0, 0, 0, 0, 0, 0}};
+    config.daySteps = {13};
+    config.fuelLimit = 10;
+    config.spots = {{0, 2, 1}};
+
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 0, 0}, {1, 3, 10}};
+    Map map(1, 7, config.map.cells);
+    std::vector<std::vector<int>> actions = {{-13}, {2, -11}};
+
+    SupplyPlanner::improveDay(config, state, map, actions, {});
+    auto day = MoveSimulator::simulateDay(config, state, actions, map);
+
+    assert(day.valid && day.refuels >= 1);
+    assert(day.brands == std::set<int>({0}));
+    assert(!actions[1].empty() && actions[1][0] == 5);
+    std::cout << "[PASS] Supply refinement restarts from day start test passed!" << std::endl;
+}
+
 int main() {
     test_server_replay();
     test_simulator_step_boundaries();
@@ -1108,6 +1132,7 @@ int main() {
     test_supply_rejects_unreachable_rendezvous();
     test_solver_rejects_rendezvous_at_day_boundary();
     test_multiple_supplies_reserve_distinct_patrols();
+    test_supply_refinement_can_restart_from_day_start();
     std::cout << "\nAll unit tests completed successfully!" << std::endl;
     return 0;
 }
