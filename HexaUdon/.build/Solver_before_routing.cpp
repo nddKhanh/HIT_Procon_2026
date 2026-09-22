@@ -328,8 +328,7 @@ std::vector<std::vector<int>> Solver::solve(
         std::vector<std::vector<int>> stepSpots;
         std::vector<std::vector<Position>> stepPositions;
         std::set<int> brands;
-        std::tuple<int, int, int, int, int> rank{-1, -1, -1, -1, -1};
-        bool metadataStale = false;
+        std::tuple<int, int, int, int> rank{-1, -1, -1, -1};
     } best;
 
     std::vector<int> original(numAgents);
@@ -366,56 +365,9 @@ std::vector<std::vector<int>> Solver::solve(
         addOrder(lowFuelFirst);
     }
 
-    auto evaluateCandidate = [&](Candidate& candidate) {
-        auto result = MoveSimulator::simulateDay(config, state, candidate.actions, map);
-        if (!result.valid) return;
-        int newTypes = 0;
-        int patrolFuel = 0;
-        for (int brand : result.brands) newTypes += !collectedBrandsTotal_.count(brand);
-        for (const auto& agent : result.agents) if (agent.kind == 0) patrolFuel += agent.fuel;
-        std::set<int> nextReachableBrands;
-        if (state.day + 1 < static_cast<int>(config.daySteps.size())) {
-            int nextSteps = config.getDaySteps(state.day + 1);
-            for (const auto& nextAgent : result.agents) {
-                if (nextAgent.kind != 0 || nextAgent.fuel <= 0) continue;
-                Position from = map.posToCoordinate(nextAgent.pos);
-                auto reachable = PathFinder::computeSSSP(from, map, nextAgent.fuel, 1.0);
-                for (const auto& spot : config.spots) {
-                    auto path = reachable.extractPath(spot.pos);
-                    if (path.found && path.totalSteps <= nextSteps) {
-                        nextReachableBrands.insert(spot.brand);
-                    }
-                }
-            }
-        }
-        candidate.rank = {newTypes, static_cast<int>(result.brands.size()),
-                          static_cast<int>(nextReachableBrands.size()),
-                          static_cast<int>(result.collections.size()), patrolFuel};
-        candidate.brands = collectedBrandsTotal_;
-        candidate.brands.insert(result.brands.begin(), result.brands.end());
-    };
-
-    auto refineCandidate = [&](Candidate candidate) {
-        if (!hasSearchTime() || std::get<0>(candidate.rank) < 0) return candidate;
-        auto refined = candidate.actions;
-        SupplyPlanner::improveDay(config, state, map, refined,
-            collectedBrandsTotal_, deadlineMs < nowEpochMs - 60000 ? LLONG_MAX : deadlineMs);
-        if (refined == candidate.actions) return candidate;
-        Candidate improved = candidate;
-        improved.actions = std::move(refined);
-        improved.rank = {-1, -1, -1, -1, -1};
-        evaluateCandidate(improved);
-        if (improved.rank > candidate.rank) {
-            improved.metadataStale = true;
-            return improved;
-        }
-        return candidate;
-    };
-
     auto planCandidate = [&](const std::vector<int>& order,
                              bool officialRanking, bool exclusiveClaims,
-                             const std::vector<std::set<int>>& candidateRegions,
-                             int responsiblePatrol = -1, int requiredSpot = -1) {
+                             const std::vector<std::set<int>>& candidateRegions) {
         resetDailyState(config, numAgents);
         Candidate candidate;
         candidate.actions.resize(numAgents);
@@ -433,13 +385,9 @@ std::vector<std::vector<int>> Solver::solve(
                 break;
             }
         }
-        auto firstSpots = assignFirstSpots(
+        const auto firstSpots = assignFirstSpots(
             config, state, map, patrols, daySteps, remainingStock_,
             visitedSpotsToday_, pathCache, candidateRegions);
-        if (responsiblePatrol >= 0) {
-            for (int p : patrols) if (firstSpots[p] == requiredSpot) firstSpots[p] = -2;
-            firstSpots[responsiblePatrol] = requiredSpot;
-        }
         for (int i : order) {
             const Agent& agent = state.agents[i];
             if (agent.kind != 0) continue;
@@ -517,8 +465,29 @@ std::vector<std::vector<int>> Solver::solve(
             }
         }
 
-        evaluateCandidate(candidate);
-        if (std::get<0>(candidate.rank) < 0) return candidate;
+        auto result = MoveSimulator::simulateDay(config, state, candidate.actions, map);
+        if (!result.valid) return candidate;
+        int newTypes = 0;
+        for (int brand : result.brands) newTypes += !collectedBrandsTotal_.count(brand);
+        std::set<int> nextReachableBrands;
+        if (state.day + 1 < static_cast<int>(config.daySteps.size())) {
+            int nextSteps = config.getDaySteps(state.day + 1);
+            for (const auto& nextAgent : result.agents) {
+                if (nextAgent.kind != 0 || nextAgent.fuel <= 0) continue;
+                Position from = map.posToCoordinate(nextAgent.pos);
+                auto reachable = PathFinder::computeSSSP(from, map, nextAgent.fuel, 1.0);
+                for (const auto& spot : config.spots) {
+                    auto path = reachable.extractPath(spot.pos);
+                    if (path.found && path.totalSteps <= nextSteps)
+                        nextReachableBrands.insert(spot.brand);
+                }
+            }
+        }
+        candidate.rank = {newTypes, static_cast<int>(result.brands.size()),
+                          static_cast<int>(result.collections.size()),
+                          static_cast<int>(nextReachableBrands.size())};
+        candidate.brands = collectedBrandsTotal_;
+        candidate.brands.insert(result.brands.begin(), result.brands.end());
         candidate.targets = currentTargets_;
         candidate.targetPositions = currentTargetPositions_;
         candidate.supported = supportedPatrols_;
@@ -536,105 +505,7 @@ std::vector<std::vector<int>> Solver::solve(
         auto candidate = planCandidate(order, true, false, selectedRegions);
         if (candidate.rank > best.rank) best = std::move(candidate);
     }
-    // Assign a named patrol to each still-missing brand; never hard-code a brand
-    // number or map corner. Replan the rest after that patrol reserves its route.
-    for (size_t spot = 0; spot < config.spots.size() && hasSearchTime(); ++spot) {
-        auto current = MoveSimulator::simulateDay(config, state, best.actions, map);
-        if (!current.valid || current.brands.count(config.spots[spot].brand)) continue;
-
-        // ponytail: scan one-edge detours only; use k-opt if traces show that
-        // missing brands regularly require replacing two or more route legs.
-        // Truncating only the tail trades a duplicate final visit for a nearby
-        // missing brand while preserving the coordinated part of the plan.
-        for (int p : patrols) {
-            auto pos = map.posToCoordinate(state.agents[p].pos);
-            const auto originalActions = best.actions[p];
-            for (size_t edge = 0; edge < originalActions.size() && hasSearchTime(); ++edge) {
-                int action = originalActions[edge];
-                if (action < 0) continue;
-                auto next = map.nextPosition(pos, action);
-                auto viaMissing = pathCache.get(pos, INT_MAX, 1.0)
-                    .extractPath(config.spots[spot].pos);
-                auto rejoin = pathCache.get(map.posToCoordinate(config.spots[spot].pos),
-                                             INT_MAX, 1.0)
-                    .extractPath(map.coordinateToPos(next));
-                if (viaMissing.found && rejoin.found) {
-                    std::vector<int> detour;
-                    detour.insert(detour.end(), originalActions.begin(), originalActions.begin() + edge);
-                    detour.insert(detour.end(), viaMissing.directions.begin(), viaMissing.directions.end());
-                    detour.insert(detour.end(), rejoin.directions.begin(), rejoin.directions.end());
-                    detour.insert(detour.end(), originalActions.begin() + edge + 1, originalActions.end());
-
-                    std::vector<int> fitted;
-                    auto fittedPos = map.posToCoordinate(state.agents[p].pos);
-                    int used = 0;
-                    for (int a : detour) {
-                        int duration = a < 0 ? -a : map.getTravelTime(fittedPos);
-                        if (used + duration > daySteps) {
-                            if (a < 0 && used < daySteps) {
-                                fitted.push_back(-(daySteps - used));
-                                used = daySteps;
-                            }
-                            break;
-                        }
-                        fitted.push_back(a);
-                        used += duration;
-                        if (a >= 0) fittedPos = map.nextPosition(fittedPos, a);
-                    }
-                    MoveSimulator::padWithWait(fitted, used, daySteps);
-
-                    Candidate candidate = best;
-                    candidate.actions[p] = std::move(fitted);
-                    candidate.rank = {-1, -1, -1, -1, -1};
-                    candidate.metadataStale = true;
-                    evaluateCandidate(candidate);
-                    if (candidate.rank > best.rank) best = std::move(candidate);
-                }
-                pos = next;
-            }
-        }
-
-        for (int p : patrols) {
-            if (!hasSearchTime()) break;
-            auto route = pathCache.get(map.posToCoordinate(state.agents[p].pos),
-                state.agents[p].fuel, 1.0).extractPath(config.spots[spot].pos);
-            if (!route.found || route.totalSteps > daySteps) continue;
-            auto order = patrols;
-            order.erase(std::find(order.begin(), order.end(), p));
-            order.insert(order.begin(), p);
-            auto candidate = planCandidate(
-                order, true, false, selectedRegions, p, static_cast<int>(spot));
-            if (candidate.rank > best.rank) best = std::move(candidate);
-        }
-    }
-    best = refineCandidate(std::move(best));
-    actions = best.actions;
-    auto improved = MoveSimulator::simulateDay(config, state, actions, map);
-    if (improved.valid && best.metadataStale) {
-        for (int i = 0; i < numAgents; ++i) {
-            if (state.agents[i].kind == 1)
-                best.supported[i] = -1; // A multi-stop supply has no single supported patrol.
-            auto pos = map.posToCoordinate(state.agents[i].pos);
-            int time = 0;
-            best.stepSpots[i].assign(daySteps, -1);
-            best.stepPositions[i].assign(daySteps, pos);
-            for (int a : actions[i]) {
-                int duration = a < 0 ? -a : map.getTravelTime(pos);
-                auto to = a < 0 ? pos : map.nextPosition(pos, a);
-                int spot = -1;
-                for (size_t s = 0; s < config.spots.size(); ++s)
-                    if (config.spots[s].pos == map.coordinateToPos(to)) spot = static_cast<int>(s);
-                for (int t = time; t < time + duration; ++t) {
-                    best.stepSpots[i][t] = spot;
-                    best.stepPositions[i][t] = to;
-                }
-                time += duration;
-                pos = to;
-                best.targets[i] = spot;
-                best.targetPositions[i] = to;
-            }
-        }
-    }
+    actions = std::move(best.actions);
     currentTargets_ = std::move(best.targets);
     currentTargetPositions_ = std::move(best.targetPositions);
     supportedPatrols_ = std::move(best.supported);

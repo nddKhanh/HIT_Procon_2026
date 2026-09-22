@@ -1,5 +1,10 @@
 # Checkpoint 2026-09-22 — simulator verified, routing improvements WIP
 
+> Completed later the same day. See
+> [ROUTING_RESULT_2026-09-22.md](ROUTING_RESULT_2026-09-22.md) for the final
+> implementation, verification and 5 Patrol + 3 Supply versus 6 Patrol + 2
+> Supply comparison. The rest of this file is the preserved handoff state.
+
 ## Read this first next session
 
 User requested a pause/checkpoint while implementing five improvements. Do not

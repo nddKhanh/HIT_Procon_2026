@@ -84,7 +84,8 @@ runner: 3/2 supplies, fixed recorded/mirrored dynamic traffic, and start rotatio
 0/2 on the eight-agent replay map. It carries predicted states through seven days
 and emits JSON scores, missing brands, waits and timings. These are controlled
 scenarios, not a live-opponent win-rate measurement. Read
-[the WIP checkpoint](CHECKPOINT_2026-09-22.md) before interpreting results.
+[the completed routing evaluation](ROUTING_RESULT_2026-09-22.md) before
+interpreting results.
 
 ```powershell
 cmd /c build.bat benchmark

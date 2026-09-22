@@ -130,9 +130,15 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
         retryCount = 0;
 
         // Skip if we already submitted for this day
-        if (state.day == lastDay) {
+        if (state.day <= lastDay) {
             Sleep(500);
             continue;
+        }
+
+        if (state.day > lastDay + 1) {
+            std::cerr << "  [CANH BAO] Server da bo qua ngay " << lastDay + 1
+                      << " den " << state.day - 1
+                      << "; khong the nop bu cac ngay da dong.\n";
         }
 
         // === NEW DAY! Match is running, agents available ===
@@ -191,6 +197,17 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
                       << actions[i].size() << " total actions\n";
         }
 
+        // The answer endpoint does not carry a day number. Never let a plan
+        // computed from an old snapshot be accepted for a newer day.
+        GameState latest = api.getMatchStatus(matchId);
+        if (latest.day != state.day || latest.endsAt <= 0 || latest.agents.empty()) {
+            solver.discardLastPlan();
+            std::cerr << "  [CANH BAO] Trang thai da doi trong luc tinh (ngay "
+                      << state.day << " -> " << latest.day
+                      << "). Bo phuong an cu va doc lai.\n\n";
+            continue;
+        }
+
         // Submit
         if (api.submitActions(matchId, actions)) {
             std::cout << "  -> DA GUI THANH CONG!\n\n";
@@ -204,6 +221,7 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
             }
             lastDay = state.day;
         } else {
+            solver.discardLastPlan();
             std::string err = api.getLastError();
             std::cerr << "  [LOI] Gui that bai: " << err << "\n";
 
