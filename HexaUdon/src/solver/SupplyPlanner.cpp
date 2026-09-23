@@ -177,7 +177,7 @@ std::vector<int> SupplyPlanner::planDay(
 
 void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
     const Map& inputMap, std::vector<std::vector<int>>& actions,
-    const std::set<int>& matchBrands, long long deadlineMs) {
+    const std::set<int>& matchBrands, long long deadlineMs, bool rewardRoutes) {
     Map map = inputMap;
     map.updateTraffic(state.traffics);
     const int steps = config.getDaySteps(state.day);
@@ -303,7 +303,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
             std::vector<Position> stepPositions;
             auto suffix = PatrolPlanner::planDay(config, map, map.posToCoordinate(m.pos), steps-m.meet,
                 config.fuelLimit, stock, visited, brands, daily, target, targetPos,
-                stepSpots, stepPositions, claims, true, false, &cache);
+                stepSpots, stepPositions, claims, true, false, &cache, -2, {}, rewardRoutes);
             candidate[m.patrol].insert(candidate[m.patrol].end(), suffix.begin(), suffix.end());
             auto simulated = MoveSimulator::simulateDay(config, state, candidate, map);
             if (simulated.valid && rank(simulated) > bestRank) {

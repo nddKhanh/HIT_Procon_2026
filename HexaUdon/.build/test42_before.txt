@@ -1,0 +1,16 @@
+recorded day=1 brands=25 servings=36
+recorded day=2 brands=26 servings=37
+recorded day=3 brands=22 servings=32
+recorded day=4 brands=24 servings=40
+recorded day=5 brands=25 servings=41
+recorded day=6 brands=25 servings=38
+recorded day=7 brands=26 servings=32
+recorded TOTAL=26/173/256
+rollout day=1 brands=25 servings=36
+rollout day=2 brands=26 servings=37
+rollout day=3 brands=22 servings=32
+rollout day=4 brands=24 servings=40
+rollout day=5 brands=25 servings=41
+rollout day=6 brands=25 servings=38
+rollout day=7 brands=26 servings=32
+rollout TOTAL=26/173/256

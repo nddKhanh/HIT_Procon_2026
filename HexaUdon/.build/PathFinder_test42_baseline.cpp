@@ -2,7 +2,6 @@
 #include <queue>
 #include <algorithm>
 #include <cmath>
-#include <set>
 
 // =============================================================================
 // SSSPResult::extractPath — Extract path from SSSP result to a specific goal
@@ -215,60 +214,4 @@ const SSSPResult& PathCache::get(Position source, int maxFuel, double fuelWeight
     auto [it, inserted] = cache_.try_emplace(key);
     if (inserted) it->second = PathFinder::computeSSSP(source, map_, maxFuel, fuelWeight);
     return it->second;
-}
-
-PathResult PathFinder::findPathViaSpots(Position start, Position goal, const Map& map,
-    int maxFuel, int maxSteps, const std::vector<double>& rewards, PathCache* cache) {
-    PathCache localCache(map);
-    auto& paths = cache ? *cache : localCache;
-    const int goalCell = map.coordinateToPos(goal);
-    const auto& fromStart = paths.get(start, maxFuel, 1.0);
-    auto best = fromStart.extractPath(goalCell);
-    // Preserve the existing partial, multi-day route when today's target is out of reach.
-    if (!best.found || best.totalSteps > maxSteps || start == goal) return best;
-    const int baseCost = best.totalSteps + best.totalFuel;
-    // Route costs are integral. This permits at most one extra combined
-    // step+fuel unit, and only for a high-priority type reward above one.
-    constexpr double maxReward = 1.49;
-    auto rank = [&](const PathResult& route) {
-        auto pos = start;
-        std::set<int> collected{map.coordinateToPos(start)};
-        double reward = 0;
-        for (int dir : route.directions) {
-            pos = map.nextPosition(pos, dir);
-            int cell = map.coordinateToPos(pos);
-            // The target intentionally consumes the same reward cap: a valuable
-            // target leaves no budget for a detour, while a routine target can.
-            if (cell >= 0 && cell < static_cast<int>(rewards.size()) &&
-                collected.insert(cell).second) reward += rewards[cell];
-        }
-        int cost = route.totalSteps + route.totalFuel;
-        return std::make_tuple(cost - std::min(maxReward, reward), cost,
-                               -reward, route.totalSteps, route.totalFuel);
-    };
-    auto bestRank = rank(best);
-    // ponytail: one optional waypoint per route, not an exhaustive prize-collecting
-    // search; extend to multiple waypoints only if replay gains justify the cost.
-    for (int cell = 0; cell < map.getHeight() * map.getWidth() &&
-                       cell < static_cast<int>(rewards.size()); ++cell) {
-        if (rewards[cell] <= 0 || cell == map.coordinateToPos(start) ||
-            cell == map.coordinateToPos(goal)) continue;
-        auto first = fromStart.extractPath(cell);
-        if (!first.found || first.totalSteps > maxSteps ||
-            first.totalSteps + first.totalFuel > baseCost + maxReward) continue;
-        auto second = paths.get(map.posToCoordinate(cell), maxFuel - first.totalFuel, 1.0)
-                          .extractPath(goalCell);
-        if (!second.found) continue;
-        first.totalSteps += second.totalSteps;
-        first.totalFuel += second.totalFuel;
-        if (first.totalSteps > maxSteps || first.totalFuel > maxFuel ||
-            first.totalSteps + first.totalFuel > baseCost + maxReward) continue;
-        first.directions.insert(first.directions.end(), second.directions.begin(), second.directions.end());
-        auto candidateRank = rank(first);
-        if (candidateRank < bestRank) {
-            bestRank = candidateRank;
-            best = std::move(first);
-        }
-    }
-    return best;
 }

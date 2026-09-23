@@ -1,0 +1,8 @@
+day=0 brands=26 servings=46 actions_identical=1
+day=1 brands=22 servings=31 actions_identical=1
+day=2 brands=11 servings=12 actions_identical=1
+day=3 brands=8 servings=9 actions_identical=1
+day=4 brands=7 servings=8 actions_identical=1
+day=5 brands=7 servings=8 actions_identical=1
+day=6 brands=7 servings=8 actions_identical=1
+score=26/88/122

@@ -148,18 +148,32 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     std::vector<int> bestTypes(agentCount, 0);
     auto bestRank = std::make_tuple(-1, -1, -1);
     bool bestUseRegions = false;
+    int bestSupplyCount = INT_MAX;
     std::cerr << "[FORMATION] traffic scenario: opponents mirror own road occupancy\n";
 
-    for (int supplyCount = 0; supplyCount <= agentCount / 2; ++supplyCount) {
-        std::vector<int> types(agentCount, 0);
-        for (int i = 0; i < supplyCount; ++i) types[agentCount - 1 - i] = 1;
+    struct Formation {
+        std::vector<int> types;
+        std::tuple<int, int, int> rank{-1, -1, -1};
+        bool useRegions = false;
+        bool valid = false;
+        bool evaluated = false;
+    };
+    const int maxSupplyCount = agentCount / 2;
+    std::vector<Formation> formations(maxSupplyCount + 1);
+    auto evaluate = [&](int supplyCount) -> const Formation& {
+        auto& formation = formations[supplyCount];
+        if (formation.evaluated) return formation;
+        formation.evaluated = true;
+        formation.types.assign(agentCount, 0);
+        for (int i = 0; i < supplyCount; ++i)
+            formation.types[agentCount - 1 - i] = 1;
 
         for (bool useRegions : {false, true}) {
             if (useRegions && !kEnablePatrolRegions) continue;
             GameState state{};
             for (int i = 0; i < agentCount; ++i) {
                 state.agents.push_back(
-                    {types[i], config.initialAgentPositions[i], config.fuelLimit});
+                    {formation.types[i], config.initialAgentPositions[i], config.fuelLimit});
             }
 
             Map map(config.map.height, config.map.width, config.map.cells);
@@ -195,12 +209,54 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                       << '/' << score.servings << (valid ? "" : " invalid")
                       << '\n';
 
-            if (valid && score.rank() > bestRank) {
-                bestRank = score.rank();
-                bestTypes = types;
-                bestUseRegions = useRegions;
+            if (valid && (!formation.valid || score.rank() > formation.rank)) {
+                formation.rank = score.rank();
+                formation.useRegions = useRegions;
+                formation.valid = true;
             }
         }
+
+        if (formation.valid &&
+            (formation.rank > bestRank ||
+             (formation.rank == bestRank && supplyCount < bestSupplyCount))) {
+            bestRank = formation.rank;
+            bestTypes = formation.types;
+            bestUseRegions = formation.useRegions;
+            bestSupplyCount = supplyCount;
+        }
+        return formation;
+    };
+    auto better = [](const Formation& candidate, int candidateCount,
+                     const Formation& current, int currentCount) {
+        if (!candidate.valid) return false;
+        if (!current.valid) return true;
+        return candidate.rank > current.rank ||
+               (candidate.rank == current.rank && candidateCount < currentCount);
+    };
+
+    // ponytail: assume the supply-count score is unimodal; restore an exhaustive
+    // scan if recorded formations show multiple local peaks. Probe the middle and
+    // both neighbors, then climb only toward the improving side.
+    int current = maxSupplyCount / 2;
+    evaluate(current);
+    const int left = current - 1;
+    const int right = current + 1;
+    if (left >= 0) evaluate(left);
+    if (right <= maxSupplyCount) evaluate(right);
+
+    int direction = 0;
+    if (left >= 0 && better(formations[left], left, formations[current], current))
+        direction = -1;
+    if (right <= maxSupplyCount &&
+        better(formations[right], right, formations[current], current) &&
+        (direction == 0 || better(formations[right], right, formations[left], left)))
+        direction = 1;
+    while (direction != 0) {
+        int next = current + direction;
+        if (next < 0 || next > maxSupplyCount) break;
+        evaluate(next);
+        if (!better(formations[next], next, formations[current], current)) break;
+        current = next;
     }
 
     std::cerr << "[FORMATION] selected score=" << std::get<0>(bestRank) << '/'
@@ -298,7 +354,8 @@ void Solver::resetDailyState(const GameConfig& config, int numAgents) {
 std::vector<std::vector<int>> Solver::solve(
     const GameConfig& config,
     const GameState& state,
-    Map& map
+    Map& map,
+    bool rewardRoutes
 ) {
     int daySteps = config.getDaySteps(state.day);
 
@@ -306,6 +363,11 @@ std::vector<std::vector<int>> Solver::solve(
     std::vector<std::vector<int>> actions(numAgents);
 
     if (daySteps <= 0) return actions;
+
+    // Preserve a complete ordinary-route plan, including its supply repairs.
+    Solver ordinarySolver = *this;
+    std::vector<std::vector<int>> ordinaryActions;
+    if (rewardRoutes) ordinaryActions = ordinarySolver.solve(config, state, map, false);
 
     // 1. Cập nhật giao thông trên bản đồ
     map.updateTraffic(state.traffics);
@@ -320,6 +382,10 @@ std::vector<std::vector<int>> Solver::solve(
             std::chrono::system_clock::now().time_since_epoch()).count();
         return current < deadlineMs;
     };
+    if (rewardRoutes && !hasSearchTime()) {
+        *this = std::move(ordinarySolver);
+        return ordinaryActions;
+    }
 
     struct Candidate {
         std::vector<std::vector<int>> actions;
@@ -399,7 +465,7 @@ std::vector<std::vector<int>> Solver::solve(
         if (!hasSearchTime() || std::get<0>(candidate.rank) < 0) return candidate;
         auto refined = candidate.actions;
         SupplyPlanner::improveDay(config, state, map, refined,
-            collectedBrandsTotal_, deadlineMs < nowEpochMs - 60000 ? LLONG_MAX : deadlineMs);
+            collectedBrandsTotal_, deadlineMs < nowEpochMs - 60000 ? LLONG_MAX : deadlineMs, rewardRoutes);
         if (refined == candidate.actions) return candidate;
         Candidate improved = candidate;
         improved.actions = std::move(refined);
@@ -448,7 +514,7 @@ std::vector<std::vector<int>> Solver::solve(
                 remainingStock_, visitedSpotsToday_[i], matchBrands, dailyBrands,
                 currentTargets_[i], currentTargetPositions_[i], plannedStepSpots_[i],
                 plannedStepPositions_[i], claimedSpots_, officialRanking, exclusiveClaims,
-                &pathCache, firstSpots[i], candidateRegions[i]);
+                &pathCache, firstSpots[i], candidateRegions[i], rewardRoutes);
         }
         std::set<int> suppliedPatrols;
         for (int i = 0; i < numAgents; ++i) {
@@ -499,7 +565,7 @@ std::vector<std::vector<int>> Solver::solve(
                 remainingStock_, visitedSpotsToday_[patrol], matchBrands, dailyBrands,
                 suffixTarget, suffixTargetPos, suffixSpots, suffixPositions,
                 claimedSpots_, officialRanking, exclusiveClaims, &pathCache,
-                -2, candidateRegions[patrol]);
+                -2, candidateRegions[patrol], rewardRoutes);
 
             candidate.actions[patrol] = std::move(patrolPrefix);
             candidate.actions[patrol].push_back(-(resumeAt - patrolReadyAt));
@@ -608,6 +674,15 @@ std::vector<std::vector<int>> Solver::solve(
         }
     }
     best = refineCandidate(std::move(best));
+    if (rewardRoutes) {
+        Candidate ordinary;
+        ordinary.actions = ordinaryActions;
+        evaluateCandidate(ordinary);
+        if (ordinary.rank > best.rank) {
+            *this = std::move(ordinarySolver);
+            return ordinaryActions;
+        }
+    }
     actions = best.actions;
     auto improved = MoveSimulator::simulateDay(config, state, actions, map);
     if (improved.valid && best.metadataStale) {

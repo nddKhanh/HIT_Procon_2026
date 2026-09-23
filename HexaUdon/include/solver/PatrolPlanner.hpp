@@ -53,6 +53,7 @@ public:
         bool exclusiveClaims = false,
         PathCache* pathCache = nullptr,
         int firstTargetSpot = -2,
-        const std::set<int>& preferredSpots = {}
+        const std::set<int>& preferredSpots = {},
+        bool rewardRoutes = true
     );
 };

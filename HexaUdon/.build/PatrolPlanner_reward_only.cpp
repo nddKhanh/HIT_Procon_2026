@@ -102,7 +102,7 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                         0, 0, -secondPath.totalSteps, -secondPath.totalFuel};
                     secondRank[2] = preferredSpots.empty() ||
                                     preferredSpots.count(static_cast<int>(second)) ? 1 : 0;
-                    auto withSecond = candidate.rank;
+                    auto withSecond = pairRank;
                     for (size_t i = 0; i < withSecond.size(); ++i) withSecond[i] += secondRank[i];
                     if (withSecond > pairRank) pairRank = withSecond;
                 }
@@ -146,8 +146,7 @@ std::vector<int> PatrolPlanner::planDay(
     bool exclusiveClaims,
     PathCache* pathCache,
     int firstTargetSpot,
-    const std::set<int>& preferredSpots,
-    bool rewardRoutes
+    const std::set<int>& preferredSpots
 ) {
     std::vector<int> allActions;
     int stepsUsed = 0;
@@ -180,21 +179,15 @@ std::vector<int> PatrolPlanner::planDay(
         if (nextSpot >= 0) {
             Position spotPos = map.posToCoordinate(config.spots[nextSpot].pos);
             std::vector<double> rewards(map.getHeight() * map.getWidth(), 0.0);
-            for (size_t s = 0; rewardRoutes && s < config.spots.size(); ++s) {
+            for (size_t s = 0; s < config.spots.size(); ++s) {
                 if (s >= remainingStock.size() || remainingStock[s] <= 0 ||
                     visitedToday.count(static_cast<int>(s))) continue;
                 const auto& spot = config.spots[s];
-                const int alternatives = brandSpotCount(config, spot.brand);
-                // A type is scored once even if its brand has several spots, so
-                // split that reward across its alternatives. A serving remains
-                // one real third-priority point regardless of brand rarity.
-                rewards[spot.pos] = !matchBrands.count(spot.brand) ? 1.25 / alternatives :
-                                   !dailyBrands.count(spot.brand) ? 1.1 / alternatives : 0.2;
+                rewards[spot.pos] = !matchBrands.count(spot.brand) ? 1.0 :
+                                   !dailyBrands.count(spot.brand) ? 0.75 : 0.25;
             }
-            auto path = rewardRoutes
-                ? PathFinder::findPathViaSpots(currentPos, spotPos, map,
-                    fuelRemaining, stepsRemaining, rewards, pathCache)
-                : PathFinder::findPath(currentPos, spotPos, map, fuelRemaining, 1.0);
+            auto path = PathFinder::findPathViaSpots(currentPos, spotPos, map,
+                fuelRemaining, stepsRemaining, rewards, pathCache);
 
             if (path.found && !path.directions.empty()) {
                 auto sim = MoveSimulator::simulate(

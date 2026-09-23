@@ -20,7 +20,8 @@ public:
     // Reuse a supply after a meeting and replan the rescued patrol's suffix.
     static void improveDay(const GameConfig& config, const GameState& state,
         const Map& map, std::vector<std::vector<int>>& actions,
-        const std::set<int>& matchBrands, long long deadlineMs = LLONG_MAX);
+        const std::set<int>& matchBrands, long long deadlineMs = LLONG_MAX,
+        bool rewardRoutes = true);
     /**
      * @brief Tìm xe Patrol đang cần xăng nhất.
      *

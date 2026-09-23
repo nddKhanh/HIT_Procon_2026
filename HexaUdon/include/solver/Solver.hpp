@@ -35,7 +35,8 @@ public:
     std::vector<std::vector<int>> solve(
         const GameConfig& config,
         const GameState& state,
-        Map& map
+        Map& map,
+        bool rewardRoutes = true
     );
 
     /** Commit brands from the most recently generated plan after server acceptance. */
