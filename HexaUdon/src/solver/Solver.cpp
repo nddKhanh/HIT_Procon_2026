@@ -15,6 +15,41 @@ namespace {
 
 constexpr bool kEnablePatrolRegions = false;
 
+auto finalDayRank(const DaySimulation& day, const std::set<int>& matchBrands) {
+    int fresh = 0;
+    for (int brand : day.brands) fresh += !matchBrands.count(brand);
+    return std::make_tuple(fresh, static_cast<int>(day.brands.size()),
+                           static_cast<int>(day.collections.size()));
+}
+
+// A Supply that can be removed without invalidating the submitted actions or
+// lowering any official final-day score only adds road traffic and refuels with
+// no remaining strategic value. Keep the simulator as the authority here.
+bool removeRedundantFinalDaySupplies(const GameConfig& config, const GameState& state,
+    const Map& map, std::vector<std::vector<int>>& actions,
+    const std::set<int>& matchBrands) {
+    // ponytail: only remove a whole Supply route; split it after a necessary
+    // meeting if replays show that a partial final-day convoy costs points.
+    if (state.day + 1 != static_cast<int>(config.daySteps.size())) return false;
+    auto baseline = MoveSimulator::simulateDay(config, state, actions, map);
+    if (!baseline.valid) return false;
+    const int steps = config.getDaySteps(state.day);
+    const auto baselineRank = finalDayRank(baseline, matchBrands);
+    bool changed = false;
+    for (size_t supply = 0; supply < state.agents.size(); ++supply) {
+        if (state.agents[supply].kind != 1) continue;
+        auto candidate = actions;
+        candidate[supply] = {-steps};
+        auto simulated = MoveSimulator::simulateDay(config, state, candidate, map);
+        if (!simulated.valid || finalDayRank(simulated, matchBrands) != baselineRank)
+            continue;
+        actions = std::move(candidate);
+        baseline = std::move(simulated);
+        changed = true;
+    }
+    return changed;
+}
+
 std::vector<std::set<int>> assignPatrolRegions(
     const GameConfig& config, const GameState& state, const Map& map,
     const std::vector<int>& patrols, int daySteps, PathCache& pathCache) {
@@ -454,6 +489,7 @@ std::vector<std::vector<int>> Solver::solve(
                 }
             }
         }
+        if (state.day + 1 == static_cast<int>(config.daySteps.size())) patrolFuel = 0;
         candidate.rank = {newTypes, static_cast<int>(result.brands.size()),
                           static_cast<int>(nextReachableBrands.size()),
                           static_cast<int>(result.collections.size()), patrolFuel};
@@ -679,10 +715,18 @@ std::vector<std::vector<int>> Solver::solve(
         ordinary.actions = ordinaryActions;
         evaluateCandidate(ordinary);
         if (ordinary.rank > best.rank) {
+            if (removeRedundantFinalDaySupplies(config, state, map, ordinaryActions,
+                                                 collectedBrandsTotal_)) {
+                for (int i = 0; i < numAgents; ++i)
+                    if (state.agents[i].kind == 1) ordinarySolver.supportedPatrols_[i] = -1;
+            }
             *this = std::move(ordinarySolver);
             return ordinaryActions;
         }
     }
+    if (removeRedundantFinalDaySupplies(config, state, map, best.actions,
+                                        collectedBrandsTotal_))
+        best.metadataStale = true;
     actions = best.actions;
     auto improved = MoveSimulator::simulateDay(config, state, actions, map);
     if (improved.valid && best.metadataStale) {

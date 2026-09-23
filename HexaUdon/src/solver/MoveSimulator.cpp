@@ -104,8 +104,11 @@ DaySimulation MoveSimulator::simulateDay(const GameConfig& config,
             for (int j = 0; j < n; ++j) {
                 if (out.agents[j].kind == 1 && out.agents[j].pos == agent.pos) {
                     if (out.agents[i].fuel < config.fuelLimit) {
+                        const int fuelBefore = out.agents[i].fuel;
                         out.agents[i].fuel = config.fuelLimit;
                         ++out.refuels;
+                        out.refuelEvents.push_back(
+                            {time + 1, i, j, agent.pos, fuelBefore, config.fuelLimit});
                     }
                     break;
                 }

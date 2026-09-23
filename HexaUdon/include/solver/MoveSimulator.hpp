@@ -12,6 +12,10 @@ struct CollectionEvent {
     int step, agent, spot, brand;
 };
 
+struct RefuelEvent {
+    int step, patrol, supply, pos, fuelBefore, fuelAfter;
+};
+
 struct DaySimulation {
     bool valid = false;
     std::string error;
@@ -22,6 +26,7 @@ struct DaySimulation {
     std::vector<int> remainingStock;
     std::vector<long long> roadOccupancy; // Post-step positions, boundaries 1..daySteps.
     std::vector<CollectionEvent> collections;
+    std::vector<RefuelEvent> refuelEvents;
     std::set<int> brands;
     int refuels = 0; // Only events that increase fuel.
 };

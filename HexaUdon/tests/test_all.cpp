@@ -643,6 +643,10 @@ void test_joint_simulator() {
     assert(refill.valid && refill.refuels == 1);
     assert(refill.agents[0].pos == 2 && refill.agents[0].fuel == 1);
     assert(refill.fuelAtTime[0] == std::vector<int>({0, 3, 3, 2, 2, 1}));
+    assert(refill.refuelEvents.size() == 1);
+    assert(refill.refuelEvents[0].step == 1 && refill.refuelEvents[0].patrol == 0 &&
+           refill.refuelEvents[0].supply == 1 && refill.refuelEvents[0].pos == 0 &&
+           refill.refuelEvents[0].fuelBefore == 0 && refill.refuelEvents[0].fuelAfter == 3);
     assert(refill.collections.size() == 2);
     // A future refill cannot make a zero-fuel departure legal.
     assert(!MoveSimulator::simulateDay(config, state, {{2, 2, -1}, {-5}}, map).valid);
@@ -746,6 +750,7 @@ void test_diary_uses_canonical_simulation() {
     std::ifstream valid(root / "valid" / "day_0.md");
     std::string text((std::istreambuf_iterator<char>(valid)), {});
     assert(text.find("| 0-1 |") != std::string::npos);
+    assert(text.find("## Tiếp tế theo mô phỏng") != std::string::npos);
     assert(DiaryWriter::writeDay(root.string(), "invalid", 0, 2,
         config, state, staleMap, solver, {{-3}}, false));
     std::ifstream invalid(root / "invalid" / "day_0.md");
@@ -791,6 +796,26 @@ void test_joint_refuel_extends_patrol_route() {
     }
     assert(movedAfterWait);
     std::cout << "[PASS] Joint refuel extends patrol route test passed!" << std::endl;
+}
+
+void test_final_day_drops_redundant_supply() {
+    GameConfig config{};
+    config.map = {1, 3, {{0, 0, 0}}};
+    config.daySteps = {4};
+    config.fuelLimit = 5;
+    config.spots = {{0, 1, 1}};
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 0, 3}, {1, 2, 5}};
+    Map map(1, 3, config.map.cells);
+    Solver solver;
+    auto actions = solver.solve(config, state, map);
+    auto day = MoveSimulator::simulateDay(config, state, actions, map);
+
+    assert(day.valid && day.collections.size() == 1);
+    assert(actions[1] == std::vector<int>({-4}));
+    assert(day.refuels == 0);
+    std::cout << "[PASS] Final day drops a Supply that only raises ending fuel." << std::endl;
 }
 
 void test_recorded_match_120_score_regression() {
@@ -1208,6 +1233,7 @@ int main() {
     test_patrol_region_is_a_soft_preference();
     test_joint_simulator();
     test_joint_refuel_extends_patrol_route();
+    test_final_day_drops_redundant_supply();
     test_recorded_match_120_score_regression();
     test_match_0c599133_day_one_collects_every_brand();
     test_incidental_spot_updates_planner_state();

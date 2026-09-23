@@ -228,6 +228,22 @@ bool DiaryWriter::writeDay(
     Map timelineMap = map;
     timelineMap.updateTraffic(state.traffics);
 
+    if (simulation.valid) {
+        output << "## Tiếp tế theo mô phỏng\n\n";
+        if (simulation.refuelEvents.empty()) {
+            output << "Không phát sinh lần nạp nhiên liệu nào.\n\n";
+        } else {
+            output << "| Bước | Patrol | Supply | Vị trí | Xăng trước | Xăng sau |\n";
+            output << "|---:|---:|---:|---|---:|---:|\n";
+            for (const auto& event : simulation.refuelEvents) {
+                output << "| " << event.step << " | #" << event.patrol << " | #"
+                       << event.supply << " | "
+                       << formatPosition(timelineMap.posToCoordinate(event.pos)) << " | "
+                       << event.fuelBefore << " | " << event.fuelAfter << " |\n";
+            }
+            output << "\n";
+        }
+    }
     for (size_t i = 0; i < state.agents.size(); ++i) {
         const std::vector<int> emptyActions;
         const std::vector<int>& agentActions = i < actions.size() ? actions[i] : emptyActions;

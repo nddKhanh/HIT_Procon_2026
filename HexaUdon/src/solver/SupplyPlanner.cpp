@@ -189,6 +189,9 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
         int fresh = 0, fuel = 0;
         for (int b : day.brands) fresh += !matchBrands.count(b);
         for (const auto& a : day.agents) if (a.kind == 0) fuel += a.fuel;
+        // Fuel can only help on a later day. On the final day, never replace an
+        // equally scoring plan merely because a Supply shadows a Patrol.
+        if (state.day + 1 == static_cast<int>(config.daySteps.size())) fuel = 0;
         return std::make_tuple(fresh, day.brands.size(), day.collections.size(), fuel);
     };
     auto inTime = [&] {
