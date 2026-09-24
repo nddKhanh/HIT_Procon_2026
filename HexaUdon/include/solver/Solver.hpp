@@ -84,6 +84,7 @@ private:
     std::set<int> pendingBrandsTotal_;     // Candidate result, committed only after acceptance
     bool hasPendingPlan_ = false;
     bool useRegions_ = false;
+    bool enableTwoDayLookahead_ = true;
     std::set<int> claimedSpots_; // Exclusive daily reservations per upgrade_plan.md.
     int currentDay_ = -1;
 

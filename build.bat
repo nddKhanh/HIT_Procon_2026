@@ -17,7 +17,10 @@ if "%1"=="benchmark" (
     set TEMP_EXE=%TEMP_DIR%\benchmark.exe
     %CXX% %CXXFLAGS% HexaUdon/tests/benchmark.cpp %CORE_SRC% %LDFLAGS% -o !TEMP_EXE!
     if !errorlevel! neq 0 exit /b !errorlevel!
-    !TEMP_EXE!
+    set BENCHMARK_ARGS=
+    if "%2"=="--formation" set BENCHMARK_ARGS=--formation
+    if "%2"=="--check" set BENCHMARK_ARGS=--check
+    !TEMP_EXE! !BENCHMARK_ARGS!
     set RESULT=!errorlevel!
     del /q !TEMP_EXE! 2>nul
     exit /b !RESULT!

@@ -20,17 +20,19 @@
   1. số brand khác nhau toàn trận;
   2. tổng số brand khác nhau theo từng ngày;
   3. tổng servings.
-- Đội hình được chọn bằng rollout các số Supply từ `0` đến `floor(n/2)`,
-  so điểm `(match brands, daily brands, servings)`. Traffic được cập nhật mỗi
-  ngày; khi chưa có action đối thủ, giả định đối thủ tạo traffic giống đội mình.
+- Đội hình quét đủ số Supply từ `0` đến `floor(n/2)` và thử thêm cách gán vị trí
+  tốt nhất theo độ phủ tĩnh. Một assignment mới chỉ thay legacy khi tăng match
+  hoặc daily brands; servings-only không đủ vì dễ overfit traffic. Traffic được
+  cập nhật mỗi ngày; khi chưa có action đối thủ, giả định đối thủ tạo traffic giống đội mình.
 - Patrol dùng pathfinding Pareto theo `(steps, fuel)`, lookahead hai spot và chaining
   nhiều spot trong ngày.
 - Khi có từ hai patrol trở lên, Solver giải bài toán matching để mỗi patrol có tối đa
   một spot đầu tiên và mỗi spot đầu tiên chỉ thuộc một patrol. Matching ưu tiên số xe
   được gán nhiều nhất, rồi tối thiểu tổng thời gian di chuyển.
 - Sau spot đầu tiên, patrol quay về lookahead/scoring thông thường.
-- Solver sinh nhiều candidate theo thứ tự patrol, mô phỏng cả ngày, rồi chọn candidate
-  tốt nhất. Trạng thái brand chỉ được commit sau khi server chấp nhận action.
+- Solver giữ một beam nhỏ các candidate khác action. Candidate đồng hạng hoàn toàn
+  trong ngày được phân xử bằng rollout thật của ngày kế tiếp; rollout dừng ở hai ngày.
+  Trạng thái brand chỉ được commit sau khi server chấp nhận action.
 - Build và toàn bộ `tests/test_all.cpp` đang chạy thành công ở snapshot này.
 
 ## 2. Quy tắc làm việc cho prompt sau
@@ -298,10 +300,11 @@ Supply không tiêu thụ fuel trong `MoveSimulator`.
 
 ### 7.1 Chọn loại xe — `AgentStrategy::decideAgentTypes`
 
-- Nếu `n <= 2`: tất cả Patrol.
-- Nếu `n >= 3`: `floor(n/3)` Supply ở cuối mảng, còn lại Patrol.
-- Với 6 xe: `[0, 0, 0, 0, 1, 1]`, tức 2/3 Patrol và 1/3 Supply.
-- Luôn giữ ít nhất một Patrol; phần dư được phân cho Patrol.
+- Quét đầy đủ mọi số Supply từ `0` đến `floor(n/2)`.
+- Với mỗi số lượng, rollout assignment legacy (Supply ở cuối mảng) và assignment
+  có độ phủ brand/stock/khoảng cách tốt nhất từ vị trí xuất phát.
+- So theo điểm chính thức; nếu assignment thay thế chỉ hơn servings thì giữ legacy
+  để tránh đổi daily brand khi traffic đối thủ khác giả định.
 
 ### 7.2 `Solver::solve`
 
@@ -318,12 +321,16 @@ Supply không tiêu thụ fuel trong `MoveSimulator`.
    - lập supply sau patrol;
    - thử nối thêm một patrol suffix sau rendezvous/refuel;
    - mô phỏng toàn bộ ngày bằng `MoveSimulator::simulateDay()`;
-   - xếp candidate theo tuple:
-     `(new match types, daily types, servings, next-day reachable types)`.
+   - xếp candidate nhanh theo tuple gồm match/daily brands, khả năng tiếp cận ngày
+     sau, servings và fuel;
+   - giữ tối đa bốn action plan khác nhau trong shortlist.
 5. Candidate đầu tiên giữ policy cũ: scalar scoring + exclusive claim.
 6. Các candidate còn lại dùng official lexicographic ranking; matching đầu ngày vẫn
    bảo đảm ownership độc lập với `exclusiveClaims`.
-7. Lưu plan tốt nhất vào trạng thái pending. Chỉ `commitLastPlan()` sau khi server
+7. Nếu có ít nhất hai plan đồng hạng hoàn toàn, rollout thật ngày kế tiếp cho tối đa
+   hai plan và dùng điểm chính thức hai ngày để phá hòa. Không hy sinh tiêu chí đã
+   kiểm chứng hôm nay cho dự báo traffic chưa chắc chắn.
+8. Lưu plan tốt nhất vào trạng thái pending. Chỉ `commitLastPlan()` sau khi server
    nhận action; khi fallback/retry dùng `discardLastPlan()`.
 
 ### 7.3 Matching spot đầu tiên — `assignFirstSpots`
@@ -445,8 +452,13 @@ replay từng ngày. Muốn định lượng cần admin replay, export action/h
 - Opponent (`state.others`) được parse; stock của mỗi đội độc lập, nhưng action
   đối thủ ảnh hưởng traffic ngày sau. Formation rollout dùng giả định mirrored
   traffic; cần action đối thủ thật để đánh giá chính xác nhiều ngày.
-- Supply dùng một rendezvous ổn định ở cuối prefix, chưa beam-search các điểm hẹn giữa route.
-- Mỗi patrol chỉ được nối một refuel suffix/ngày.
+- Lập plan Supply ban đầu dùng rendezvous ổn định ở cuối prefix; refinement sau đó
+  quét tối đa 64 cuộc gặp khả thi mỗi vòng khi có tối đa hai Supply, gồm cả
+  boundary khi Patrol đang chạy, và hỗ trợ multi-stop trong cùng ngày. Với nhiều
+  Supply hơn, giữ giới hạn 24 wait-rendezvous vì benchmark cho thấy search mở rộng
+  gây nhiễu coordination.
+- Beam hai ngày chỉ phá hòa current-day; đây là giới hạn chủ ý để không overfit
+  giả định mirrored traffic.
 - Pareto frontier bị cap 16 nhãn/cell.
 - Simulator đã khớp replay của một trận hai đội. Thêm replay khác làm tập kiểm tra
   độc lập khi có dữ liệu; không xem khớp một trận là chứng minh mọi trường hợp.

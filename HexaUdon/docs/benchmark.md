@@ -74,10 +74,15 @@ Use identical inputs and opponent policies when comparing algorithms. A changed
 route can change future traffic, so replaying recorded future traffic while
 changing your actions is a fixed-traffic experiment, not an exact counterfactual.
 
-Formation selection now uses the official score tuple and advances traffic.
-Because future opponent actions are unknown, it explicitly uses a scenario in
-which opponents mirror its own occupancy; this assumption is logged and marked
-with a `ponytail:` comment. It is not a guarantee of a real-match score.
+Formation selection now exhaustively checks every feasible Supply count instead
+of assuming its score is unimodal. For each count it fully rolls out the legacy
+last-agent assignment and the best alternative by static start coverage, using
+the official score tuple and advancing traffic. A different position assignment
+must improve match or daily brands; a servings-only gain is not accepted because
+it regressed daily brands under recorded traffic during validation. Because
+future opponent actions are unknown, selection uses a scenario in which opponents
+mirror its own occupancy. This assumption is logged and is not a guarantee of a
+real-match score.
 
 The routing experiment now uses `tests/benchmark.cpp` as an offline comparison
 runner: 3/2 supplies, fixed recorded/mirrored dynamic traffic, and start rotations
@@ -87,8 +92,22 @@ scenarios, not a live-opponent win-rate measurement. Read
 [the completed routing evaluation](ROUTING_RESULT_2026-09-22.md) before
 interpreting results.
 
+The current guarded beam plus moving-rendezvous refinement keeps all 20 match
+brands and 140 daily brands in every two-Supply scenario. Servings are
+`241/237/264/256` across the four scenarios (average `249.5`), up from
+`222/236/239/237` (average `233.5`). Three-Supply scenarios retain their previous
+baselines; moving rendezvous is disabled there because it regressed coordination.
+
 ```powershell
 cmd /c build.bat benchmark
+
+# Fail with a non-zero exit code if any official score tuple falls below the
+# tracked scenario baseline in tests/benchmark_baseline.json.
+cmd /c build.bat benchmark --check
+
+# Run the formation selector, then evaluate its selected types under both the
+# recorded fixed-traffic and mirrored dynamic scenarios.
+cmd /c build.bat benchmark --formation
 ```
 
 Previously documented synthetic baseline scores were produced with different
