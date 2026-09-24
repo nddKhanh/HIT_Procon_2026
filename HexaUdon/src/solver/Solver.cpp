@@ -608,7 +608,8 @@ std::vector<std::vector<int>> Solver::solve(
     auto planCandidate = [&](const std::vector<int>& order,
                              bool officialRanking, bool exclusiveClaims,
                              const std::vector<std::set<int>>& candidateRegions,
-                             int responsiblePatrol = -1, int requiredSpot = -1) {
+                             int responsiblePatrol = -1, int requiredSpot = -1,
+                             const std::vector<int>* forcedFirstSpots = nullptr) {
         resetDailyState(config, numAgents);
         Candidate candidate;
         candidate.actions.resize(numAgents);
@@ -629,7 +630,17 @@ std::vector<std::vector<int>> Solver::solve(
         auto firstSpots = assignFirstSpots(
             config, state, map, patrols, daySteps, remainingStock_,
             visitedSpotsToday_, pathCache, candidateRegions);
-        if (responsiblePatrol >= 0) {
+        if (forcedFirstSpots) {
+            std::set<int> forced;
+            for (int p : patrols)
+                if (p < static_cast<int>(forcedFirstSpots->size()) && (*forcedFirstSpots)[p] >= 0)
+                    forced.insert((*forcedFirstSpots)[p]);
+            for (int p : patrols)
+                if (forced.count(firstSpots[p])) firstSpots[p] = -2;
+            for (int p : patrols)
+                if (p < static_cast<int>(forcedFirstSpots->size()) && (*forcedFirstSpots)[p] >= 0)
+                    firstSpots[p] = (*forcedFirstSpots)[p];
+        } else if (responsiblePatrol >= 0) {
             for (int p : patrols) if (firstSpots[p] == requiredSpot) firstSpots[p] = -2;
             firstSpots[responsiblePatrol] = requiredSpot;
         }
@@ -728,6 +739,55 @@ std::vector<std::vector<int>> Solver::solve(
         if (!hasSearchTime()) break;
         auto candidate = planCandidate(order, true, false, selectedRegions);
         if (candidate.rank > best.rank) best = std::move(candidate);
+    }
+    // ponytail: bounded joint first-target beam; expand only if it raises Daily
+    // on replayed maps without consuming the server response budget.
+    const auto current = MoveSimulator::simulateDay(config, state, best.actions, map);
+    if (current.valid) {
+        struct Assignment { int patrol, spot, steps, fresh; };
+        std::vector<Assignment> assignments;
+        for (size_t spot = 0; spot < config.spots.size(); ++spot) {
+            if (current.brands.count(config.spots[spot].brand)) continue;
+            for (int patrol : patrols) {
+                auto route = pathCache.get(map.posToCoordinate(state.agents[patrol].pos),
+                                           state.agents[patrol].fuel, 1.0)
+                    .extractPath(config.spots[spot].pos);
+                if (!route.found || route.totalSteps > daySteps) continue;
+                assignments.push_back({patrol, static_cast<int>(spot), route.totalSteps,
+                    !collectedBrandsTotal_.count(config.spots[spot].brand)});
+            }
+        }
+        std::stable_sort(assignments.begin(), assignments.end(), [](const Assignment& a,
+                                                                       const Assignment& b) {
+            return std::make_tuple(a.fresh, -a.steps, -a.patrol, -a.spot) >
+                   std::make_tuple(b.fresh, -b.steps, -b.patrol, -b.spot);
+        });
+        constexpr size_t kJointSeeds = 8;
+        constexpr size_t kJointPairs = 12;
+        std::vector<int> seedCount(numAgents);
+        std::vector<Assignment> seeds;
+        for (const auto& assignment : assignments) {
+            if (seedCount[assignment.patrol] >= 2) continue;
+            seeds.push_back(assignment);
+            ++seedCount[assignment.patrol];
+            if (seeds.size() == kJointSeeds) break;
+        }
+        size_t tested = 0;
+        for (size_t first = 0; first < assignments.size() && tested < kJointPairs && hasSearchTime(); ++first) {
+            for (size_t second = first + 1;
+                 second < assignments.size() && tested < kJointPairs && hasSearchTime(); ++second) {
+                if (assignments[first].patrol == assignments[second].patrol ||
+                    config.spots[assignments[first].spot].brand == config.spots[assignments[second].spot].brand)
+                    continue;
+                std::vector<int> forced(numAgents, -1);
+                forced[assignments[first].patrol] = assignments[first].spot;
+                forced[assignments[second].patrol] = assignments[second].spot;
+                auto candidate = planCandidate(patrols, true, false, selectedRegions,
+                                               -1, -1, &forced);
+                if (candidate.rank > best.rank) best = std::move(candidate);
+                ++tested;
+            }
+        }
     }
     // Assign a named patrol to each still-missing brand; never hard-code a brand
     // number or map corner. Replan the rest after that patrol reserves its route.
