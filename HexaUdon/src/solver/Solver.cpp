@@ -490,9 +490,12 @@ std::vector<std::vector<int>> Solver::solve(
             }
         }
         if (state.day + 1 == static_cast<int>(config.daySteps.size())) patrolFuel = 0;
+        // The server compares the completed match lexicographically by match
+        // brands, daily brands, then servings. Tomorrow's reachability is a
+        // tie-break only after every score already on the board.
         candidate.rank = {newTypes, static_cast<int>(result.brands.size()),
-                          static_cast<int>(nextReachableBrands.size()),
-                          static_cast<int>(result.collections.size()), patrolFuel};
+                          static_cast<int>(result.collections.size()),
+                          static_cast<int>(nextReachableBrands.size()), patrolFuel};
         candidate.brands = collectedBrandsTotal_;
         candidate.brands.insert(result.brands.begin(), result.brands.end());
     };
@@ -510,6 +513,94 @@ std::vector<std::vector<int>> Solver::solve(
         if (improved.rank > candidate.rank) {
             improved.metadataStale = true;
             return improved;
+        }
+        return candidate;
+    };
+
+    auto boostServings = [&](Candidate candidate) {
+        // ponytail: bounded tail substitutions, not route-wide search. Upgrade
+        // to multi-patrol k-opt only if replayed maps show this misses servings.
+        constexpr size_t kTailEdges = 12;
+        constexpr size_t kTargetSpots = 12;
+        for (size_t pass = 0; pass < patrols.size() && hasSearchTime(); ++pass) {
+            const auto baseline = MoveSimulator::simulateDay(config, state, candidate.actions, map);
+            if (!baseline.valid) break;
+            int baselineFresh = 0;
+            for (int brand : baseline.brands)
+                baselineFresh += !collectedBrandsTotal_.count(brand);
+            const int baselineDaily = static_cast<int>(baseline.brands.size());
+            const int baselineServings = static_cast<int>(baseline.collections.size());
+
+            std::vector<int> targets;
+            for (size_t spot = 0; spot < config.spots.size(); ++spot)
+                if (baseline.remainingStock[spot] > 0) targets.push_back(static_cast<int>(spot));
+            std::stable_sort(targets.begin(), targets.end(), [&](int a, int b) {
+                return baseline.remainingStock[a] > baseline.remainingStock[b];
+            });
+            if (targets.size() > kTargetSpots) targets.resize(kTargetSpots);
+
+            bool improved = false;
+            for (int patrol : patrols) {
+                if (!hasSearchTime()) break;
+                const auto& patrolActions = candidate.actions[patrol];
+                if (patrolActions.empty()) continue;
+
+                std::vector<size_t> edges = {0};
+                const size_t firstTailEdge = patrolActions.size() > kTailEdges
+                    ? patrolActions.size() - kTailEdges : 0;
+                for (size_t edge = firstTailEdge; edge < patrolActions.size(); ++edge)
+                    if (std::find(edges.begin(), edges.end(), edge) == edges.end()) edges.push_back(edge);
+
+                int step = 0;
+                Position position = map.posToCoordinate(state.agents[patrol].pos);
+                for (size_t edge = 0; edge < patrolActions.size() && !improved; ++edge) {
+                    if (std::find(edges.begin(), edges.end(), edge) != edges.end()) {
+                        std::set<int> visited;
+                        for (const auto& event : baseline.collections)
+                            if (event.agent == patrol && event.step <= step) visited.insert(event.spot);
+                        const int fuel = baseline.fuelAtTime[patrol][step];
+                        const auto& paths = pathCache.get(
+                            map.posToCoordinate(baseline.positionsAtTime[patrol][step]), fuel, 1.0);
+                        for (int spot : targets) {
+                            if (visited.count(spot)) continue;
+                            auto path = paths.extractPath(config.spots[spot].pos);
+                            if (!path.found || path.directions.empty() ||
+                                path.totalSteps > daySteps - step) continue;
+
+                            Candidate proposal = candidate;
+                            proposal.actions[patrol].assign(patrolActions.begin(),
+                                                            patrolActions.begin() + edge);
+                            proposal.actions[patrol].insert(proposal.actions[patrol].end(),
+                                                            path.directions.begin(), path.directions.end());
+                            MoveSimulator::padWithWait(proposal.actions[patrol],
+                                                        step + path.totalSteps, daySteps);
+                            const auto simulated = MoveSimulator::simulateDay(
+                                config, state, proposal.actions, map);
+                            if (!simulated.valid ||
+                                static_cast<int>(simulated.collections.size()) <= baselineServings ||
+                                static_cast<int>(simulated.brands.size()) < baselineDaily)
+                                continue;
+                            int fresh = 0;
+                            for (int brand : simulated.brands)
+                                fresh += !collectedBrandsTotal_.count(brand);
+                            if (fresh < baselineFresh) continue;
+
+                            proposal.rank = {-1, -1, -1, -1, -1};
+                            proposal.metadataStale = true;
+                            evaluateCandidate(proposal);
+                            candidate = std::move(proposal);
+                            improved = true;
+                            break;
+                        }
+                        if (improved) break;
+                    }
+                    const int action = patrolActions[edge];
+                    step += action < 0 ? -action : map.getTravelTime(position);
+                    if (action >= 0) position = map.nextPosition(position, action);
+                }
+                if (improved) break;
+            }
+            if (!improved) break;
         }
         return candidate;
     };
@@ -709,7 +800,7 @@ std::vector<std::vector<int>> Solver::solve(
             if (candidate.rank > best.rank) best = std::move(candidate);
         }
     }
-    best = refineCandidate(std::move(best));
+    best = boostServings(refineCandidate(std::move(best)));
     if (rewardRoutes) {
         Candidate ordinary;
         ordinary.actions = ordinaryActions;

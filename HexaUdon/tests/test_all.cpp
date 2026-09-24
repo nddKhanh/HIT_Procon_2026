@@ -390,10 +390,12 @@ void test_stock_aware_coordination_and_reset() {
     Map map(1, 2, config.map.cells);
     Solver solver;
     auto actions = solver.solve(config, state, map);
+    auto day = MoveSimulator::simulateDay(config, state, actions, map);
 
     assert(ActionValidator::validate(config, state, actions, map));
-    assert((solver.getPlannedTargetSpot(0) == 0) !=
-           (solver.getPlannedTargetSpot(1) == 0)); // One physical spot has one first owner.
+    assert(day.valid && day.brands.size() == 1 && day.collections.size() == 2);
+    // Equal coverage: two servings at a stocked shared spot are preferable.
+    assert(solver.getPlannedTargetSpot(0) == 0 && solver.getPlannedTargetSpot(1) == 0);
     assert(solver.solve(config, state, map) == actions);
     solver.commitLastPlan();
     state.day = 1;
