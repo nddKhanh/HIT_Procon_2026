@@ -521,7 +521,6 @@ std::vector<std::vector<int>> Solver::solve(
         // ponytail: bounded tail substitutions, not route-wide search. Upgrade
         // to multi-patrol k-opt only if replayed maps show this misses servings.
         constexpr size_t kTailEdges = 12;
-        constexpr size_t kTargetSpots = 12;
         for (size_t pass = 0; pass < patrols.size() && hasSearchTime(); ++pass) {
             const auto baseline = MoveSimulator::simulateDay(config, state, candidate.actions, map);
             if (!baseline.valid) break;
@@ -537,7 +536,7 @@ std::vector<std::vector<int>> Solver::solve(
             std::stable_sort(targets.begin(), targets.end(), [&](int a, int b) {
                 return baseline.remainingStock[a] > baseline.remainingStock[b];
             });
-            if (targets.size() > kTargetSpots) targets.resize(kTargetSpots);
+
 
             bool improved = false;
             for (int patrol : patrols) {
@@ -555,25 +554,36 @@ std::vector<std::vector<int>> Solver::solve(
                 Position position = map.posToCoordinate(state.agents[patrol].pos);
                 for (size_t edge = 0; edge < patrolActions.size() && !improved; ++edge) {
                     if (std::find(edges.begin(), edges.end(), edge) != edges.end()) {
-                        std::set<int> visited;
+                        std::vector<int> stock;
+                        for (const auto& configuredSpot : config.spots)
+                            stock.push_back(configuredSpot.stocks);
+                        std::set<int> visited, brands = collectedBrandsTotal_, daily, claims;
                         for (const auto& event : baseline.collections)
-                            if (event.agent == patrol && event.step <= step) visited.insert(event.spot);
+                            if (event.step <= step) {
+                                --stock[event.spot];
+                                brands.insert(event.brand);
+                                daily.insert(event.brand);
+                                if (event.agent == patrol) visited.insert(event.spot);
+                            }
                         const int fuel = baseline.fuelAtTime[patrol][step];
-                        const auto& paths = pathCache.get(
-                            map.posToCoordinate(baseline.positionsAtTime[patrol][step]), fuel, 1.0);
                         for (int spot : targets) {
                             if (visited.count(spot)) continue;
-                            auto path = paths.extractPath(config.spots[spot].pos);
-                            if (!path.found || path.directions.empty() ||
-                                path.totalSteps > daySteps - step) continue;
+                            int suffixTarget = -1;
+                            Position suffixTargetPos;
+                            std::vector<int> suffixSpots;
+                            std::vector<Position> suffixPositions;
+                            auto suffix = PatrolPlanner::planDay(
+                                config, map,
+                                map.posToCoordinate(baseline.positionsAtTime[patrol][step]),
+                                daySteps - step, fuel, stock, visited, brands, daily,
+                                suffixTarget, suffixTargetPos, suffixSpots, suffixPositions,
+                                claims, true, false, &pathCache, spot, {}, rewardRoutes);
 
                             Candidate proposal = candidate;
                             proposal.actions[patrol].assign(patrolActions.begin(),
                                                             patrolActions.begin() + edge);
                             proposal.actions[patrol].insert(proposal.actions[patrol].end(),
-                                                            path.directions.begin(), path.directions.end());
-                            MoveSimulator::padWithWait(proposal.actions[patrol],
-                                                        step + path.totalSteps, daySteps);
+                                                            suffix.begin(), suffix.end());
                             const auto simulated = MoveSimulator::simulateDay(
                                 config, state, proposal.actions, map);
                             if (!simulated.valid ||
