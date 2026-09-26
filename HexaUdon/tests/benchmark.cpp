@@ -1,6 +1,7 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <tuple>
 #include <nlohmann/json.hpp>
 #include "solver/Solver.hpp"
 #include "solver/MoveSimulator.hpp"
@@ -23,6 +24,11 @@ int main(int argc, char** argv) {
     config.jammedThreshold = c["jammedThreshold"];
     for (const auto& s : c["spots"]) config.spots.push_back({s["brand"], s["pos"], s["stocks"]});
     json output = json::array();
+    const std::vector<std::tuple<int, int, int>> scoreFloors = {
+        {20, 139, 204}, {20, 140, 256}, {20, 139, 204}, {20, 140, 249},
+        {20, 139, 200}, {20, 140, 251}, {20, 139, 212}, {20, 140, 261}
+    };
+    size_t scenarioIndex = 0;
     for (int shift : {0, 2}) for (bool fixed : {true, false}) for (int supplies : {3, 2}) {
         auto scenario = config;
         std::rotate(scenario.initialAgentPositions.begin(), scenario.initialAgentPositions.begin() + shift,
@@ -64,6 +70,14 @@ int main(int argc, char** argv) {
                 previous = result.roadOccupancy;
             }
             solver.commitLastPlan();
+        }
+        const auto scoreFloor = scoreFloors[scenarioIndex++];
+        if (score.rank() < scoreFloor) {
+            std::cerr << "Replay score regressed: " << score.brands.size() << '/'
+                      << score.dailyTypes << '/' << score.servings << " < "
+                      << std::get<0>(scoreFloor) << '/' << std::get<1>(scoreFloor)
+                      << '/' << std::get<2>(scoreFloor) << '\n';
+            return 3;
         }
         output.push_back({{"shift",shift},{"traffic",fixed?"recorded-fixed":"mirrored-dynamic"},
             {"supplies",supplies},{"score",{score.brands.size(),score.dailyTypes,score.servings}},

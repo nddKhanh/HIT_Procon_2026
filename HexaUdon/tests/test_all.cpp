@@ -957,8 +957,7 @@ void test_agent_strategy_simulates_supply_counts() {
     config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
     assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>(6, 0));
 
-    // With five possible supply counts [0..4], start at 2, inspect 1 and 3,
-    // then follow the equal-score tie toward fewer supplies. Count 4 is skipped.
+    // Every legal supply count must be evaluated; score is not assumed unimodal.
     config.daySeconds = {1};
     config.daySteps = {0};
     config.map = {1, 1, {{0}}};
@@ -969,13 +968,10 @@ void test_agent_strategy_simulates_supply_counts() {
     auto flatTypes = AgentStrategy::decideAgentTypes(config);
     std::cerr.rdbuf(oldLog);
     const auto log = formationLog.str();
-    const auto middle = log.find("[FORMATION] supply=2 ");
-    const auto left = log.find("[FORMATION] supply=1 ");
-    const auto right = log.find("[FORMATION] supply=3 ");
-    const auto edge = log.find("[FORMATION] supply=0 ");
     assert(flatTypes == std::vector<int>(8, 0));
-    assert(middle < left && left < right && right < edge);
-    assert(log.find("[FORMATION] supply=4 ") == std::string::npos);
+    for (int supplies = 0; supplies <= 4; ++supplies)
+        assert(log.find("[FORMATION] supply=" + std::to_string(supplies) + " ") !=
+               std::string::npos);
 
     config.daySeconds = {60, 60, 60, 60, 60};
     config.daySteps = {8, 10, 12, 14, 16};
@@ -995,7 +991,7 @@ void test_agent_strategy_simulates_supply_counts() {
     };
     config.initialAgentPositions = {29, 0, 19, 28};
     config.fuelLimit = 7;
-    // Official ranking prefers 4/20/45 with one supply over 4/19/46 with two.
+    // Official ranking prefers one supply because it preserves more Daily.
     assert(AgentStrategy::decideAgentTypes(config) ==
            std::vector<int>({0, 0, 0, 1}));
     std::cout << "[PASS] Simulated supply-count strategy test passed!" << std::endl;

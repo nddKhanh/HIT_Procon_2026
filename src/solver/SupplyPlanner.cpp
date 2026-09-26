@@ -186,7 +186,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
         state.agents.begin(), state.agents.end(), [](const Agent& agent) {
             return agent.kind == 1;
         }));
-    const bool allowArrivalMeetings = supplyCount <= 2;
+    const bool allowMovingRendezvous = supplyCount <= 2;
     auto result = MoveSimulator::simulateDay(config, state, actions, map);
     if (!result.valid) return;
     PathCache cache(map);
@@ -219,7 +219,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
         }
         return out;
     };
-    // ponytail: bounded greedy joint repair (48 meetings/round, at most 2*n rounds).
+    // ponytail: bounded greedy joint repair (64 meetings/round, at most 2*n rounds).
     // Expand to a beam only when this measured search ceiling leaves useful rescues.
     for (int round = 0; round < 2 * n && inTime(); ++round) {
         std::vector<Wait> waits;
@@ -239,8 +239,10 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                     waits.push_back({i, time, time + duration, map.coordinateToPos(pos)});
                 } else {
                     pos = map.nextPosition(pos, a);
-                    if (allowArrivalMeetings && state.agents[i].kind == 0 &&
-                        time + duration < steps)
+                    // An exact arrival boundary is also a legal rendezvous. This
+                    // lets a Supply intercept a moving Patrol without requiring
+                    // the original route to contain an artificial wait.
+                    if (allowMovingRendezvous && state.agents[i].kind == 0)
                         waits.push_back({i, time + duration, time + duration,
                                          map.coordinateToPos(pos)});
                 }
@@ -291,7 +293,8 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
         std::stable_sort(meetings.begin(), meetings.end(), [](const Meeting& a, const Meeting& b) {
             return a.priority > b.priority;
         });
-        if (meetings.size() > 48) meetings.resize(48);
+        const size_t meetingLimit = allowMovingRendezvous ? 64 : 24;
+        if (meetings.size() > meetingLimit) meetings.resize(meetingLimit);
         auto bestRank = rank(result);
         auto bestActions = actions;
         auto bestResult = result;
