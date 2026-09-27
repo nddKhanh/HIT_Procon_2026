@@ -186,6 +186,18 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     int bestSupplyCount = INT_MAX;
     std::cerr << "[FORMATION] traffic scenario: opponents mirror own road occupancy\n";
 
+    const auto selectionStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    const long long selectionDeadlineMs = config.startsAt > 0
+        ? config.startsAt * 1000LL - 750 : LLONG_MAX;
+    auto hasSelectionTime = [&] {
+        // Ignore stale fixture timestamps used by local replay tests.
+        if (selectionDeadlineMs < selectionStartedMs - 60000) return true;
+        const auto currentMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        return currentMs < selectionDeadlineMs;
+    };
+
     struct Formation {
         std::vector<int> types;
         std::tuple<int, int, int> rank{-1, -1, -1};
@@ -197,7 +209,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     std::vector<Formation> formations(maxSupplyCount + 1);
     auto evaluate = [&](int supplyCount) -> const Formation& {
         auto& formation = formations[supplyCount];
-        if (formation.evaluated) return formation;
+        if (formation.evaluated || !hasSelectionTime()) return formation;
         formation.evaluated = true;
         formation.types.assign(agentCount, 0);
         for (int i = 0; i < supplyCount; ++i)
@@ -206,6 +218,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         for (bool useRegions : {false, true}) {
             if (useRegions && !kEnablePatrolRegions) continue;
             GameState state{};
+            state.endsAt = config.startsAt;
             for (int i = 0; i < agentCount; ++i) {
                 state.agents.push_back(
                     {formation.types[i], config.initialAgentPositions[i], config.fuelLimit});
@@ -218,7 +231,10 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             MatchScore score;
             std::vector<long long> previousOccupancy;
             bool valid = true;
-            for (int day = 0; day < static_cast<int>(config.daySteps.size()); ++day) {
+            int simulatedDays = 0;
+            for (int day = 0;
+                 day < static_cast<int>(config.daySteps.size()) && hasSelectionTime();
+                 ++day) {
                 state.day = day;
                 auto actions = solver.solve(config, state, map);
                 auto result = MoveSimulator::simulateDay(config, state, actions, map);
@@ -237,7 +253,10 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                     previousOccupancy = std::move(result.roadOccupancy);
                 }
                 solver.commitLastPlan();
+                ++simulatedDays;
             }
+            if (simulatedDays != static_cast<int>(config.daySteps.size()) ||
+                !hasSelectionTime()) valid = false;
 
             std::cerr << "[FORMATION] supply=" << supplyCount
                       << " regions=" << (useRegions ? "on" : "off")
@@ -263,8 +282,21 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         return formation;
     };
 
-    for (int supplyCount = 0; supplyCount <= maxSupplyCount; ++supplyCount)
-        evaluate(supplyCount);
+    const int middle = maxSupplyCount / 2;
+    const auto& middleFormation = evaluate(middle);
+    for (int direction : {-1, 1}) {
+        int supplyCount = middle + direction;
+        if (supplyCount < 0 || supplyCount > maxSupplyCount) continue;
+
+        const Formation* previous = &middleFormation;
+        while (supplyCount >= 0 && supplyCount <= maxSupplyCount && hasSelectionTime()) {
+            const auto& current = evaluate(supplyCount);
+            if (!current.valid || !previous->valid || current.rank < previous->rank)
+                break;
+            previous = &current;
+            supplyCount += direction;
+        }
+    }
 
     std::cerr << "[FORMATION] selected score=" << std::get<0>(bestRank) << '/'
               << std::get<1>(bestRank) << '/' << std::get<2>(bestRank) << " types=[";

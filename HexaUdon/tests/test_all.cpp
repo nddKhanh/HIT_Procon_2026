@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cmath>
 #include <climits>
+#include <chrono>
 #include <fstream>
 #include <filesystem>
 #include <sstream>
@@ -957,7 +958,7 @@ void test_agent_strategy_simulates_supply_counts() {
     config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
     assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>(6, 0));
 
-    // Every legal supply count must be evaluated; score is not assumed unimodal.
+    // Equal scores keep searching in both directions until the boundaries.
     config.daySeconds = {1};
     config.daySteps = {0};
     config.map = {1, 1, {{0}}};
@@ -972,6 +973,16 @@ void test_agent_strategy_simulates_supply_counts() {
     for (int supplies = 0; supplies <= 4; ++supplies)
         assert(log.find("[FORMATION] supply=" + std::to_string(supplies) + " ") !=
                std::string::npos);
+
+    config.startsAt = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    std::ostringstream deadlineLog;
+    oldLog = std::cerr.rdbuf(deadlineLog.rdbuf());
+    auto expiredTypes = AgentStrategy::decideAgentTypes(config);
+    std::cerr.rdbuf(oldLog);
+    assert(expiredTypes == std::vector<int>(8, 0));
+    assert(deadlineLog.str().find("[FORMATION] supply=") == std::string::npos);
+    config.startsAt = 0;
 
     config.daySeconds = {60, 60, 60, 60, 60};
     config.daySteps = {8, 10, 12, 14, 16};
