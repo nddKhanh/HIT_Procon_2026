@@ -10,8 +10,12 @@ struct OtherPlayer {
 };
 
 struct GameState {
-    long long endsAt;
-    int day;
+    long long startsAt = 0;
+    long long endsAt = 0;
+    int day = 0;
+    int currentDay = 0;
+    int totalDays = 0;
+    bool finished = false;
 
     std::vector<Agent> agents;
     std::vector<OtherPlayer> others;

@@ -18,6 +18,13 @@ struct DaySimulation;
  */
 class DiaryWriter {
 public:
+    /** @brief Ngày lớn nhất đã ghi sau một lần POST /answer thành công, hoặc -1. */
+    static int findLastWrittenDay(
+        const std::string& diaryRoot,
+        const std::string& matchId,
+        int totalDays
+    );
+
     /**
      * @brief Ghi một file day_<day>.md vào diary/<matchId>.
      *

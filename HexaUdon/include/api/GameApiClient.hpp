@@ -33,6 +33,9 @@ public:
     // 1. List matches for team
     std::vector<MatchInfo> listMatches();
 
+    // Current lifecycle status from GET /matches (waiting/running/etc.).
+    std::string getMatchPhase(const std::string& matchId);
+
     // 2. Get match config (map, spots, agents, etc.)
     GameConfig getMatchConfig(const std::string& matchId);
 

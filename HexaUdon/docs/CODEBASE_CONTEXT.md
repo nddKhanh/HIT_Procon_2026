@@ -267,7 +267,7 @@ Supply không tiêu thụ fuel trong `MoveSimulator`.
 
 | File | Trách nhiệm hiện tại |
 |---|---|
-| `src/main.cpp` | Parse CLI; chạy API hoặc stdin; poll status; gọi Solver; validate; fallback; POST action; commit/discard plan; ghi diary. |
+| `src/main.cpp` | Parse CLI; chạy API hoặc stdin; khóa kép lifecycle `waiting/running` từ `/matches` và `startsAt/finished` từ `/status`; gọi Solver; kiểm tra lại lifecycle/startsAt/day/endsAt/deadline trước POST; validate; fallback; commit/discard plan; ghi diary. |
 | `api/HttpClient.hpp/.cpp` | HTTPS mỏng trên WinINet; header tùy chỉnh; GET/POST/PUT/DELETE. Không chứa luật game. |
 | `api/GameApiClient.hpp/.cpp` | Chuyển JSON API ↔ `GameConfig`/`GameState`; submit agent/action; phát hiện HTTP 200 nhưng `{valid:false}`. |
 | `io/JsonReader.hpp/.cpp` | Đọc config và state từ stdin cho offline mode. |
@@ -338,11 +338,13 @@ Supply không tiêu thụ fuel trong `MoveSimulator`.
 - Chỉ bật khi có ít nhất hai patrol; một patrol giữ nguyên scoring cũ.
 - Chỉ xét spot còn stock, chưa được chính patrol đó ghé ở step 0, có route đủ fuel
   và đến được trong ngày.
-- DP theo mask patrol, độ phức tạp `O(spots × patrols × 2^patrols)`.
+- Gom các spot còn hàng theo brand; với mỗi cặp patrol/brand, giữ spot khả thi có
+  chi phí thấp nhất.
+- DP theo mask patrol, độ phức tạp `O(spots × brands × patrols + brands × patrols × 2^patrols)`.
 - Mục tiêu:
-  1. tối đa số patrol có spot;
+  1. tối đa số patrol nhận **brand khác nhau** trong lượt đầu;
   2. với cùng cardinality, tối thiểu tổng `path.totalSteps`.
-- Kết quả một-một: một patrol ≤ một first spot, một first spot ≤ một patrol.
+- Kết quả một-một: một patrol ≤ một first spot, một brand ≤ một patrol trong lượt đầu.
 - Sentinel truyền vào `PatrolPlanner`:
   - `-2`: không override, dùng thuật toán cũ;
   - `-1`: matching không tìm được spot, xe không tự tranh spot đầu;
@@ -415,6 +417,15 @@ route ăn quá nửa fuel hiện có.
   `(20,135,204)` / `(20,134,176)` đều phải khớp.
 - Nhật ký dùng cùng simulator và traffic đầu ngày; nếu invalid, giữ action và báo
   lỗi, không tự tạo bảng fuel từ phép trừ dự phòng.
+- Khi process khởi động lại, `DiaryWriter::findLastWrittenDay()` phục hồi ngày đã
+  POST thành công từ `diary/<match>/day_<n>.md`; API loop không nộp revision mới
+  cho ngày đó, tránh biến câu trả lời 2.9 giây thành một câu trả lời cuối muộn hơn.
+- CLI `--fresh` là opt-in: bỏ qua ngày đã ghi, khởi tạo Solver mới, cho phép nộp
+  revision cho ngày đang chạy và ghi vào `diary_fresh/`. Nó không thể xóa trạng
+  thái/điểm/thời gian phía server; reset thật sự cần `MATCH_ID` mới.
+- Trước Start, loop chỉ poll lifecycle mỗi 100 ms và chưa gọi solver. Sau khi đã
+  nộp một ngày, loop chỉ poll `/status`; khi thấy `day` tăng mới xác nhận lại
+  lifecycle rồi chạy. Các nhánh chuyển trạng thái không còn ngủ cố định 2–3 giây.
 - `ActionValidator` là cổng cuối trước submit; invalid plan bị thay bằng `[-daySteps]`
   cho từng xe.
 
@@ -445,7 +456,8 @@ replay từng ngày. Muốn định lượng cần admin replay, export action/h
 
 ## 9. Hạn chế/điểm cần nhớ trước khi tối ưu tiếp
 
-- Matching đầu ngày tối ưu khoảng cách, chưa đưa brand rank/stock urgency vào objective.
+- Matching đầu ngày đã tối ưu số brand khác nhau rồi mới đến khoảng cách; stock chỉ
+  dùng để phá hòa giữa nhiều spot cùng brand.
 - Độ phức tạp matching là exponential theo số patrol; phù hợp trận hiện tại 5 patrol,
   cần Hungarian/min-cost flow nếu quy mô tăng mạnh.
 - Ownership chỉ áp dụng mục tiêu đầu tiên; spot tiếp theo vẫn có thể bị nhiều xe chọn.
@@ -456,7 +468,8 @@ replay từng ngày. Muốn định lượng cần admin replay, export action/h
   quét tối đa 64 cuộc gặp khả thi mỗi vòng khi có tối đa hai Supply, gồm cả
   boundary khi Patrol đang chạy, và hỗ trợ multi-stop trong cùng ngày. Với nhiều
   Supply hơn, giữ giới hạn 24 wait-rendezvous vì benchmark cho thấy search mở rộng
-  gây nhiễu coordination.
+  gây nhiễu coordination. Refinement dừng sau tối đa `agentCount` vòng; mức cũ
+  `2 * agentCount` không tăng ba tiêu chí điểm nhưng gần như nhân đôi response time.
 - Beam hai ngày chỉ phá hòa current-day; đây là giới hạn chủ ý để không overfit
   giả định mirrored traffic.
 - Pareto frontier bị cap 16 nhãn/cell.

@@ -101,6 +101,12 @@ Giả sử bạn có 1 file dữ liệu test (kết hợp Config + State từng 
 Get-Content demo_input.json | .\HexaUdon.exe
 ```
 
+### Chạy lại không dùng trạng thái local
+
+Thêm `--fresh` ở chế độ API để bỏ qua diary cũ, tạo Solver mới và cho phép gửi
+revision mới cho ngày đang chạy. Chế độ này không thể xóa điểm hoặc thời gian đã
+lưu trên server; muốn một trận thật sự mới phải dùng `MATCH_ID` mới.
+
 ---
 
 ## 5. Chạy Bộ Kiểm Thử Tự Động (Unit Tests)

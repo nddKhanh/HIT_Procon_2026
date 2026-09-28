@@ -20,6 +20,7 @@ if "%1"=="benchmark" (
     set BENCHMARK_ARGS=
     if "%2"=="--formation" set BENCHMARK_ARGS=--formation
     if "%2"=="--check" set BENCHMARK_ARGS=--check
+    if "%2"=="--two-supply" set BENCHMARK_ARGS=--two-supply
     !TEMP_EXE! !BENCHMARK_ARGS!
     set RESULT=!errorlevel!
     del /q !TEMP_EXE! 2>nul

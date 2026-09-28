@@ -15,6 +15,7 @@ out/
 .idea/
 HexaUdon/build.bat
 HexaUdon/diary/*
+HexaUdon/.formation_cache/
 
 # Temporary & Log files
 *.log

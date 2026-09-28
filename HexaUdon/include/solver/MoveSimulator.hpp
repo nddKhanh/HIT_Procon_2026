@@ -44,6 +44,10 @@ struct MatchScore {
     auto rank() const {
         return std::make_tuple(static_cast<int>(brands.size()), dailyTypes, servings);
     }
+    auto rankWithResponse(long long responseMicros) const {
+        return std::make_tuple(static_cast<int>(brands.size()), dailyTypes, servings,
+                               -responseMicros);
+    }
 };
 
 /**

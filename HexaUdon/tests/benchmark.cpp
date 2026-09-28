@@ -14,9 +14,11 @@ int main(int argc, char** argv) {
     std::string replayPath = "HexaUdon/tests/replay_5cc3b9ea.json";
     bool formationMode = false;
     bool checkBaseline = false;
+    bool twoSupplyOnly = false;
     for (int i = 1; i < argc; ++i) {
         if (std::string(argv[i]) == "--formation") formationMode = true;
         else if (std::string(argv[i]) == "--check") checkBaseline = true;
+        else if (std::string(argv[i]) == "--two-supply") twoSupplyOnly = true;
         else replayPath = argv[i];
     }
     std::ifstream input(replayPath);
@@ -44,6 +46,7 @@ int main(int argc, char** argv) {
         for (bool fixed : {true, false}) scenarios.push_back({0, fixed, selected});
     } else {
         for (int shift : {0, 2}) for (bool fixed : {true, false}) for (int supplies : {3, 2}) {
+            if (twoSupplyOnly && supplies != 2) continue;
             std::vector<int> types(config.initialAgentPositions.size(), 0);
             for (int i = 0; i < supplies; ++i)
                 types[types.size() - 1 - i] = 1;
@@ -121,12 +124,19 @@ int main(int argc, char** argv) {
                        result["traffic"] == expected["traffic"] &&
                        result["supplies"] == expected["supplies"];
             });
-            if (actual == output.end() ||
-                actual->at("score").get<std::vector<int>>() <
-                    expected.at("score").get<std::vector<int>>()) {
+            const auto expectedScore = expected.at("score").get<std::vector<int>>();
+            const auto actualScore = actual == output.end() ? std::vector<int>{} :
+                actual->at("score").get<std::vector<int>>();
+            const bool scoreRegression = actual == output.end() || actualScore < expectedScore;
+            const bool responseRegression = actual != output.end() &&
+                actualScore == expectedScore && expected.contains("maxMs") &&
+                actual->at("ms").get<double>() > expected.at("maxMs").get<double>();
+            if (scoreRegression || responseRegression) {
                 std::cerr << "[REGRESSION] shift=" << expected["shift"]
                           << " traffic=" << expected["traffic"]
-                          << " supplies=" << expected["supplies"] << '\n';
+                          << " supplies=" << expected["supplies"];
+                if (responseRegression) std::cerr << " response_ms=" << actual->at("ms");
+                std::cerr << '\n';
                 return 4;
             }
         }

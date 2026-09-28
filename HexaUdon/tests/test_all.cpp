@@ -16,7 +16,37 @@
 #include "solver/PatrolPlanner.hpp"
 #include "solver/SupplyPlanner.hpp"
 #include "io/DiaryWriter.hpp"
+#include "api/LiveMatchGuard.hpp"
 #include "solver\SpotScorer.hpp"
+
+void test_live_match_start_and_snapshot_guards() {
+    GameState original{};
+    original.day = 0;
+    original.currentDay = 0;
+    original.totalDays = 7;
+    original.startsAt = 90;
+    original.endsAt = 101;
+    original.agents = {{0, 0, 10}};
+
+    auto notStarted = original;
+    notStarted.startsAt = 0;
+    assert(!LiveMatchGuard::canPlan("waiting", notStarted, 7, 90000));
+    assert(!LiveMatchGuard::canPlan("waiting", original, 7, 99000, 500));
+    assert(!LiveMatchGuard::canPlan("running", original, 7, 100000));
+    assert(LiveMatchGuard::canPlan("running", original, 7, 99000, 500));
+
+    GameState latest = original;
+    assert(LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    latest.finished = true;
+    assert(!LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    latest = original;
+    latest.day = 1;
+    assert(!LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    latest = original;
+    latest.endsAt++;
+    assert(!LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    std::cout << "[PASS] Live start, deadline and stale-snapshot guards passed!" << std::endl;
+}
 
 // =============================================================================
 // Test 1: Map basics and hex geometry
@@ -635,6 +665,7 @@ void test_joint_simulator() {
     score.add(day);
     score.add(day);
     assert(score.rank() == std::make_tuple(2, 4, 6));
+    assert(score.rankWithResponse(1000) > score.rankWithResponse(2000));
 
     config.daySteps[0] = 5;
     state.agents = {{0, 0, 0}, {1, 0, 0}};
@@ -747,6 +778,8 @@ void test_diary_uses_canonical_simulation() {
         ".build" / "diary_simulator_test";
     assert(DiaryWriter::writeDay(root.string(), "valid", 0, 2,
         config, state, staleMap, solver, {{2}}, false));
+    assert(DiaryWriter::findLastWrittenDay(root.string(), "valid", 5) == 0);
+    assert(DiaryWriter::findLastWrittenDay(root.string(), "missing", 5) == -1);
     std::ifstream valid(root / "valid" / "day_0.md");
     std::string text((std::istreambuf_iterator<char>(valid)), {});
     assert(text.find("| 0-1 |") != std::string::npos);
@@ -1227,6 +1260,7 @@ void test_lookahead_scores_one_second_spot() {
 }
 
 int main() {
+    test_live_match_start_and_snapshot_guards();
     test_lookahead_scores_one_second_spot();
     test_spot_reward_paths();
     test_server_replay();

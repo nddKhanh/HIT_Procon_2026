@@ -57,6 +57,16 @@ std::vector<MatchInfo> GameApiClient::listMatches() {
     return matches;
 }
 
+std::string GameApiClient::getMatchPhase(const std::string& matchId) {
+    auto matches = listMatches();
+    for (const auto& match : matches) {
+        if (match.id == matchId) return match.status;
+    }
+    if (!matches.empty())
+        lastError_ = "Match not found in GET /api/game/matches: " + matchId;
+    return {};
+}
+
 // =============================================================================
 // 2. Get match config
 // =============================================================================
@@ -148,8 +158,12 @@ GameState GameApiClient::getMatchStatus(const std::string& matchId) {
     try {
         auto j = json::parse(resp.body);
 
+        state.startsAt = j.value("startsAt", 0LL);
         state.endsAt = j.value("endsAt", 0LL);
         state.day = j.value("day", -1);
+        state.currentDay = j.value("currentDay", state.day);
+        state.totalDays = j.value("totalDays", 0);
+        state.finished = j.value("finished", false);
 
         // Debug: log raw fields
         // std::cerr << "[DEBUG] GET /status: day=" << state.day

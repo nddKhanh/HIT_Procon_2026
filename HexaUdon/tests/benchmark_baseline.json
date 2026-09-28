@@ -1,10 +1,10 @@
 [
-  {"shift": 0, "traffic": "recorded-fixed",  "supplies": 3, "score": [20, 139, 208]},
-  {"shift": 0, "traffic": "recorded-fixed",  "supplies": 2, "score": [20, 140, 241]},
-  {"shift": 0, "traffic": "mirrored-dynamic", "supplies": 3, "score": [20, 139, 214]},
-  {"shift": 0, "traffic": "mirrored-dynamic", "supplies": 2, "score": [20, 140, 237]},
-  {"shift": 2, "traffic": "recorded-fixed",  "supplies": 3, "score": [20, 139, 205]},
-  {"shift": 2, "traffic": "recorded-fixed",  "supplies": 2, "score": [20, 140, 264]},
-  {"shift": 2, "traffic": "mirrored-dynamic", "supplies": 3, "score": [20, 139, 205]},
-  {"shift": 2, "traffic": "mirrored-dynamic", "supplies": 2, "score": [20, 140, 256]}
+  {"shift": 0, "traffic": "recorded-fixed",  "supplies": 3, "score": [20, 139, 208], "maxMs": 15000},
+  {"shift": 0, "traffic": "recorded-fixed",  "supplies": 2, "score": [20, 140, 241], "maxMs": 15000},
+  {"shift": 0, "traffic": "mirrored-dynamic", "supplies": 3, "score": [20, 139, 214], "maxMs": 15000},
+  {"shift": 0, "traffic": "mirrored-dynamic", "supplies": 2, "score": [20, 140, 237], "maxMs": 15000},
+  {"shift": 2, "traffic": "recorded-fixed",  "supplies": 3, "score": [20, 139, 205], "maxMs": 15000},
+  {"shift": 2, "traffic": "recorded-fixed",  "supplies": 2, "score": [20, 140, 267], "maxMs": 15000},
+  {"shift": 2, "traffic": "mirrored-dynamic", "supplies": 3, "score": [20, 139, 205], "maxMs": 15000},
+  {"shift": 2, "traffic": "mirrored-dynamic", "supplies": 2, "score": [20, 140, 256], "maxMs": 15000}
 ]

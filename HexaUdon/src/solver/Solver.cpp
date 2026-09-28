@@ -134,25 +134,55 @@ std::vector<int> assignFirstSpots(
         }
     }
 
-    struct Parent { int mask = -1; int patrol = -1; };
+    std::vector<int> brands;
+    for (size_t spot = 0; spot < config.spots.size(); ++spot) {
+        if (remainingStock[spot] <= 0) continue;
+        int brand = config.spots[spot].brand;
+        if (std::find(brands.begin(), brands.end(), brand) == brands.end())
+            brands.push_back(brand);
+    }
+
+    std::vector<std::vector<int>> brandTravel(
+        patrolCount, std::vector<int>(brands.size(), unreachable));
+    std::vector<std::vector<int>> brandSpot(
+        patrolCount, std::vector<int>(brands.size(), -1));
+    for (int p = 0; p < patrolCount; ++p) {
+        for (size_t brand = 0; brand < brands.size(); ++brand) {
+            for (size_t spot = 0; spot < config.spots.size(); ++spot) {
+                if (config.spots[spot].brand != brands[brand] ||
+                    travel[p][spot] >= unreachable)
+                    continue;
+                if (travel[p][spot] < brandTravel[p][brand] ||
+                    (travel[p][spot] == brandTravel[p][brand] &&
+                     (brandSpot[p][brand] < 0 ||
+                      remainingStock[spot] > remainingStock[brandSpot[p][brand]]))) {
+                    brandTravel[p][brand] = travel[p][spot];
+                    brandSpot[p][brand] = static_cast<int>(spot);
+                }
+            }
+        }
+    }
+
+    struct Parent { int mask = -1; int patrol = -1; int spot = -1; };
     std::vector<int> cost(stateCount, unreachable);
-    std::vector<std::vector<Parent>> parent(config.spots.size() + 1,
+    std::vector<std::vector<Parent>> parent(brands.size() + 1,
                                              std::vector<Parent>(stateCount));
     cost[0] = 0;
 
-    // ponytail: O(spots * patrols * 2^patrols); switch to Hungarian matching
-    // if future matches raise the patrol count beyond the current single digits.
-    for (size_t spot = 0; spot < config.spots.size(); ++spot) {
+    // Match patrols to brands rather than physical spots so the first wave
+    // maximizes daily variety. Each patrol still gets its cheapest reachable
+    // spot for that brand.
+    for (size_t brand = 0; brand < brands.size(); ++brand) {
         auto next = cost;
         for (int mask = 0; mask < stateCount; ++mask) {
-            if (cost[mask] < unreachable) parent[spot + 1][mask] = {mask, -1};
+            if (cost[mask] < unreachable) parent[brand + 1][mask] = {mask, -1, -1};
             for (int p = 0; p < patrolCount; ++p) {
-                if ((mask & (1 << p)) || travel[p][spot] >= unreachable) continue;
+                if ((mask & (1 << p)) || brandTravel[p][brand] >= unreachable) continue;
                 int nextMask = mask | (1 << p);
-                int nextCost = cost[mask] + travel[p][spot];
+                int nextCost = cost[mask] + brandTravel[p][brand];
                 if (cost[mask] < unreachable && nextCost < next[nextMask]) {
                     next[nextMask] = nextCost;
-                    parent[spot + 1][nextMask] = {mask, p};
+                    parent[brand + 1][nextMask] = {mask, p, brandSpot[p][brand]};
                 }
             }
         }
@@ -173,10 +203,10 @@ std::vector<int> assignFirstSpots(
     }
 
     int mask = bestMask;
-    for (int spot = static_cast<int>(config.spots.size()); spot > 0; --spot) {
-        Parent step = parent[spot][mask];
+    for (int brand = static_cast<int>(brands.size()); brand > 0; --brand) {
+        Parent step = parent[brand][mask];
         if (step.mask < 0) continue;
-        if (step.patrol >= 0) assigned[patrols[step.patrol]] = spot - 1;
+        if (step.patrol >= 0) assigned[patrols[step.patrol]] = step.spot;
         mask = step.mask;
     }
     return assigned;
@@ -205,6 +235,22 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     };
     const int maxSupplyCount = agentCount / 2;
     std::vector<Formation> formations(maxSupplyCount + 1);
+    const long long mapCells = 1LL * config.map.height * config.map.width;
+    const long long estimatedFormationWork =
+        1LL * (maxSupplyCount + 1) * std::max<size_t>(1, config.daySteps.size()) *
+        std::max<size_t>(1, config.spots.size()) * std::max(1LL, mapCells);
+    const bool boundedFormation = agentCount > 10 || mapCells > 600 ||
+                                  config.spots.size() > 40 ||
+                                  estimatedFormationWork > 180000;
+    const int rolloutDays = boundedFormation
+        ? std::min<int>(2, config.daySteps.size())
+        : static_cast<int>(config.daySteps.size());
+    const auto formationStarted = std::chrono::steady_clock::now();
+    const auto formationDeadline = std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(boundedFormation ? 3000 : 24 * 60 * 60 * 1000);
+    auto formationTimeUp = [&] {
+        return boundedFormation && std::chrono::steady_clock::now() >= formationDeadline;
+    };
 
     Map formationMap(config.map.height, config.map.width, config.map.cells);
     const int maxDaySteps = config.daySteps.empty() ? 0 :
@@ -240,35 +286,54 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     };
 
     auto assignmentCandidates = [&](int supplyCount) {
-        std::vector<std::vector<int>> all;
-        std::vector<int> types(agentCount, 0);
-        auto enumerate = [&](auto&& self, int next, int remaining) -> void {
-            if (remaining == 0) {
-                all.push_back(types);
-                return;
-            }
-            for (int i = next; i <= agentCount - remaining; ++i) {
-                types[i] = 1;
-                self(self, i + 1, remaining - 1);
-                types[i] = 0;
-            }
-        };
-        enumerate(enumerate, 0, supplyCount);
-        std::stable_sort(all.begin(), all.end(), [&](const auto& a, const auto& b) {
-            return assignmentRank(a) > assignmentRank(b);
-        });
-
         std::vector<int> legacy(agentCount, 0);
         for (int i = 0; i < supplyCount; ++i) legacy[agentCount - 1 - i] = 1;
+        std::vector<int> bestStatic = legacy;
+        auto bestStaticRank = assignmentRank(legacy);
+        bool haveEqualAlternative = false;
+        std::vector<int> types(agentCount, 0);
+        long long visitedNodes = 0;
+
+        // Exact branch-and-bound when time permits. Undecided agents remain
+        // Patrols in assignmentRank(), which is an admissible optimistic bound:
+        // removing Patrols cannot add reachable brands/stock or shorten paths.
+        auto search = [&](auto&& self, int index, int supplies) -> void {
+            if ((++visitedNodes & 255) == 0 && formationTimeUp()) return;
+            const int remaining = agentCount - index;
+            if (supplies > supplyCount || supplies + remaining < supplyCount) return;
+            const auto optimisticRank = assignmentRank(types);
+            if (optimisticRank < bestStaticRank ||
+                (optimisticRank == bestStaticRank && haveEqualAlternative)) return;
+            if (index == agentCount) {
+                if (supplies == supplyCount) {
+                    auto rank = assignmentRank(types);
+                    if (rank > bestStaticRank) {
+                        bestStaticRank = rank;
+                        bestStatic = types;
+                        haveEqualAlternative = true;
+                    } else if (rank == bestStaticRank && types != legacy &&
+                               bestStatic == legacy) {
+                        bestStatic = types;
+                        haveEqualAlternative = true;
+                    }
+                }
+                return;
+            }
+
+            if (supplies < supplyCount) {
+                types[index] = 1;
+                self(self, index + 1, supplies + 1);
+            }
+            if (!formationTimeUp()) {
+                types[index] = 0;
+                self(self, index + 1, supplies);
+            }
+            types[index] = 0;
+        };
+        search(search, 0, 0);
+
         std::vector<std::vector<int>> selected{legacy};
-        for (const auto& candidate : all) {
-            if (std::find(selected.begin(), selected.end(), candidate) == selected.end())
-                selected.push_back(candidate);
-            if (static_cast<int>(selected.size()) >= kFormationAssignmentCandidates) break;
-        }
-        // ponytail: enumerate all assignments for the current single-digit fleets,
-        // but fully roll out only the legacy and best static-coverage candidates.
-        // Raise this measured shortlist if a broader replay corpus justifies it.
+        if (bestStatic != legacy) selected.push_back(std::move(bestStatic));
         return selected;
     };
 
@@ -277,6 +342,8 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         const auto candidates = assignmentCandidates(supplyCount);
         const auto& legacyTypes = candidates.front();
         for (const auto& types : candidates) {
+            if (formationTimeUp() &&
+                (formation.valid || bestRank != std::make_tuple(-1, -1, -1))) break;
             Formation assignment;
             assignment.types = types;
 
@@ -295,9 +362,14 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                 MatchScore score;
                 std::vector<long long> previousOccupancy;
                 bool valid = true;
-                for (int day = 0; day < static_cast<int>(config.daySteps.size()); ++day) {
+                for (int day = 0; day < rolloutDays; ++day) {
+                    if (day > 0 && formationTimeUp() &&
+                        bestRank != std::make_tuple(-1, -1, -1)) {
+                        valid = false;
+                        break;
+                    }
                     state.day = day;
-                    auto actions = solver.solve(config, state, map);
+                    auto actions = solver.solve(config, state, map, !boundedFormation);
                     auto result = MoveSimulator::simulateDay(config, state, actions, map);
                     if (!result.valid) {
                         valid = false;
@@ -346,9 +418,18 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             }
         }
 
-        if (formation.valid &&
-            (formation.rank > bestRank ||
-             (formation.rank == bestRank && supplyCount < bestSupplyCount))) {
+        const auto formationPrimary = std::make_tuple(
+            std::get<0>(formation.rank), std::get<1>(formation.rank));
+        const auto bestPrimary = std::make_tuple(
+            std::get<0>(bestRank), std::get<1>(bestRank));
+        // A short bounded rollout is reliable for coverage, but early servings
+        // can favor too few Supply vehicles and lose daily brands later. Keep
+        // the center-first incumbent unless another count improves Types/Daily.
+        const bool improvesBest = boundedFormation
+            ? (!formation.valid ? false : formationPrimary > bestPrimary)
+            : (formation.rank > bestRank ||
+               (formation.rank == bestRank && supplyCount < bestSupplyCount));
+        if (formation.valid && improvesBest) {
             bestRank = formation.rank;
             bestTypes = formation.types;
             bestUseRegions = formation.useRegions;
@@ -356,8 +437,25 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         }
         return formation;
     };
-    for (int supplyCount = 0; supplyCount <= maxSupplyCount; ++supplyCount)
+    std::vector<int> supplyOrder;
+    if (boundedFormation) {
+        const int center = std::clamp((agentCount + 3) / 4, 0, maxSupplyCount);
+        for (int radius = 0; radius <= maxSupplyCount; ++radius) {
+            for (int candidate : {center - radius, center + radius}) {
+                if (candidate < 0 || candidate > maxSupplyCount) continue;
+                if (std::find(supplyOrder.begin(), supplyOrder.end(), candidate) ==
+                    supplyOrder.end())
+                    supplyOrder.push_back(candidate);
+            }
+        }
+    } else {
+        for (int supplyCount = 0; supplyCount <= maxSupplyCount; ++supplyCount)
+            supplyOrder.push_back(supplyCount);
+    }
+    for (int supplyCount : supplyOrder) {
+        if (formationTimeUp() && bestRank != std::make_tuple(-1, -1, -1)) break;
         evaluate(supplyCount);
+    }
 
     std::cerr << "[FORMATION] selected score=" << std::get<0>(bestRank) << '/'
               << std::get<1>(bestRank) << '/' << std::get<2>(bestRank) << " types=[";
@@ -365,7 +463,11 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         if (i > 0) std::cerr << ',';
         std::cerr << bestTypes[i];
     }
-    std::cerr << "] regions=" << (bestUseRegions ? "on" : "off") << '\n';
+    const auto formationMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - formationStarted).count();
+    std::cerr << "] regions=" << (bestUseRegions ? "on" : "off")
+              << " mode=" << (boundedFormation ? "bounded" : "exact")
+              << " rolloutDays=" << rolloutDays << " elapsedMs=" << formationMs << '\n';
 
     if (selectedUseRegions) *selectedUseRegions = bestUseRegions;
 

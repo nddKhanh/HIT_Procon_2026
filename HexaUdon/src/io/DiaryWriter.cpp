@@ -193,6 +193,21 @@ void DiaryWriter::writeAgentTimeline(
     output << "\n";
 }
 
+int DiaryWriter::findLastWrittenDay(
+    const std::string& diaryRoot,
+    const std::string& matchId,
+    int totalDays
+) {
+    const auto directory = std::filesystem::path(diaryRoot) / matchId;
+    int lastDay = -1;
+    for (int day = 0; day < totalDays; ++day) {
+        if (std::filesystem::is_regular_file(
+                directory / ("day_" + std::to_string(day) + ".md")))
+            lastDay = day;
+    }
+    return lastDay;
+}
+
 bool DiaryWriter::writeDay(
     const std::string& diaryRoot,
     const std::string& matchId,

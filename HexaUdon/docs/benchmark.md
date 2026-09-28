@@ -74,15 +74,20 @@ Use identical inputs and opponent policies when comparing algorithms. A changed
 route can change future traffic, so replaying recorded future traffic while
 changing your actions is a fixed-traffic experiment, not an exact counterfactual.
 
-Formation selection now exhaustively checks every feasible Supply count instead
-of assuming its score is unimodal. For each count it fully rolls out the legacy
-last-agent assignment and the best alternative by static start coverage, using
-the official score tuple and advancing traffic. A different position assignment
-must improve match or daily brands; a servings-only gain is not accepted because
-it regressed daily brands under recorded traffic during validation. Because
-future opponent actions are unknown, selection uses a scenario in which opponents
-mirror its own occupancy. This assumption is logged and is not a guarantee of a
-real-match score.
+Formation selection is exact on small inputs: it checks every feasible Supply
+count, and for each count rolls out the legacy last-agent assignment and the best
+alternative found by branch-and-bound static coverage. On larger inputs it is an
+anytime search with a three-second selection budget: Supply counts nearest one
+quarter of the fleet are tried first, branch-and-bound retains the best complete
+assignment seen, and candidates are compared using a fixed two-day rollout. The
+real match still plans and submits every configured day; the two-day limit applies
+only to pre-match vehicle selection. Results are cached by the complete relevant
+config fingerprint, so another normal run with the same config skips selection.
+A different position assignment must improve match or daily brands; a
+servings-only gain is not accepted because it regressed daily brands under
+recorded traffic during validation. Because future opponent actions are unknown,
+selection uses a scenario in which opponents mirror its own occupancy. This
+assumption is logged and is not a guarantee of a real-match score.
 
 The routing experiment now uses `tests/benchmark.cpp` as an offline comparison
 runner: 3/2 supplies, fixed recorded/mirrored dynamic traffic, and start rotations
@@ -94,9 +99,12 @@ interpreting results.
 
 The current guarded beam plus moving-rendezvous refinement keeps all 20 match
 brands and 140 daily brands in every two-Supply scenario. Servings are
-`241/237/264/256` across the four scenarios (average `249.5`), up from
+`241/237/267/256` across the four scenarios (average `250.25`), up from
 `222/236/239/237` (average `233.5`). Three-Supply scenarios retain their previous
 baselines; moving rendezvous is disabled there because it regressed coordination.
+The regression file also caps total response time at 15 seconds whenever the
+three score fields merely equal baseline; a higher official score still wins
+before latency, matching the contest's four-level ordering.
 
 ```powershell
 cmd /c build.bat benchmark
