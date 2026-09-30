@@ -141,7 +141,7 @@ std::vector<int> SupplyPlanner::planDay(
                 missingDailyBrands.insert(config.spots[si].brand);
         }
         auto rank = std::make_tuple(static_cast<int>(missingDailyBrands.size()),
-                                    extensionPotential, usableSteps, deficit);
+                                    deficit, extensionPotential, usableSteps);
         if (rank > bestRank) {
             bestRank = rank;
             targetPatrol = i;
