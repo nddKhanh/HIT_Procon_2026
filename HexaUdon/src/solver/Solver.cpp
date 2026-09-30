@@ -684,7 +684,7 @@ std::vector<std::vector<int>> Solver::solve(
         std::stable_sort(shortlist.begin(), shortlist.end(), [](const auto& a, const auto& b) {
             return a.rank > b.rank;
         });
-        if (shortlist.size() > 4) shortlist.resize(4);
+        if (shortlist.size() > 8) shortlist.resize(8);
     };
 
     auto refineCandidate = [&](Candidate candidate) {
@@ -828,6 +828,18 @@ std::vector<std::vector<int>> Solver::solve(
         auto candidate = planCandidate(order, true, false, selectedRegions);
         considerCandidate(std::move(candidate));
     }
+    // Also sample spatially balanced ownership. Regions are only a soft
+    // preference, so the simulator can keep the ordinary plan whenever the
+    // partition does not improve real coverage and collections.
+    // Region ownership paid off on the 24-spot map but changed future endpoints
+    // for the already saturated smaller replay. Sample it only when each Patrol
+    // otherwise has to cover more than four spots on average.
+    if (!useRegions_ && config.spots.size() > patrols.size() * 4) {
+        for (const auto& order : orders) {
+            if (!hasSearchTime()) break;
+            considerCandidate(planCandidate(order, true, false, regions));
+        }
+    }
     // Assign a named patrol to each still-missing brand; never hard-code a brand
     // number or map corner. Replan the rest after that patrol reserves its route.
     for (size_t spot = 0; spot < config.spots.size() && hasSearchTime(); ++spot) {
@@ -913,18 +925,18 @@ std::vector<std::vector<int>> Solver::solve(
         config.players > 0 && config.busyThreshold > 0 &&
         config.jammedThreshold > config.busyThreshold && hasSearchTime()) {
         // Re-rank a small beam with a real next-day rollout. The nested solve uses
-        // the ordinary planner, so lookahead stops at exactly two days. Only
-        // exact current-day ties enter the beam: opponent traffic is unknown,
-        // so a forecast must not trade away any verified current-day criterion.
-        const auto currentDayFloor = best.rank;
-        std::vector<Candidate> tied;
-        for (const auto& candidate : shortlist)
-            if (candidate.rank == currentDayFloor) tied.push_back(candidate);
-        if (tied.size() > 2) tied.resize(2);
-        if (tied.size() < 2) tied.clear();
+        // the ordinary planner, so lookahead stops at exactly two days. Include
+        // near-best current plans instead of exact ties: a route that spends one
+        // less brand today to refuel a stranded Patrol can recover several brands
+        // tomorrow and raise the match's total daily coverage.
+        std::vector<Candidate> forecastCandidates = shortlist;
+        if (forecastCandidates.size() > 4) forecastCandidates.resize(4);
+        if (forecastCandidates.size() < 2) forecastCandidates.clear();
+        const auto baselineActions = best.actions;
+        std::pair<int, int> baselineForecast{-1, -1};
         bool forecasted = false;
         Candidate forecastBest;
-        for (auto candidate : tied) {
+        for (auto candidate : forecastCandidates) {
             if (!hasSearchTime()) break;
             auto today = MoveSimulator::simulateDay(config, state, candidate.actions, map);
             if (!today.valid) continue;
@@ -961,12 +973,19 @@ std::vector<std::vector<int>> Solver::solve(
                 static_cast<int>(tomorrow.brands.size()),
                 fuel
             };
+            if (candidate.actions == baselineActions)
+                baselineForecast = {std::get<0>(candidate.rank),
+                                    std::get<1>(candidate.rank)};
             if (!forecasted || candidate.rank > forecastBest.rank) {
                 forecastBest = std::move(candidate);
                 forecasted = true;
             }
         }
-        if (forecasted) best = std::move(forecastBest);
+        const std::pair<int, int> improvedForecast{
+            std::get<0>(forecastBest.rank), std::get<1>(forecastBest.rank)};
+        if (forecasted && baselineForecast.first >= 0 &&
+            improvedForecast > baselineForecast)
+            best = std::move(forecastBest);
     }
     if (removeRedundantFinalDaySupplies(config, state, map, best.actions,
                                         collectedBrandsTotal_))
