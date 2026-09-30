@@ -437,22 +437,31 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         }
         return formation;
     };
-    std::vector<int> supplyOrder;
-    if (boundedFormation) {
-        const int center = std::clamp((agentCount + 3) / 4, 0, maxSupplyCount);
-        for (int radius = 0; radius <= maxSupplyCount; ++radius) {
-            for (int candidate : {center - radius, center + radius}) {
-                if (candidate < 0 || candidate > maxSupplyCount) continue;
-                if (std::find(supplyOrder.begin(), supplyOrder.end(), candidate) ==
-                    supplyOrder.end())
-                    supplyOrder.push_back(candidate);
-            }
-        }
-    } else {
-        for (int supplyCount = 0; supplyCount <= maxSupplyCount; ++supplyCount)
-            supplyOrder.push_back(supplyCount);
+    const int center = (maxSupplyCount + 1) / 2;
+    evaluate(center);
+
+    const int left = center - 1;
+    const int right = center + 1;
+    const Formation* leftFormation = nullptr;
+    const Formation* rightFormation = nullptr;
+    if (left >= 0 && !formationTimeUp()) leftFormation = &evaluate(left);
+    if (right <= maxSupplyCount && !formationTimeUp()) rightFormation = &evaluate(right);
+
+    // Probe both neighbours, then spend the remaining simulation budget only
+    // on the better half. Ties go left: fewer Supplies preserves more Patrols.
+    int direction = 0;
+    if (leftFormation && rightFormation) {
+        if (!leftFormation->valid) direction = rightFormation->valid ? 1 : 0;
+        else if (!rightFormation->valid) direction = -1;
+        else direction = leftFormation->rank >= rightFormation->rank ? -1 : 1;
+    } else if (leftFormation && leftFormation->valid) {
+        direction = -1;
+    } else if (rightFormation && rightFormation->valid) {
+        direction = 1;
     }
-    for (int supplyCount : supplyOrder) {
+    for (int supplyCount = center + 2 * direction;
+         direction != 0 && supplyCount >= 0 && supplyCount <= maxSupplyCount;
+         supplyCount += direction) {
         if (formationTimeUp() && bestRank != std::make_tuple(-1, -1, -1)) break;
         evaluate(supplyCount);
     }

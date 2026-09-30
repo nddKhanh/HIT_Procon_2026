@@ -13,13 +13,21 @@ inline bool isRunningPhase(const std::string& phase) {
     return phase == "running" || phase == "started";
 }
 
+inline bool hasLiveStatus(const GameState& state, int configDays) {
+    return !state.finished &&
+           state.day >= 0 && state.day < configDays &&
+           (state.totalDays <= 0 || state.totalDays == configDays) &&
+           !state.agents.empty() && state.endsAt > 0;
+}
+
 inline bool canPlan(const std::string& phase, const GameState& state,
                     int configDays, long long nowMs,
                     long long safetyMarginMs = 1000) {
-    return isRunningPhase(phase) && !state.finished && hasStarted(state, nowMs) &&
-           state.day >= 0 && state.day < configDays &&
-           (state.totalDays <= 0 || state.totalDays == configDays) &&
-           !state.agents.empty() && state.endsAt > 0 &&
+    // Follow the server's live /status payload. Its timestamps can be shifted
+    // from the local clock and /matches can lag behind the current day.
+    const bool started = isRunningPhase(phase) || hasStarted(state, nowMs) ||
+                         hasLiveStatus(state, configDays);
+    return started && hasLiveStatus(state, configDays) &&
            nowMs < state.endsAt * 1000LL - safetyMarginMs;
 }
 

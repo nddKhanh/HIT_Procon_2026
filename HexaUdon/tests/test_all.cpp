@@ -30,13 +30,23 @@ void test_live_match_start_and_snapshot_guards() {
 
     auto notStarted = original;
     notStarted.startsAt = 0;
+    notStarted.endsAt = 0;
+    notStarted.agents.clear();
     assert(!LiveMatchGuard::canPlan("waiting", notStarted, 7, 90000));
-    assert(!LiveMatchGuard::canPlan("waiting", original, 7, 99000, 500));
+    auto serverClockAhead = original;
+    serverClockAhead.startsAt = 120;
+    serverClockAhead.endsAt = 180;
+    assert(LiveMatchGuard::canPlan("running", serverClockAhead, 7, 90000, 500));
+    assert(LiveMatchGuard::canPlan("waiting", serverClockAhead, 7, 90000, 500));
+    assert(LiveMatchGuard::canPlan("waiting", original, 7, 99000, 500));
     assert(!LiveMatchGuard::canPlan("running", original, 7, 100000));
     assert(LiveMatchGuard::canPlan("running", original, 7, 99000, 500));
+    assert(LiveMatchGuard::canPlan("agent_select", original, 7, 99000, 500));
+    assert(LiveMatchGuard::canPlan("", original, 7, 99000, 500));
 
     GameState latest = original;
     assert(LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    assert(LiveMatchGuard::canSubmit("", original, latest, 7, 99000));
     latest.finished = true;
     assert(!LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
     latest = original;
@@ -988,9 +998,10 @@ void test_agent_strategy_simulates_supply_counts() {
     config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
     assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>(6, 0));
 
-    // Every feasible supply count is evaluated; equal official scores still
-    // select fewer supplies. Each non-trivial count also tries a second
-    // position assignment instead of assuming the last agents are Supplies.
+    // Start at the middle supply count, probe both sides, then continue only
+    // toward the better side. A tie goes toward fewer supplies. Each
+    // non-trivial count also tries a second position assignment instead of
+    // assuming the last agents are Supplies.
     config.daySeconds = {1};
     config.daySteps = {0};
     config.map = {1, 1, {{0}}};
@@ -1007,7 +1018,8 @@ void test_agent_strategy_simulates_supply_counts() {
     const auto three = log.find("[FORMATION] supply=3 ");
     const auto four = log.find("[FORMATION] supply=4 ");
     assert(flatTypes == std::vector<int>(8, 0));
-    assert(zero < one && one < two && two < three && three < four);
+    assert(two < one && one < three && three < zero);
+    assert(four == std::string::npos);
     assert(log.find("types=[0,0,0,0,0,0,0,1]") != std::string::npos);
     assert(log.find("types=[1,0,0,0,0,0,0,0]") != std::string::npos);
 

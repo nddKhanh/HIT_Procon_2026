@@ -130,13 +130,6 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         std::cout << "[4/4] Tran dau da ket thuc du " << totalDays << " ngay.\n";
         return 0;
     }
-    std::string selectionPhase = api.getMatchPhase(matchId);
-    if (selectionPhase.empty()) {
-        std::cerr << "[LOI] Khong doc duoc lifecycle status cua match: "
-                  << api.getLastError() << "\n";
-        return 1;
-    }
-
     // --- Step 2: Submit agent types ---
     std::vector<int> agentTypes;
     if (!freshRun && loadFormationCache(config, agentTypes)) {
@@ -166,14 +159,8 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         std::cout << "  -> Tran dau da ket thuc trong luc tinh doi hinh.\n";
         return 0;
     }
-    selectionPhase = api.getMatchPhase(matchId);
-    if (LiveMatchGuard::isRunningPhase(selectionPhase) ||
-        LiveMatchGuard::hasStarted(selectionState, currentEpochMs())) {
+    if (LiveMatchGuard::hasLiveStatus(selectionState, totalDays)) {
         std::cout << "  -> Tran da Start trong luc tinh; bo qua POST /agents.\n";
-    } else if (selectionPhase != "waiting" && selectionPhase != "agent_select") {
-        std::cerr << "[LOI] Lifecycle status khong cho phep chon xe: "
-                  << selectionPhase << "\n";
-        return 1;
     } else if (!api.submitAgentTypes(matchId, agentTypes)) {
         std::cerr << "[LOI] Khong gui duoc agent types: " << api.getLastError() << "\n";
         // Not fatal — might already be submitted
@@ -199,37 +186,11 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
                   << "/" << totalDays << "; se khong nop lai.\n";
     }
     int retryCount = 0;
-    int waitPollCount = 0;
     int newDayPollCount = 0;
     const int MAX_RETRIES = 300;
     const int POLL_MS = 100;
     const int ERROR_RETRY_MS = 500;
-    std::string phase = selectionPhase;
-
     while (true) {
-        // Before the first Start, poll only lifecycle. Once running, poll the
-        // day directly; re-check lifecycle only when a new day appears.
-        if (!LiveMatchGuard::isRunningPhase(phase))
-            phase = api.getMatchPhase(matchId);
-        if (!LiveMatchGuard::isRunningPhase(phase)) {
-            if (phase.empty() || phase == "ended" || phase == "finished") {
-                GameState terminal = api.getMatchStatus(matchId);
-                if (terminal.finished || terminal.day >= totalDays) {
-                    std::cout << "\n[4/4] Tran dau da ket thuc! (day=" << terminal.day
-                              << ", totalDays=" << totalDays << ")\n";
-                    break;
-                }
-            }
-            if (waitPollCount++ % 50 == 0) {
-                std::cout << "  [Cho] Match status="
-                          << (phase.empty() ? "unknown" : phase)
-                          << "; cho admin Start Match / Next Day...\n";
-            }
-            Sleep(POLL_MS);
-            continue;
-        }
-        waitPollCount = 0;
-
         GameState state = api.getMatchStatus(matchId);
 
         if (state.day < 0) {
@@ -260,13 +221,10 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
             continue;
         }
 
-        // A new day was observed. Confirm its lifecycle once before planning.
-        phase = api.getMatchPhase(matchId);
         if (!LiveMatchGuard::canPlan(
-                phase, state, totalDays, currentEpochMs())) {
+                "", state, totalDays, currentEpochMs())) {
             if (newDayPollCount++ % 50 == 0) {
-                std::cout << "  [Cho] Ngay moi chua san sang: status=" << phase
-                          << ", startsAt=" << state.startsAt
+                std::cout << "  [Cho] Ngay moi chua san sang: startsAt=" << state.startsAt
                           << ", endsAt=" << state.endsAt
                           << ", agents=" << state.agents.size() << "\n";
             }
@@ -341,14 +299,11 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         // The answer endpoint does not carry a day number. Never let a plan
         // computed from an old snapshot be accepted for a newer day.
         GameState latest = api.getMatchStatus(matchId);
-        std::string latestPhase = latest.finished ? std::string{} : api.getMatchPhase(matchId);
         if (!LiveMatchGuard::canSubmit(
-                latestPhase, state, latest, totalDays, currentEpochMs())) {
+                "", state, latest, totalDays, currentEpochMs())) {
             solver.discardLastPlan();
-            phase = latestPhase;
             std::cerr << "  [CANH BAO] Snapshot/deadline da doi trong luc tinh"
-                      << " (status " << phase << " -> " << latestPhase
-                      << ", ngay " << state.day << " -> " << latest.day
+                      << " (ngay " << state.day << " -> " << latest.day
                       << ", endsAt " << state.endsAt << " -> " << latest.endsAt
                       << "). Bo phuong an cu va doc lai.\n\n";
             continue;
@@ -374,7 +329,6 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
             // A Next Day transition can briefly reject an answer. Poll again
             // quickly instead of sleeping for several seconds.
             if (err.find("not running") != std::string::npos) {
-                phase.clear();
                 std::cerr << "  -> Match dang chuyen trang thai, thu lai sau "
                           << POLL_MS << " ms...\n\n";
                 Sleep(POLL_MS);
