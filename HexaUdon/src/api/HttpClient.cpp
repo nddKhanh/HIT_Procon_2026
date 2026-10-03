@@ -61,7 +61,7 @@ HttpClient::HttpClient(const std::string& baseUrl) : baseUrl_(baseUrl) {
                               NULL, 0);
 
     if (hSession_) {
-        DWORD timeoutMs = 3000;
+        DWORD timeoutMs = static_cast<DWORD>(api_deadline::requestTimeoutMs);
         InternetSetOptionW(hSession_, INTERNET_OPTION_CONNECT_TIMEOUT,
                            &timeoutMs, sizeof(timeoutMs));
         InternetSetOptionW(hSession_, INTERNET_OPTION_SEND_TIMEOUT,

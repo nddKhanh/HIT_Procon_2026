@@ -126,7 +126,7 @@ bool GameApiClient::submitAgentTypes(const std::string& matchId, const std::vect
     if (!resp.success && resp.statusCode == 0) {
         std::cerr << "[WARN] POST /agents transport error: " << resp.error
                   << "; retry once..." << std::endl;
-        Sleep(200);
+        Sleep(static_cast<DWORD>(api_deadline::retryDelayMs));
         resp = http_.post(path, payload);
     }
     std::cerr << "[DEBUG] POST /agents response (HTTP " << resp.statusCode << "): "
@@ -231,7 +231,7 @@ bool GameApiClient::submitActions(const std::string& matchId, const std::vector<
     if (!resp.success && resp.statusCode == 0) {
         std::cerr << "[WARN] POST /answer transport error: " << resp.error
                   << "; retry same payload once..." << std::endl;
-        Sleep(200);
+        Sleep(static_cast<DWORD>(api_deadline::retryDelayMs));
         resp = http_.post(path, payload);
     }
     std::cerr << "[DEBUG] POST /answer response (HTTP " << resp.statusCode << "): "

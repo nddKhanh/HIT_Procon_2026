@@ -141,6 +141,15 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
                       << "; khong the nop bu cac ngay da dong.\n";
         }
 
+        const auto statusNowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        if (state.endsAt * 1000LL <= statusNowMs) {
+            std::cerr << "  [CANH BAO] Deadline ngay " << state.day
+                      << " da qua; bo qua cau tra loi het han.\n";
+            Sleep(500);
+            continue;
+        }
+
         // === NEW DAY! Match is running, agents available ===
         int daySteps = config.daySteps[state.day];
         std::cout << "------------------------------------------------------------------------\n";
@@ -160,8 +169,12 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
         }
 
         // Solve
+        GameState planningState = state;
+        const long long planningDeadlineMs = state.endsAt * 1000LL -
+            api_deadline::dailyAnswerReserveMs;
+        planningState.endsAt = (planningDeadlineMs + 750LL) / 1000;
         auto solveStarted = std::chrono::steady_clock::now();
-        auto actions = solver.solve(config, state, map);
+        auto actions = solver.solve(config, planningState, map);
         auto solveMs = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - solveStarted).count();
         auto remainingMs = state.endsAt * 1000LL -

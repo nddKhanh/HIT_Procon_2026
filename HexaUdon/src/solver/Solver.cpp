@@ -1,6 +1,7 @@
 #include "solver/Solver.hpp"
 #include "solver/PatrolPlanner.hpp"
 #include "solver/SupplyPlanner.hpp"
+#include "api/HttpClient.hpp"
 #include "solver/MoveSimulator.hpp"
 #include "solver/PathFinder.hpp"
 #include <algorithm>
@@ -190,10 +191,10 @@ std::vector<int> AgentStrategy::decideAgentTypes(
 
     const auto selectionStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
-    // ponytail: cooperative 10-second live cap; an in-flight candidate may overrun.
-    // Reserve 3 seconds for transport. startsAt=0 explicitly means offline.
+    // Use the official absolute start time, reserving this client's worst-case
+    // timeout for POST /agents and its single transport retry.
     const long long selectionDeadlineMs = config.startsAt > 0
-        ? std::min(selectionStartedMs + 10000LL, config.startsAt * 1000LL - 3000)
+        ? config.startsAt * 1000LL - api_deadline::agentSelectionReserveMs
         : LLONG_MAX;
     auto hasSelectionTime = [&] {
         const auto currentMs = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -221,7 +222,8 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         for (bool useRegions : {false, true}) {
             if (useRegions && !kEnablePatrolRegions) continue;
             GameState state{};
-            state.endsAt = selectionDeadlineMs == LLONG_MAX ? 0 : selectionDeadlineMs / 1000;
+            state.endsAt = selectionDeadlineMs == LLONG_MAX
+                ? 0 : (selectionDeadlineMs + 750LL) / 1000;
             for (int i = 0; i < agentCount; ++i) {
                 state.agents.push_back(
                     {formation.types[i], config.initialAgentPositions[i], config.fuelLimit});
@@ -299,7 +301,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         return formation;
     };
 
-    const int middle = std::min(1, maxSupplyCount);
+    const int middle = maxSupplyCount / 2;
     const auto& middleFormation = evaluate(middle);
     for (int direction : {-1, 1}) {
         int supplyCount = middle + direction;
@@ -322,6 +324,13 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         std::cerr << bestTypes[i];
     }
     std::cerr << "] regions=" << (bestUseRegions ? "on" : "off") << '\n';
+    const auto selectionFinishedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    std::cerr << "[FORMATION] elapsed_ms=" << (selectionFinishedMs - selectionStartedMs)
+              << " budget_remaining_ms="
+              << (selectionDeadlineMs == LLONG_MAX
+                      ? -1 : selectionDeadlineMs - selectionFinishedMs)
+              << '\n';
 
     if (selectedUseRegions) *selectedUseRegions = bestUseRegions;
 

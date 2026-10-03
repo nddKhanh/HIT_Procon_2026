@@ -974,16 +974,19 @@ void test_agent_strategy_simulates_supply_counts() {
         assert(log.find("[FORMATION] supply=" + std::to_string(supplies) + " ") !=
                std::string::npos);
 
-    config.startsAt = std::chrono::duration_cast<std::chrono::seconds>(
+    const auto nowSeconds = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
+    config.startsAt = nowSeconds + 60;
     std::ostringstream deadlineLog;
     oldLog = std::cerr.rdbuf(deadlineLog.rdbuf());
-    auto expiredTypes = AgentStrategy::decideAgentTypes(config);
+    auto currentStartTypes = AgentStrategy::decideAgentTypes(config);
     std::cerr.rdbuf(oldLog);
-    assert(expiredTypes == std::vector<int>({0, 0, 0, 0, 0, 0, 0, 1}));
-    assert(deadlineLog.str().find("[FORMATION] supply=") == std::string::npos);
-    config.startsAt -= 120;
-    assert(AgentStrategy::decideAgentTypes(config) == expiredTypes);
+    assert(currentStartTypes == std::vector<int>(8, 0));
+    assert(deadlineLog.str().find("[FORMATION] supply=0") != std::string::npos);
+    // Expired startsAt leaves no time to simulate; retain a valid one-supply fallback.
+    config.startsAt = nowSeconds - 120;
+    auto expiredFormationTypes = AgentStrategy::decideAgentTypes(config);
+    assert(expiredFormationTypes == std::vector<int>({0, 0, 0, 0, 0, 0, 0, 1}));
     config.initialAgentPositions = {0};
     assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>{0});
     config.initialAgentPositions.clear();

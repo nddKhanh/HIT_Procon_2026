@@ -4,6 +4,15 @@
 #include <vector>
 #include <functional>
 
+namespace api_deadline {
+inline constexpr long long requestTimeoutMs = 3000;
+inline constexpr long long retryDelayMs = 200;
+inline constexpr long long requestIoBudgetMs = 2 * requestTimeoutMs; // send + receive; connection is established at startup
+inline constexpr long long retriedPostBudgetMs = 2 * requestIoBudgetMs + retryDelayMs;
+inline constexpr long long agentSelectionReserveMs = retriedPostBudgetMs;
+inline constexpr long long dailyAnswerReserveMs = requestIoBudgetMs + retriedPostBudgetMs;
+}
+
 #ifdef _WIN32
 #include <windows.h>
 #include <wininet.h>
