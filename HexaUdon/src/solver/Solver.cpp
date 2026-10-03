@@ -182,20 +182,35 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     const GameConfig& config, bool* selectedUseRegions) {
     const int agentCount = static_cast<int>(config.initialAgentPositions.size());
     std::vector<int> bestTypes(agentCount, 0);
-    // Keep a patrol for a one-agent game; otherwise fallback has one Supply.
-    if (agentCount >= 2) bestTypes.back() = 1;
+    // Measured-policy rollback: 1 Supply through 10 agents, 2 above 10.
+    const int maxSupplyCount = agentCount / 2;
+    const int incumbentSupplyCount = agentCount > 10 ? 2 : 1;
+    for (int i = 0; i < std::min(incumbentSupplyCount, maxSupplyCount); ++i)
+        bestTypes[agentCount - 1 - i] = 1;
     auto bestRank = std::make_tuple(-1, -1, -1);
     bool bestUseRegions = false;
-    int bestSupplyCount = INT_MAX;
     std::cerr << "[FORMATION] traffic scenario: opponents mirror own road occupancy\n";
 
     const auto selectionStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
-    // Use the official absolute start time, reserving this client's worst-case
-    // timeout for POST /agents and its single transport retry.
-    const long long selectionDeadlineMs = config.startsAt > 0
-        ? config.startsAt * 1000LL - api_deadline::agentSelectionReserveMs
-        : LLONG_MAX;
+    // Ponytail: cap formation search at the observed-safe 10s; extend only after
+    // replay benchmarks. A past startsAt can be stale at agent_select, so do not
+    // let it disable simulations. For a future start, retain the POST/retry reserve.
+    constexpr long long formationSearchBudgetMs = 10000;
+    const long long searchDeadlineMs = selectionStartedMs + formationSearchBudgetMs;
+    const long long configuredStartMs = config.startsAt > 0
+        ? config.startsAt * 1000LL : LLONG_MAX;
+    const long long officialDeadlineMs = configuredStartMs == LLONG_MAX
+        ? LLONG_MAX : configuredStartMs - api_deadline::agentSelectionReserveMs;
+    const bool startIsFuture = configuredStartMs > selectionStartedMs;
+    const long long selectionDeadlineMs = !startIsFuture
+        ? searchDeadlineMs
+        : std::max(selectionStartedMs, std::min(searchDeadlineMs, officialDeadlineMs));
+    if (config.startsAt > 0 && !startIsFuture) {
+        std::cerr << "[FORMATION] startsAt is stale; using 10s bounded search\n";
+    } else if (config.startsAt > 0 && officialDeadlineMs <= selectionStartedMs) {
+        std::cerr << "[FORMATION] too little time before startsAt; keeping incumbent\n";
+    }
     auto hasSelectionTime = [&] {
         const auto currentMs = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
@@ -209,7 +224,6 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         bool valid = false;
         bool evaluated = false;
     };
-    const int maxSupplyCount = agentCount / 2;
     std::vector<Formation> formations(maxSupplyCount + 1);
     auto evaluate = [&](int supplyCount) -> const Formation& {
         auto& formation = formations[supplyCount];
@@ -236,6 +250,8 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             MatchScore score;
             std::vector<long long> previousOccupancy;
             bool valid = true;
+            bool invalidSimulation = false;
+            bool prunedByBound = false;
             int simulatedDays = 0;
             for (int day = 0;
                  day < static_cast<int>(config.daySteps.size()) && hasSelectionTime();
@@ -245,6 +261,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                 auto result = MoveSimulator::simulateDay(config, state, actions, map);
                 if (!result.valid) {
                     valid = false;
+                    invalidSimulation = true;
                     break;
                 }
                 score.add(result);
@@ -271,7 +288,10 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                     const int dailyUpper = score.dailyTypes + std::min(
                         remaining * static_cast<int>(allBrands.size()), remaining * agentCount + fuel);
                     if (std::make_pair(static_cast<int>(allBrands.size()), dailyUpper) <
-                        std::make_pair(std::get<0>(bestRank), std::get<1>(bestRank))) break;
+                        std::make_pair(std::get<0>(bestRank), std::get<1>(bestRank))) {
+                        prunedByBound = true;
+                        break;
+                    }
                 }
             }
             if (simulatedDays != static_cast<int>(config.daySteps.size()) ||
@@ -280,7 +300,11 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             std::cerr << "[FORMATION] supply=" << supplyCount
                       << " regions=" << (useRegions ? "on" : "off")
                       << " score=" << score.brands.size() << '/' << score.dailyTypes
-                      << '/' << score.servings << (valid ? "" : " invalid")
+                      << '/' << score.servings
+                      << " outcome=" << (valid ? "complete"
+                          : prunedByBound ? "pruned-bound"
+                          : invalidSimulation ? "simulation-invalid"
+                          : "deadline-incomplete")
                       << '\n';
 
             if (valid && (!formation.valid || score.rank() > formation.rank)) {
@@ -290,30 +314,29 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             }
         }
 
-        if (formation.valid &&
-            (formation.rank > bestRank ||
-             (formation.rank == bestRank && supplyCount < bestSupplyCount))) {
+        // Keep the incumbent on exact ties; only a strictly better official tuple
+        // is evidence to depart from the known-good formation policy.
+        if (formation.valid && formation.rank > bestRank) {
             bestRank = formation.rank;
             bestTypes = formation.types;
             bestUseRegions = formation.useRegions;
-            bestSupplyCount = supplyCount;
         }
         return formation;
     };
 
-    const int middle = maxSupplyCount / 2;
-    const auto& middleFormation = evaluate(middle);
-    for (int direction : {-1, 1}) {
-        int supplyCount = middle + direction;
-        if (supplyCount < 0 || supplyCount > maxSupplyCount) continue;
+    // Seed a measured-policy incumbent before exploring alternatives: 1 Supply
+    // through 10 vehicles, 2 above 10 (clamped to a legal formation).
+    if (agentCount >= 2)
+        evaluate(std::min(incumbentSupplyCount, maxSupplyCount));
 
-        const Formation* previous = &middleFormation;
-        while (supplyCount >= 0 && supplyCount <= maxSupplyCount && hasSelectionTime()) {
-            const auto& current = evaluate(supplyCount);
-            if (!current.valid || !previous->valid || current.rank < previous->rank)
-                break;
-            previous = &current;
-            supplyCount += direction;
+    // Evaluate every legal count in incumbent-distance order. Scores need not be
+    // unimodal; keep the incumbent if the deadline prevents a complete rollout.
+    for (int distance = 1; distance <= maxSupplyCount && hasSelectionTime(); ++distance) {
+        for (int direction : {1, -1}) {
+            if (!hasSelectionTime()) break;
+            const int supplyCount = incumbentSupplyCount + direction * distance;
+            if (supplyCount < 0 || supplyCount > maxSupplyCount) continue;
+            evaluate(supplyCount);
         }
     }
 

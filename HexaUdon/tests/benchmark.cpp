@@ -3,6 +3,7 @@
 #include <iostream>
 #include <tuple>
 #include <nlohmann/json.hpp>
+#include "api/HttpClient.hpp"
 #include "solver/Solver.hpp"
 #include "solver/MoveSimulator.hpp"
 
@@ -30,6 +31,7 @@ int main(int argc, char** argv) {
     };
     const bool regressionReplay = argc <= 1;
     const bool selectFormation = argc > 2 && std::string(argv[2]) == "formation";
+    const int selectionBudgetSeconds = argc > 3 ? std::stoi(argv[3]) : 10;
     size_t scenarioIndex = 0;
     const std::vector<int> supplyCounts = selectFormation ? std::vector<int>{-1} : regressionReplay
         ? std::vector<int>{3, 2} : std::vector<int>{3, 2, 1, 0};
@@ -44,9 +46,11 @@ int main(int argc, char** argv) {
         std::vector<int> types(n, 0);
         double formationMs = 0;
         if (selectFormation) {
-            if (argc > 3 && std::string(argv[3]) == "live")
-                scenario.startsAt = std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count() + 30;
+            const auto nowSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            const auto postReserveSeconds =
+                (api_deadline::agentSelectionReserveMs + 999) / 1000;
+            scenario.startsAt = nowSeconds + selectionBudgetSeconds + postReserveSeconds;
             auto start = std::chrono::steady_clock::now();
             types = solver.decideAgentTypes(scenario);
             formationMs = std::chrono::duration<double, std::milli>(
@@ -99,6 +103,7 @@ int main(int argc, char** argv) {
         ++scenarioIndex;
         output.push_back({{"shift",shift},{"traffic",fixed?"recorded-fixed":"mirrored-dynamic"},
             {"supplies",supplies},{"score",{score.brands.size(),score.dailyTypes,score.servings}},
+            {"selection_budget_seconds",selectionBudgetSeconds},
             {"ms",totalMs},{"formation_ms",formationMs},{"types",types},{"days",days}});
         std::cerr << "shift=" << shift << " fixed=" << fixed << " supply=" << supplies
                   << " score=" << score.brands.size() << '/' << score.dailyTypes << '/' << score.servings

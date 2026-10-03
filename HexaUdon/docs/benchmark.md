@@ -91,6 +91,20 @@ interpreting results.
 cmd /c build.bat benchmark
 ```
 
+Formation-budget trial on the same replay (seconds; repeats all four position/
+traffic scenarios):
+
+```powershell
+cmd /c build.bat benchmark formation 2
+cmd /c build.bat benchmark formation 5
+cmd /c build.bat benchmark formation 8
+cmd /c build.bat benchmark formation 10
+```
+
+This is an offline fixed/mirrored-traffic comparison, not a live deadline or
+opponent win-rate test. Keep the POST reserve when interpreting the configured
+selection budget.
+
 Previously documented synthetic baseline scores were produced with different
 code and uncalibrated rules; they are not evidence for the current simulator.
 
