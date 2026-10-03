@@ -193,10 +193,10 @@ std::vector<int> AgentStrategy::decideAgentTypes(
 
     const auto selectionStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
-    // Ponytail: cap formation search at the observed-safe 10s; extend only after
-    // replay benchmarks. A past startsAt can be stale at agent_select, so do not
+    // Ponytail: cap formation search at 15s; validate the longer cap live before
+    // extending again. A past startsAt can be stale at agent_select, so do not
     // let it disable simulations. For a future start, retain the POST/retry reserve.
-    constexpr long long formationSearchBudgetMs = 10000;
+    constexpr long long formationSearchBudgetMs = 15000;
     const long long searchDeadlineMs = selectionStartedMs + formationSearchBudgetMs;
     const long long configuredStartMs = config.startsAt > 0
         ? config.startsAt * 1000LL : LLONG_MAX;
@@ -207,7 +207,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         ? searchDeadlineMs
         : std::max(selectionStartedMs, std::min(searchDeadlineMs, officialDeadlineMs));
     if (config.startsAt > 0 && !startIsFuture) {
-        std::cerr << "[FORMATION] startsAt is stale; using 10s bounded search\n";
+        std::cerr << "[FORMATION] startsAt is stale; using 15s bounded search\n";
     } else if (config.startsAt > 0 && officialDeadlineMs <= selectionStartedMs) {
         std::cerr << "[FORMATION] too little time before startsAt; keeping incumbent\n";
     }
