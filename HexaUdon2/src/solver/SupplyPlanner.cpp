@@ -141,7 +141,7 @@ std::vector<int> SupplyPlanner::planDay(
                 missingDailyBrands.insert(config.spots[si].brand);
         }
         auto rank = std::make_tuple(static_cast<int>(missingDailyBrands.size()),
-                                    extensionPotential, usableSteps, deficit);
+                                    deficit, extensionPotential, usableSteps);
         if (rank > bestRank) {
             bestRank = rank;
             targetPatrol = i;
@@ -219,9 +219,9 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
         }
         return out;
     };
-    // ponytail: bounded greedy joint repair (64 meetings/round, at most 2*n rounds).
+    // ponytail: bounded greedy joint repair (64 meetings/round, at most n rounds).
     // Expand to a beam only when this measured search ceiling leaves useful rescues.
-    for (int round = 0; round < 2 * n && inTime(); ++round) {
+    for (int round = 0; round < n && inTime(); ++round) {
         std::vector<Wait> waits;
         // A previous target choice must not lock the refinement pass. Treat the
         // supply's initial position as a full-day departure window so a better

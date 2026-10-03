@@ -181,6 +181,8 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     const GameConfig& config, bool* selectedUseRegions) {
     const int agentCount = static_cast<int>(config.initialAgentPositions.size());
     std::vector<int> bestTypes(agentCount, 0);
+    // Keep a patrol for a one-agent game; otherwise fallback has one Supply.
+    if (agentCount >= 2) bestTypes.back() = 1;
     auto bestRank = std::make_tuple(-1, -1, -1);
     bool bestUseRegions = false;
     int bestSupplyCount = INT_MAX;
@@ -188,11 +190,12 @@ std::vector<int> AgentStrategy::decideAgentTypes(
 
     const auto selectionStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
+    // ponytail: cooperative 10-second live cap; an in-flight candidate may overrun.
+    // Reserve 3 seconds for transport. startsAt=0 explicitly means offline.
     const long long selectionDeadlineMs = config.startsAt > 0
-        ? config.startsAt * 1000LL - 750 : LLONG_MAX;
+        ? std::min(selectionStartedMs + 10000LL, config.startsAt * 1000LL - 3000)
+        : LLONG_MAX;
     auto hasSelectionTime = [&] {
-        // Ignore stale fixture timestamps used by local replay tests.
-        if (selectionDeadlineMs < selectionStartedMs - 60000) return true;
         const auto currentMs = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
         return currentMs < selectionDeadlineMs;
@@ -218,7 +221,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         for (bool useRegions : {false, true}) {
             if (useRegions && !kEnablePatrolRegions) continue;
             GameState state{};
-            state.endsAt = config.startsAt;
+            state.endsAt = selectionDeadlineMs == LLONG_MAX ? 0 : selectionDeadlineMs / 1000;
             for (int i = 0; i < agentCount; ++i) {
                 state.agents.push_back(
                     {formation.types[i], config.initialAgentPositions[i], config.fuelLimit});
@@ -254,6 +257,20 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                 }
                 solver.commitLastPlan();
                 ++simulatedDays;
+                // Without Supply, every future arrival spends at least one fuel.
+                // Count one free starting brand per patrol/day: an optimistic bound,
+                // not a heuristic score. Prune only when even this cannot win.
+                if (supplyCount == 0 && std::get<0>(bestRank) >= 0) {
+                    std::set<int> allBrands;
+                    for (const auto& spot : config.spots) allBrands.insert(spot.brand);
+                    int fuel = 0;
+                    for (const auto& agent : state.agents) fuel += agent.fuel;
+                    const int remaining = static_cast<int>(config.daySteps.size()) - simulatedDays;
+                    const int dailyUpper = score.dailyTypes + std::min(
+                        remaining * static_cast<int>(allBrands.size()), remaining * agentCount + fuel);
+                    if (std::make_pair(static_cast<int>(allBrands.size()), dailyUpper) <
+                        std::make_pair(std::get<0>(bestRank), std::get<1>(bestRank))) break;
+                }
             }
             if (simulatedDays != static_cast<int>(config.daySteps.size()) ||
                 !hasSelectionTime()) valid = false;
@@ -282,7 +299,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         return formation;
     };
 
-    const int middle = maxSupplyCount / 2;
+    const int middle = std::min(1, maxSupplyCount);
     const auto& middleFormation = evaluate(middle);
     for (int direction : {-1, 1}) {
         int supplyCount = middle + direction;

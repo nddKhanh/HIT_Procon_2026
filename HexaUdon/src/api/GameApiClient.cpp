@@ -118,13 +118,25 @@ bool GameApiClient::submitAgentTypes(const std::string& matchId, const std::vect
 
     std::cerr << "[DEBUG] POST /agents payload: " << payload << std::endl;
 
-    auto resp = http_.post("/api/game/matches/" + matchId + "/agents", payload);
+    const std::string path = "/api/game/matches/" + matchId + "/agents";
+    auto resp = http_.post(path, payload);
+    // Retrying the identical selection is safe and covers a transient transport
+    // failure or a lost response. Server rejections have a real HTTP status and
+    // must not be retried blindly.
+    if (!resp.success && resp.statusCode == 0) {
+        std::cerr << "[WARN] POST /agents transport error: " << resp.error
+                  << "; retry once..." << std::endl;
+        Sleep(200);
+        resp = http_.post(path, payload);
+    }
     std::cerr << "[DEBUG] POST /agents response (HTTP " << resp.statusCode << "): "
-              << resp.body.substr(0, 500) << std::endl;
+              << resp.body.substr(0, 500)
+              << (resp.error.empty() ? "" : " error: " + resp.error) << std::endl;
 
     if (!resp.success) {
         lastError_ = "POST agents failed: HTTP " + std::to_string(resp.statusCode) +
-                     " body: " + resp.body.substr(0, 200);
+                     " body: " + resp.body.substr(0, 200) +
+                     (resp.error.empty() ? "" : " error: " + resp.error);
         return false;
     }
     lastResponse_ = resp.body;
@@ -212,13 +224,24 @@ bool GameApiClient::submitActions(const std::string& matchId, const std::vector<
     std::cerr << "[DEBUG] POST /answer payload (" << payload.size() << " bytes): "
               << payload.substr(0, 500) << std::endl;
 
-    auto resp = http_.post("/api/game/matches/" + matchId + "/answer", payload);
+    const std::string path = "/api/game/matches/" + matchId + "/answer";
+    auto resp = http_.post(path, payload);
+    // The answer may already have reached the server even when its response is
+    // lost. Repeat the exact bytes once; never recompute a different plan here.
+    if (!resp.success && resp.statusCode == 0) {
+        std::cerr << "[WARN] POST /answer transport error: " << resp.error
+                  << "; retry same payload once..." << std::endl;
+        Sleep(200);
+        resp = http_.post(path, payload);
+    }
     std::cerr << "[DEBUG] POST /answer response (HTTP " << resp.statusCode << "): "
-              << resp.body.substr(0, 500) << std::endl;
+              << resp.body.substr(0, 500)
+              << (resp.error.empty() ? "" : " error: " + resp.error) << std::endl;
 
     if (!resp.success) {
         lastError_ = "POST answer failed: HTTP " + std::to_string(resp.statusCode) +
-                     " body: " + resp.body.substr(0, 500);
+                     " body: " + resp.body.substr(0, 500) +
+                     (resp.error.empty() ? "" : " error: " + resp.error);
         return false;
     }
 

@@ -1,0 +1,322 @@
+[
+  {
+    "days": [
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 1827.932,
+        "patrol_wait": 5,
+        "servings": 29,
+        "supply_wait": 20
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 678.418,
+        "patrol_wait": 13,
+        "servings": 42,
+        "supply_wait": 67
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 767.449,
+        "patrol_wait": 4,
+        "servings": 39,
+        "supply_wait": 60
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 529.549,
+        "patrol_wait": 7,
+        "servings": 35,
+        "supply_wait": 77
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 601.199,
+        "patrol_wait": 35,
+        "servings": 37,
+        "supply_wait": 47
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 1915.612,
+        "patrol_wait": 54,
+        "servings": 33,
+        "supply_wait": 52
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 711.214,
+        "patrol_wait": 8,
+        "servings": 41,
+        "supply_wait": 98
+      }
+    ],
+    "formation_ms": 7360.493,
+    "ms": 7031.373,
+    "score": [
+      20,
+      140,
+      256
+    ],
+    "shift": 0,
+    "supplies": -1,
+    "traffic": "recorded-fixed",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1
+    ]
+  },
+  {
+    "days": [
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 1811.4,
+        "patrol_wait": 5,
+        "servings": 29,
+        "supply_wait": 20
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 417.097,
+        "patrol_wait": 10,
+        "servings": 37,
+        "supply_wait": 63
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 2085.643,
+        "patrol_wait": 19,
+        "servings": 35,
+        "supply_wait": 41
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 565.839,
+        "patrol_wait": 6,
+        "servings": 38,
+        "supply_wait": 69
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 683.383,
+        "patrol_wait": 8,
+        "servings": 40,
+        "supply_wait": 72
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 592.031,
+        "patrol_wait": 56,
+        "servings": 37,
+        "supply_wait": 22
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 410.001,
+        "patrol_wait": 93,
+        "servings": 33,
+        "supply_wait": 64
+      }
+    ],
+    "formation_ms": 7310.332,
+    "ms": 6565.394,
+    "score": [
+      20,
+      140,
+      249
+    ],
+    "shift": 0,
+    "supplies": -1,
+    "traffic": "mirrored-dynamic",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1
+    ]
+  },
+  {
+    "days": [
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 740.08,
+        "patrol_wait": 2,
+        "servings": 33,
+        "supply_wait": 52
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 612.914,
+        "patrol_wait": 9,
+        "servings": 36,
+        "supply_wait": 61
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 1578.456,
+        "patrol_wait": 31,
+        "servings": 35,
+        "supply_wait": 59
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 473.081,
+        "patrol_wait": 35,
+        "servings": 33,
+        "supply_wait": 46
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 2009.915,
+        "patrol_wait": 11,
+        "servings": 40,
+        "supply_wait": 60
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 645.683,
+        "patrol_wait": 26,
+        "servings": 37,
+        "supply_wait": 60
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 411.359,
+        "patrol_wait": 65,
+        "servings": 37,
+        "supply_wait": 89
+      }
+    ],
+    "formation_ms": 6821.435,
+    "ms": 6471.488000000001,
+    "score": [
+      20,
+      140,
+      251
+    ],
+    "shift": 2,
+    "supplies": -1,
+    "traffic": "recorded-fixed",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1
+    ]
+  },
+  {
+    "days": [
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 735.0,
+        "patrol_wait": 2,
+        "servings": 33,
+        "supply_wait": 52
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 2188.266,
+        "patrol_wait": 5,
+        "servings": 37,
+        "supply_wait": 73
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 1940.765,
+        "patrol_wait": 8,
+        "servings": 40,
+        "supply_wait": 77
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 2061.712,
+        "patrol_wait": 7,
+        "servings": 37,
+        "supply_wait": 17
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 663.609,
+        "patrol_wait": 10,
+        "servings": 41,
+        "supply_wait": 54
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 629.119,
+        "patrol_wait": 16,
+        "servings": 38,
+        "supply_wait": 55
+      },
+      {
+        "brands": 20,
+        "missing": [],
+        "ms": 565.232,
+        "patrol_wait": 24,
+        "servings": 37,
+        "supply_wait": 98
+      }
+    ],
+    "formation_ms": 6845.641,
+    "ms": 8783.703000000001,
+    "score": [
+      20,
+      140,
+      263
+    ],
+    "shift": 2,
+    "supplies": -1,
+    "traffic": "mirrored-dynamic",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      1
+    ]
+  }
+]

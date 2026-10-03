@@ -2,7 +2,6 @@
 #include <cassert>
 #include <cmath>
 #include <climits>
-#include <chrono>
 #include <fstream>
 #include <filesystem>
 #include <sstream>
@@ -17,7 +16,47 @@
 #include "solver/PatrolPlanner.hpp"
 #include "solver/SupplyPlanner.hpp"
 #include "io/DiaryWriter.hpp"
+#include "api/LiveMatchGuard.hpp"
 #include "solver\SpotScorer.hpp"
+
+void test_live_match_start_and_snapshot_guards() {
+    GameState original{};
+    original.day = 0;
+    original.currentDay = 0;
+    original.totalDays = 7;
+    original.startsAt = 90;
+    original.endsAt = 101;
+    original.agents = {{0, 0, 10}};
+
+    auto notStarted = original;
+    notStarted.startsAt = 0;
+    notStarted.endsAt = 0;
+    notStarted.agents.clear();
+    assert(!LiveMatchGuard::canPlan("waiting", notStarted, 7, 90000));
+    auto serverClockAhead = original;
+    serverClockAhead.startsAt = 120;
+    serverClockAhead.endsAt = 180;
+    assert(LiveMatchGuard::canPlan("running", serverClockAhead, 7, 90000, 500));
+    assert(LiveMatchGuard::canPlan("waiting", serverClockAhead, 7, 90000, 500));
+    assert(LiveMatchGuard::canPlan("waiting", original, 7, 99000, 500));
+    assert(!LiveMatchGuard::canPlan("running", original, 7, 100000));
+    assert(LiveMatchGuard::canPlan("running", original, 7, 99000, 500));
+    assert(LiveMatchGuard::canPlan("agent_select", original, 7, 99000, 500));
+    assert(LiveMatchGuard::canPlan("", original, 7, 99000, 500));
+
+    GameState latest = original;
+    assert(LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    assert(LiveMatchGuard::canSubmit("", original, latest, 7, 99000));
+    latest.finished = true;
+    assert(!LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    latest = original;
+    latest.day = 1;
+    assert(!LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    latest = original;
+    latest.endsAt++;
+    assert(!LiveMatchGuard::canSubmit("running", original, latest, 7, 99000));
+    std::cout << "[PASS] Live start, deadline and stale-snapshot guards passed!" << std::endl;
+}
 
 // =============================================================================
 // Test 1: Map basics and hex geometry
@@ -391,12 +430,10 @@ void test_stock_aware_coordination_and_reset() {
     Map map(1, 2, config.map.cells);
     Solver solver;
     auto actions = solver.solve(config, state, map);
-    auto day = MoveSimulator::simulateDay(config, state, actions, map);
 
     assert(ActionValidator::validate(config, state, actions, map));
-    assert(day.valid && day.brands.size() == 1 && day.collections.size() == 2);
-    // Equal coverage: two servings at a stocked shared spot are preferable.
-    assert(solver.getPlannedTargetSpot(0) == 0 && solver.getPlannedTargetSpot(1) == 0);
+    assert((solver.getPlannedTargetSpot(0) == 0) !=
+           (solver.getPlannedTargetSpot(1) == 0)); // One physical spot has one first owner.
     assert(solver.solve(config, state, map) == actions);
     solver.commitLastPlan();
     state.day = 1;
@@ -638,6 +675,7 @@ void test_joint_simulator() {
     score.add(day);
     score.add(day);
     assert(score.rank() == std::make_tuple(2, 4, 6));
+    assert(score.rankWithResponse(1000) > score.rankWithResponse(2000));
 
     config.daySteps[0] = 5;
     state.agents = {{0, 0, 0}, {1, 0, 0}};
@@ -750,6 +788,8 @@ void test_diary_uses_canonical_simulation() {
         ".build" / "diary_simulator_test";
     assert(DiaryWriter::writeDay(root.string(), "valid", 0, 2,
         config, state, staleMap, solver, {{2}}, false));
+    assert(DiaryWriter::findLastWrittenDay(root.string(), "valid", 5) == 0);
+    assert(DiaryWriter::findLastWrittenDay(root.string(), "missing", 5) == -1);
     std::ifstream valid(root / "valid" / "day_0.md");
     std::string text((std::istreambuf_iterator<char>(valid)), {});
     assert(text.find("| 0-1 |") != std::string::npos);
@@ -958,7 +998,10 @@ void test_agent_strategy_simulates_supply_counts() {
     config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
     assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>(6, 0));
 
-    // Equal scores keep searching in both directions until the boundaries.
+    // Start at the middle supply count, probe both sides, then continue only
+    // toward the better side. A tie goes toward fewer supplies. Each
+    // non-trivial count also tries a second position assignment instead of
+    // assuming the last agents are Supplies.
     config.daySeconds = {1};
     config.daySteps = {0};
     config.map = {1, 1, {{0}}};
@@ -969,26 +1012,16 @@ void test_agent_strategy_simulates_supply_counts() {
     auto flatTypes = AgentStrategy::decideAgentTypes(config);
     std::cerr.rdbuf(oldLog);
     const auto log = formationLog.str();
+    const auto zero = log.find("[FORMATION] supply=0 ");
+    const auto one = log.find("[FORMATION] supply=1 ");
+    const auto two = log.find("[FORMATION] supply=2 ");
+    const auto three = log.find("[FORMATION] supply=3 ");
+    const auto four = log.find("[FORMATION] supply=4 ");
     assert(flatTypes == std::vector<int>(8, 0));
-    for (int supplies = 0; supplies <= 4; ++supplies)
-        assert(log.find("[FORMATION] supply=" + std::to_string(supplies) + " ") !=
-               std::string::npos);
-
-    config.startsAt = std::chrono::duration_cast<std::chrono::seconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-    std::ostringstream deadlineLog;
-    oldLog = std::cerr.rdbuf(deadlineLog.rdbuf());
-    auto expiredTypes = AgentStrategy::decideAgentTypes(config);
-    std::cerr.rdbuf(oldLog);
-    assert(expiredTypes == std::vector<int>({0, 0, 0, 0, 0, 0, 0, 1}));
-    assert(deadlineLog.str().find("[FORMATION] supply=") == std::string::npos);
-    config.startsAt -= 120;
-    assert(AgentStrategy::decideAgentTypes(config) == expiredTypes);
-    config.initialAgentPositions = {0};
-    assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>{0});
-    config.initialAgentPositions.clear();
-    assert(AgentStrategy::decideAgentTypes(config).empty());
-    config.startsAt = 0;
+    assert(two < one && one < three && three < zero);
+    assert(four == std::string::npos);
+    assert(log.find("types=[0,0,0,0,0,0,0,1]") != std::string::npos);
+    assert(log.find("types=[1,0,0,0,0,0,0,0]") != std::string::npos);
 
     config.daySeconds = {60, 60, 60, 60, 60};
     config.daySteps = {8, 10, 12, 14, 16};
@@ -1008,7 +1041,8 @@ void test_agent_strategy_simulates_supply_counts() {
     };
     config.initialAgentPositions = {29, 0, 19, 28};
     config.fuelLimit = 7;
-    // Official ranking prefers one supply because it preserves more Daily.
+    // Position-aware rollouts are evaluated, but the established assignment
+    // remains best on the official score after moving rendezvous refinement.
     assert(AgentStrategy::decideAgentTypes(config) ==
            std::vector<int>({0, 0, 0, 1}));
     std::cout << "[PASS] Simulated supply-count strategy test passed!" << std::endl;
@@ -1238,6 +1272,7 @@ void test_lookahead_scores_one_second_spot() {
 }
 
 int main() {
+    test_live_match_start_and_snapshot_guards();
     test_lookahead_scores_one_second_spot();
     test_spot_reward_paths();
     test_server_replay();

@@ -1,0 +1,316 @@
+[
+  {
+    "days": [
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 244.398,
+        "patrol_wait": 2,
+        "servings": 20,
+        "supply_wait": 7
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 539.247,
+        "patrol_wait": 52,
+        "servings": 19,
+        "supply_wait": 11
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 217.35,
+        "patrol_wait": 57,
+        "servings": 19,
+        "supply_wait": 7
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 548.702,
+        "patrol_wait": 75,
+        "servings": 17,
+        "supply_wait": 3
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 161.0,
+        "patrol_wait": 76,
+        "servings": 21,
+        "supply_wait": 5
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 597.0,
+        "patrol_wait": 31,
+        "servings": 22,
+        "supply_wait": 9
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 160.001,
+        "patrol_wait": 30,
+        "servings": 25,
+        "supply_wait": 19
+      }
+    ],
+    "formation_ms": 1906.832,
+    "ms": 2467.6980000000003,
+    "score": [
+      16,
+      112,
+      143
+    ],
+    "shift": 0,
+    "supplies": -1,
+    "traffic": "recorded-fixed",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "days": [
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 238.461,
+        "patrol_wait": 2,
+        "servings": 20,
+        "supply_wait": 7
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 541.396,
+        "patrol_wait": 52,
+        "servings": 19,
+        "supply_wait": 11
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 552.593,
+        "patrol_wait": 40,
+        "servings": 21,
+        "supply_wait": 8
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 597.0,
+        "patrol_wait": 46,
+        "servings": 17,
+        "supply_wait": 1
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 543.001,
+        "patrol_wait": 53,
+        "servings": 20,
+        "supply_wait": 5
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 459.541,
+        "patrol_wait": 45,
+        "servings": 22,
+        "supply_wait": 2
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 148.403,
+        "patrol_wait": 62,
+        "servings": 19,
+        "supply_wait": 33
+      }
+    ],
+    "formation_ms": 1864.959,
+    "ms": 3080.395,
+    "score": [
+      16,
+      112,
+      138
+    ],
+    "shift": 0,
+    "supplies": -1,
+    "traffic": "mirrored-dynamic",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "days": [
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 278.005,
+        "patrol_wait": 1,
+        "servings": 16,
+        "supply_wait": 29
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 953.994,
+        "patrol_wait": 7,
+        "servings": 19,
+        "supply_wait": 28
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 276.001,
+        "patrol_wait": 4,
+        "servings": 23,
+        "supply_wait": 22
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 1119.999,
+        "patrol_wait": 3,
+        "servings": 19,
+        "supply_wait": 56
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 893.016,
+        "patrol_wait": 3,
+        "servings": 17,
+        "supply_wait": 39
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 216.798,
+        "patrol_wait": 7,
+        "servings": 22,
+        "supply_wait": 20
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 236.685,
+        "patrol_wait": 2,
+        "servings": 19,
+        "supply_wait": 80
+      }
+    ],
+    "formation_ms": 2829.727,
+    "ms": 3974.4979999999996,
+    "score": [
+      16,
+      112,
+      135
+    ],
+    "shift": 2,
+    "supplies": -1,
+    "traffic": "recorded-fixed",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      1,
+      1
+    ]
+  },
+  {
+    "days": [
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 287.998,
+        "patrol_wait": 1,
+        "servings": 16,
+        "supply_wait": 29
+      },
+      {
+        "brands": 15,
+        "missing": [
+          15
+        ],
+        "ms": 460.001,
+        "patrol_wait": 4,
+        "servings": 18,
+        "supply_wait": 23
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 964.0,
+        "patrol_wait": 2,
+        "servings": 20,
+        "supply_wait": 33
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 1031.004,
+        "patrol_wait": 10,
+        "servings": 20,
+        "supply_wait": 30
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 953.996,
+        "patrol_wait": 5,
+        "servings": 20,
+        "supply_wait": 20
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 743.508,
+        "patrol_wait": 2,
+        "servings": 22,
+        "supply_wait": 45
+      },
+      {
+        "brands": 16,
+        "missing": [],
+        "ms": 152.427,
+        "patrol_wait": 10,
+        "servings": 22,
+        "supply_wait": 67
+      }
+    ],
+    "formation_ms": 2964.886,
+    "ms": 4592.934,
+    "score": [
+      16,
+      111,
+      138
+    ],
+    "shift": 2,
+    "supplies": -1,
+    "traffic": "mirrored-dynamic",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      1,
+      1
+    ]
+  }
+]

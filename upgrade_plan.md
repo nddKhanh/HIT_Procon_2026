@@ -12,6 +12,12 @@ Implemented and integrated into the current solver:
 
 Submission commit/discard handling and diary outputs remain integrated. Tests cover exact scoring, claim filtering/reset, look-ahead route selection, supply targeting, and fuel-weighted paths.
 
+Trace `17940739-2931-49fc-bcfb-33d24c8522e6` is now an offline fixture. The
+benchmark can sweep 0–3 Supply vehicles across recorded and mirrored traffic plus
+two start rotations. It reproduces the live 16/111/142 result exactly and shows
+that formation count/placement is the next measured optimization target; no
+route-weight tweak is retained without a multi-scenario score gain.
+
 These are heuristics, not proof of higher match scores. Fuel-constrained pathfinding still keeps one label per cell; simultaneous refueling is outside this plan.
 
 # Phase 1: Upgrade SpotScorer (HIGH Priority)

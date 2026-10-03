@@ -1,6 +1,11 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -12,11 +17,70 @@
 #include "solver/Solver.hpp"
 #include "solver/ActionValidator.hpp"
 #include "api/GameApiClient.hpp"
+#include "api/LiveMatchGuard.hpp"
+
+namespace {
+long long currentEpochMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+void hashFormationValue(std::uint64_t& hash, long long value) {
+    for (int byte = 0; byte < 8; ++byte) {
+        hash ^= static_cast<unsigned char>(value >> (byte * 8));
+        hash *= 1099511628211ULL;
+    }
+}
+
+std::filesystem::path formationCachePath(const GameConfig& config) {
+    std::uint64_t hash = 1469598103934665603ULL;
+    hashFormationValue(hash, 3); // Formation policy/cache schema version.
+    hashFormationValue(hash, config.map.height);
+    hashFormationValue(hash, config.map.width);
+    hashFormationValue(hash, config.fuelLimit);
+    for (int value : config.daySteps) hashFormationValue(hash, value);
+    for (int value : config.initialAgentPositions) hashFormationValue(hash, value);
+    for (const auto& row : config.map.cells)
+        for (int value : row) hashFormationValue(hash, value);
+    for (const auto& spot : config.spots) {
+        hashFormationValue(hash, spot.brand);
+        hashFormationValue(hash, spot.pos);
+        hashFormationValue(hash, spot.stocks);
+    }
+    std::ostringstream name;
+    name << "formation_" << std::hex << hash << ".txt";
+    return std::filesystem::path("HexaUdon") / ".formation_cache" / name.str();
+}
+
+bool loadFormationCache(const GameConfig& config, std::vector<int>& types) {
+    std::ifstream input(formationCachePath(config));
+    size_t count = 0;
+    if (!(input >> count) || count != config.initialAgentPositions.size()) return false;
+    std::vector<int> loaded(count);
+    for (int& kind : loaded)
+        if (!(input >> kind) || (kind != 0 && kind != 1)) return false;
+    types = std::move(loaded);
+    return true;
+}
+
+void saveFormationCache(const GameConfig& config, const std::vector<int>& types) {
+    const auto path = formationCachePath(config);
+    std::error_code error;
+    std::filesystem::create_directories(path.parent_path(), error);
+    if (error) return;
+    std::ofstream output(path);
+    if (!output) return;
+    output << types.size();
+    for (int kind : types) output << ' ' << kind;
+    output << '\n';
+}
+}
 
 // =============================================================================
 // MODE 1: API mode — Connect to Procon server via HTTPS REST API
 // =============================================================================
-int runApiMode(const std::string& serverUrl, const std::string& token, const std::string& matchId) {
+int runApiMode(const std::string& serverUrl, const std::string& token,
+               const std::string& matchId, bool freshRun) {
 #ifdef _WIN32
     SetConsoleOutputCP(65001);
 #endif
@@ -26,6 +90,7 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
     std::cout << "========================================================================\n";
     std::cout << "  Server : " << serverUrl << "\n";
     std::cout << "  Match  : " << matchId << "\n";
+    std::cout << "  Local  : " << (freshRun ? "FRESH (bo qua lich su local)" : "RESUME") << "\n";
     std::cout << "========================================================================\n\n";
 
     GameApiClient api(serverUrl, token);
@@ -45,10 +110,36 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
 
     Map map(config.map.height, config.map.width, config.map.cells);
     Solver solver;
+    int totalDays = static_cast<int>(config.daySteps.size());
 
+    GameState selectionState = api.getMatchStatus(matchId);
+    if (selectionState.day < 0) {
+        std::cerr << "[LOI] Khong doc duoc status truoc khi chon xe: "
+                  << api.getLastError() << "\n";
+        return 1;
+    }
+    if (selectionState.totalDays > 0 && selectionState.totalDays != totalDays) {
+        std::cerr << "[LOI] So ngay khong khop: config=" << totalDays
+                  << ", status=" << selectionState.totalDays << "\n";
+        return 1;
+    }
+    std::cout << "  -> Server status totalDays: "
+              << (selectionState.totalDays > 0 ? selectionState.totalDays : totalDays)
+              << "\n\n";
+    if (selectionState.finished || selectionState.day >= totalDays) {
+        std::cout << "[4/4] Tran dau da ket thuc du " << totalDays << " ngay.\n";
+        return 0;
+    }
     // --- Step 2: Submit agent types ---
-    std::cout << "[2/4] Dang gui lua chon loai xe (POST /agents)...\n";
-    auto agentTypes = solver.decideAgentTypes(config);
+    std::vector<int> agentTypes;
+    if (!freshRun && loadFormationCache(config, agentTypes)) {
+        std::cout << "[2/4] Da nap doi hinh tu cache (khong can mo phong lai).\n";
+    } else {
+        std::cout << "[2/4] CHUAN BI TRUOC START: dang tinh lua chon loai xe"
+                  << " (chua gui action)...\n";
+        agentTypes = solver.decideAgentTypes(config);
+        if (!freshRun) saveFormationCache(config, agentTypes);
+    }
     std::cout << "  -> Loai xe: [";
     for (size_t i = 0; i < agentTypes.size(); ++i) {
         std::cout << agentTypes[i];
@@ -56,7 +147,21 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
     }
     std::cout << "]\n";
 
-    if (!api.submitAgentTypes(matchId, agentTypes)) {
+    // Formation simulation may take long enough for the admin to Start.
+    // Re-read status so a late POST /agents is never attempted after Start.
+    selectionState = api.getMatchStatus(matchId);
+    if (selectionState.day < 0) {
+        std::cerr << "[LOI] Khong doc duoc status sau khi tinh doi hinh: "
+                  << api.getLastError() << "\n";
+        return 1;
+    }
+    if (selectionState.finished || selectionState.day >= totalDays) {
+        std::cout << "  -> Tran dau da ket thuc trong luc tinh doi hinh.\n";
+        return 0;
+    }
+    if (LiveMatchGuard::hasLiveStatus(selectionState, totalDays)) {
+        std::cout << "  -> Tran da Start trong luc tinh; bo qua POST /agents.\n";
+    } else if (!api.submitAgentTypes(matchId, agentTypes)) {
         std::cerr << "[LOI] Khong gui duoc agent types: " << api.getLastError() << "\n";
         // Not fatal — might already be submitted
         std::cout << "  -> Canh bao: Co the da gui truoc do, tiep tuc...\n";
@@ -69,20 +174,30 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
     std::cout << "[3/4] Bat dau vong lap thi dau...\n";
     std::cout << "  (Dang cho admin Start match...)\n\n";
 
-    int lastDay = -1;
-    int totalDays = static_cast<int>(config.daySteps.size());
+    const std::string diaryRoot = freshRun ? "diary_fresh" : "diary";
+    int lastDay = freshRun ? -1 :
+        DiaryWriter::findLastWrittenDay(diaryRoot, matchId, totalDays);
+    if (freshRun) {
+        std::cout << "  [CANH BAO] --fresh cho phep nop revision moi; server van giu"
+                  << " diem va thoi gian cu cua MATCH_ID nay.\n";
+    }
+    if (lastDay >= 0) {
+        std::cout << "  -> Khoi phuc: da nop xong ngay " << lastDay + 1
+                  << "/" << totalDays << "; se khong nop lai.\n";
+    }
     int retryCount = 0;
-    const int MAX_RETRIES = 300; // 5 minutes max wait
-
+    int newDayPollCount = 0;
+    const int MAX_RETRIES = 300;
+    const int POLL_MS = 100;
+    const int ERROR_RETRY_MS = 500;
     while (true) {
-        // Poll match status
         GameState state = api.getMatchStatus(matchId);
 
         if (state.day < 0) {
             // Parse error or server down — wait and retry
-            std::cout << "  [Cho] Khong doc duoc status... thu lai sau 2 giay\n";
+            std::cout << "  [Cho] Khong doc duoc status... thu lai nhanh\n";
             std::cout << "        (" << api.getLastError() << ")\n";
-            Sleep(2000);
+            Sleep(ERROR_RETRY_MS);
             retryCount++;
             if (retryCount > MAX_RETRIES) {
                 std::cerr << "[LOI] Qua thoi gian cho. Thoat.\n";
@@ -91,49 +206,34 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
             continue;
         }
 
-        // Check if match ended (finished flag or day >= totalDays)
-        if (state.day >= totalDays) {
-            std::cout << "\n[4/4] Tran dau da ket thuc! (day=" << state.day << " >= " << totalDays << ")\n";
+        // /status is authoritative: before Start, startsAt is zero; after the
+        // final day, finished is true. The match list can already be empty.
+        if (state.finished || state.day >= totalDays) {
+            std::cout << "\n[4/4] Tran dau da ket thuc! (day=" << state.day
+                      << ", totalDays=" << totalDays << ")\n";
             break;
         }
 
-        // Check if match is actually running (agents must be non-empty)
-        if (state.agents.empty()) {
-            // Match is in "agent_select" phase — not started yet
-            if (retryCount % 10 == 0) { // Print every 10 polls (~5s)
-                std::cout << "  [Cho] Match chua bat dau (khong co agents). Cho admin click 'Start'...\n";
-            }
-            Sleep(500);
-            retryCount++;
-            if (retryCount > MAX_RETRIES) {
-                std::cerr << "[LOI] Qua thoi gian cho match start. Thoat.\n";
-                break;
-            }
-            continue;
-        }
-
-        // Check if endsAt is valid (match must be running, not just created)
-        if (state.endsAt <= 0) {
-            if (retryCount % 10 == 0) {
-                std::cout << "  [Cho] Match chua running (endsAt=0). Cho admin click 'Start'...\n";
-            }
-            Sleep(500);
-            retryCount++;
-            if (retryCount > MAX_RETRIES) {
-                std::cerr << "[LOI] Qua thoi gian cho match running. Thoat.\n";
-                break;
-            }
-            continue;
-        }
-
-        // Reset retry counter once match is actually running
-        retryCount = 0;
-
-        // Skip if we already submitted for this day
+        // A submitted day may remain "running" with an expired endsAt until
+        // Next Day. Do not run deadline checks or fetch lifecycle twice here.
         if (state.day <= lastDay) {
-            Sleep(500);
+            Sleep(POLL_MS);
             continue;
         }
+
+        if (!LiveMatchGuard::canPlan(
+                "", state, totalDays, currentEpochMs())) {
+            if (newDayPollCount++ % 50 == 0) {
+                std::cout << "  [Cho] Ngay moi chua san sang: startsAt=" << state.startsAt
+                          << ", endsAt=" << state.endsAt
+                          << ", agents=" << state.agents.size() << "\n";
+            }
+            Sleep(POLL_MS);
+            continue;
+        }
+
+        newDayPollCount = 0;
+        retryCount = 0;
 
         if (state.day > lastDay + 1) {
             std::cerr << "  [CANH BAO] Server da bo qua ngay " << lastDay + 1
@@ -144,7 +244,8 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
         // === NEW DAY! Match is running, agents available ===
         int daySteps = config.daySteps[state.day];
         std::cout << "------------------------------------------------------------------------\n";
-        std::cout << "  NGAY " << state.day << "/" << totalDays - 1
+        std::cout << "  NGAY " << state.day + 1 << "/" << totalDays
+                  << " (server index: " << state.day << ")"
                   << " (Steps: " << daySteps << ")\n";
         std::cout << "------------------------------------------------------------------------\n";
 
@@ -164,9 +265,7 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
         auto actions = solver.solve(config, state, map);
         auto solveMs = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - solveStarted).count();
-        auto remainingMs = state.endsAt * 1000LL -
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()).count();
+        auto remainingMs = state.endsAt * 1000LL - currentEpochMs();
         std::cout << "  -> Solver: " << solveMs << " ms, con "
                   << remainingMs << " ms truoc deadline\n";
         bool usedFallback = false;
@@ -200,10 +299,12 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
         // The answer endpoint does not carry a day number. Never let a plan
         // computed from an old snapshot be accepted for a newer day.
         GameState latest = api.getMatchStatus(matchId);
-        if (latest.day != state.day || latest.endsAt <= 0 || latest.agents.empty()) {
+        if (!LiveMatchGuard::canSubmit(
+                "", state, latest, totalDays, currentEpochMs())) {
             solver.discardLastPlan();
-            std::cerr << "  [CANH BAO] Trang thai da doi trong luc tinh (ngay "
-                      << state.day << " -> " << latest.day
+            std::cerr << "  [CANH BAO] Snapshot/deadline da doi trong luc tinh"
+                      << " (ngay " << state.day << " -> " << latest.day
+                      << ", endsAt " << state.endsAt << " -> " << latest.endsAt
                       << "). Bo phuong an cu va doc lai.\n\n";
             continue;
         }
@@ -214,7 +315,7 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
             if (usedFallback) solver.discardLastPlan();
             else solver.commitLastPlan();
             if (!DiaryWriter::writeDay(
-                    "diary", matchId, state.day, daySteps,
+                    diaryRoot, matchId, state.day, daySteps,
                     config, state, map, solver, actions, usedFallback)) {
                 std::cerr << "  [CANH BAO] Khong ghi duoc diary cho ngay "
                           << state.day << "\n";
@@ -225,13 +326,15 @@ int runApiMode(const std::string& serverUrl, const std::string& token, const std
             std::string err = api.getLastError();
             std::cerr << "  [LOI] Gui that bai: " << err << "\n";
 
-            // If "Match is not running", wait longer
+            // A Next Day transition can briefly reject an answer. Poll again
+            // quickly instead of sleeping for several seconds.
             if (err.find("not running") != std::string::npos) {
-                std::cerr << "  -> Match chua san sang, cho 3 giay...\n\n";
-                Sleep(3000);
+                std::cerr << "  -> Match dang chuyen trang thai, thu lai sau "
+                          << POLL_MS << " ms...\n\n";
+                Sleep(POLL_MS);
             } else {
-                std::cerr << "  -> Thu lai sau 1 giay...\n\n";
-                Sleep(1000);
+                std::cerr << "  -> Thu lai sau " << ERROR_RETRY_MS << " ms...\n\n";
+                Sleep(ERROR_RETRY_MS);
             }
             continue; // Retry this day
         }
@@ -284,7 +387,7 @@ void printUsage(const char* prog) {
     std::cout << "HexaUdon Bot v2.0 — Procon 2026\n\n";
     std::cout << "Cach dung:\n\n";
     std::cout << "  CHE DO THI DAU (ket noi server):\n";
-    std::cout << "    " << prog << " --server URL --token TOKEN --match MATCH_ID\n\n";
+    std::cout << "    " << prog << " --server URL --token TOKEN --match MATCH_ID [--fresh]\n\n";
     std::cout << "  Vi du:\n";
     std::cout << "    " << prog << " --server https://procon26.haui.ac.vn --token abc123 --match 6789\n\n";
     std::cout << "  CHE DO LOCAL (stdin/stdout):\n";
@@ -297,6 +400,7 @@ int main(int argc, char* argv[]) {
     std::string token;
     std::string matchId;
     bool stdinMode = false;
+    bool freshRun = false;
 
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -309,6 +413,8 @@ int main(int argc, char* argv[]) {
             matchId = argv[++i];
         } else if (arg == "--stdin") {
             stdinMode = true;
+        } else if (arg == "--fresh") {
+            freshRun = true;
         } else if (arg == "--help" || arg == "-h") {
             printUsage(argv[0]);
             return 0;
@@ -331,5 +437,5 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    return runApiMode(serverUrl, token, matchId);
+    return runApiMode(serverUrl, token, matchId, freshRun);
 }

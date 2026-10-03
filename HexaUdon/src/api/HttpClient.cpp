@@ -44,6 +44,15 @@ static void parseUrl(const std::string& url, std::string& host, int& port, bool&
 
 HttpClient::HttpClient(const std::string& baseUrl) : baseUrl_(baseUrl) {
     parseUrl(baseUrl, host_, port_, useHttps_);
+    // The competition host redirects plain HTTP to HTTPS. WinINet refuses to
+    // replay a POST across that boundary with error 12168, and sending the API
+    // token over HTTP is undesirable anyway. Connect securely from the start.
+    if (!useHttps_ && host_ == "procon26.haui.ac.vn") {
+        useHttps_ = true;
+        port_ = 443;
+        baseUrl_ = "https://procon26.haui.ac.vn";
+        std::cerr << "[HTTP] Nang cap server Procon tu HTTP len HTTPS de tranh redirect POST.\n";
+    }
 
     std::wstring wAgent = L"HexaUdon/2.0";
     hSession_ = InternetOpenW(wAgent.c_str(),
@@ -52,6 +61,13 @@ HttpClient::HttpClient(const std::string& baseUrl) : baseUrl_(baseUrl) {
                               NULL, 0);
 
     if (hSession_) {
+        DWORD timeoutMs = 3000;
+        InternetSetOptionW(hSession_, INTERNET_OPTION_CONNECT_TIMEOUT,
+                           &timeoutMs, sizeof(timeoutMs));
+        InternetSetOptionW(hSession_, INTERNET_OPTION_SEND_TIMEOUT,
+                           &timeoutMs, sizeof(timeoutMs));
+        InternetSetOptionW(hSession_, INTERNET_OPTION_RECEIVE_TIMEOUT,
+                           &timeoutMs, sizeof(timeoutMs));
         std::wstring wHost = toWide(host_);
         hConnect_ = InternetConnectW(hSession_, wHost.c_str(),
                                      static_cast<INTERNET_PORT>(port_),
@@ -146,13 +162,10 @@ HttpResponse HttpClient::request(const std::string& method, const std::string& p
     if (!bResult) {
         DWORD err = GetLastError();
         response.error = "HttpSendRequest failed, error: " + std::to_string(err);
-        InternetCloseHandle(hRequest);
-        return response;
-    }
-
-    if (!bResult) {
-        response.error = "HttpSendRequest failed, error: " +
-                         std::to_string(GetLastError());
+        // ERROR_HTTP_REDIRECT_NEEDS_CONFIRMATION is 12168; older MinGW
+        // wininet headers do not expose the symbolic constant.
+        if (err == 12168)
+            response.error += " (POST redirect; use the final HTTPS server URL)";
         InternetCloseHandle(hRequest);
         return response;
     }
@@ -160,8 +173,13 @@ HttpResponse HttpClient::request(const std::string& method, const std::string& p
     // Get status code
     DWORD statusCode = 0;
     DWORD dwSize = sizeof(statusCode);
-    HttpQueryInfoW(hRequest, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
-                   &statusCode, &dwSize, NULL);
+    if (!HttpQueryInfoW(hRequest, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
+                        &statusCode, &dwSize, NULL)) {
+        response.error = "HttpQueryInfo failed, error: " +
+                         std::to_string(GetLastError());
+        InternetCloseHandle(hRequest);
+        return response;
+    }
     response.statusCode = static_cast<int>(statusCode);
 
     // Read response body

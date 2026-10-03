@@ -9,7 +9,8 @@ Triển khai pha tăng `servings` chỉ sau khi coverage đã tốt, theo đúng
 ## Dữ liệu đã xác nhận
 
 - Trận `5b55b3a6-d3a3-45d5-8e70-c50e73774400`: `22/22` match brands, `132/132` daily brands, `261/594` servings.
-- Vì hai tiêu chí đầu đã đạt trần, cải tiến an toàn kế tiếp là tăng servings nhưng không giảm chúng.
+- Vì hai tiêu chí đầu đã đạt trần, cải tiến an toàn kế tiếp là tăng servings nhưng không giảm chúng
+.
 - `MoveSimulator` cung cấp vị trí, nhiên liệu và collection theo từng step; đủ để đánh giá chính xác một thay thế ở đuôi route.
 - `Solver.cpp` hiện xếp `nextReachableBrands` trước `result.collections.size()` trong `evaluateCandidate`. Điều này không cùng thứ tự với luật thắng.
 

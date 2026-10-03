@@ -28,17 +28,34 @@ int main(int argc, char** argv) {
         {20, 139, 204}, {20, 140, 256}, {20, 139, 204}, {20, 140, 249},
         {20, 139, 200}, {20, 140, 251}, {20, 139, 212}, {20, 140, 261}
     };
+    const bool regressionReplay = argc <= 1;
+    const bool selectFormation = argc > 2 && std::string(argv[2]) == "formation";
     size_t scenarioIndex = 0;
-    for (int shift : {0, 2}) for (bool fixed : {true, false}) for (int supplies : {3, 2}) {
+    const std::vector<int> supplyCounts = selectFormation ? std::vector<int>{-1} : regressionReplay
+        ? std::vector<int>{3, 2} : std::vector<int>{3, 2, 1, 0};
+    for (int shift : {0, 2}) for (bool fixed : {true, false}) for (int supplies : supplyCounts) {
         auto scenario = config;
         std::rotate(scenario.initialAgentPositions.begin(), scenario.initialAgentPositions.begin() + shift,
                     scenario.initialAgentPositions.end());
         Map map(scenario.map.height, scenario.map.width, scenario.map.cells);
         GameState state{};
         int n = static_cast<int>(scenario.initialAgentPositions.size());
-        for (int i = 0; i < n; ++i)
-            state.agents.push_back({i >= n - supplies ? 1 : 0, scenario.initialAgentPositions[i], scenario.fuelLimit});
         Solver solver;
+        std::vector<int> types(n, 0);
+        double formationMs = 0;
+        if (selectFormation) {
+            if (argc > 3 && std::string(argv[3]) == "live")
+                scenario.startsAt = std::chrono::duration_cast<std::chrono::seconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count() + 30;
+            auto start = std::chrono::steady_clock::now();
+            types = solver.decideAgentTypes(scenario);
+            formationMs = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - start).count();
+        } else {
+            for (int i = 0; i < n; ++i) types[i] = i >= n - supplies ? 1 : 0;
+        }
+        for (int i = 0; i < n; ++i)
+            state.agents.push_back({types[i], scenario.initialAgentPositions[i], scenario.fuelLimit});
         MatchScore score;
         std::vector<long long> previous;
         json days = json::array();
@@ -71,17 +88,18 @@ int main(int argc, char** argv) {
             }
             solver.commitLastPlan();
         }
-        const auto scoreFloor = scoreFloors[scenarioIndex++];
-        if (score.rank() < scoreFloor) {
+        if (regressionReplay && score.rank() < scoreFloors[scenarioIndex]) {
+            const auto scoreFloor = scoreFloors[scenarioIndex];
             std::cerr << "Replay score regressed: " << score.brands.size() << '/'
                       << score.dailyTypes << '/' << score.servings << " < "
                       << std::get<0>(scoreFloor) << '/' << std::get<1>(scoreFloor)
                       << '/' << std::get<2>(scoreFloor) << '\n';
             return 3;
         }
+        ++scenarioIndex;
         output.push_back({{"shift",shift},{"traffic",fixed?"recorded-fixed":"mirrored-dynamic"},
             {"supplies",supplies},{"score",{score.brands.size(),score.dailyTypes,score.servings}},
-            {"ms",totalMs},{"days",days}});
+            {"ms",totalMs},{"formation_ms",formationMs},{"types",types},{"days",days}});
         std::cerr << "shift=" << shift << " fixed=" << fixed << " supply=" << supplies
                   << " score=" << score.brands.size() << '/' << score.dailyTypes << '/' << score.servings
                   << " ms=" << totalMs << '\n';
