@@ -105,6 +105,51 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                     auto withSecond = candidate.rank;
                     for (size_t i = 0; i < withSecond.size(); ++i) withSecond[i] += secondRank[i];
                     if (withSecond > pairRank) pairRank = withSecond;
+
+                    int thirdFuel = secondFuel - secondPath.totalFuel;
+                    int usedSteps = firstPath.totalSteps + secondPath.totalSteps;
+                    if (thirdFuel <= 0 || usedSteps >= stepsRemaining ||
+                        config.initialAgentPositions.size() > 6 ||
+                        config.spots.size() > 24) continue;
+                    auto afterSecondVisited = nextVisited;
+                    auto afterSecondStock = nextStock;
+                    auto afterSecondMatch = nextMatchBrands;
+                    auto afterSecondDaily = nextDailyBrands;
+                    afterSecondVisited.insert(static_cast<int>(second));
+                    --afterSecondStock[second];
+                    afterSecondMatch.insert(config.spots[second].brand);
+                    afterSecondDaily.insert(config.spots[second].brand);
+                    Position secondPos = map.posToCoordinate(config.spots[second].pos);
+                    const auto& fromSecond = pathCache
+                        ? pathCache->get(secondPos, thirdFuel, 1.0)
+                        : PathFinder::computeSSSP(secondPos, map, thirdFuel, 1.0);
+                    for (size_t third = 0; third < config.spots.size(); ++third) {
+                        if ((exclusiveClaims && claimedSpots.count(static_cast<int>(third))) ||
+                            afterSecondVisited.count(static_cast<int>(third)) ||
+                            afterSecondStock[third] <= 0) continue;
+                        auto thirdPath = fromSecond.extractPath(config.spots[third].pos);
+                        if (!thirdPath.found || (enforceSameDay &&
+                            usedSteps + thirdPath.totalSteps > stepsRemaining)) continue;
+                        auto thirdRank = SpotScorer::rankSpot(config.spots[third].brand,
+                            thirdPath.totalSteps, afterSecondMatch, afterSecondDaily,
+                            afterSecondStock[third],
+                            brandSpotCount(config, config.spots[third].brand),
+                            thirdPath.totalFuel);
+                        if (!officialRanking) thirdRank = {
+                            SpotScorer::scoreSpot(config.spots[third].brand,
+                                thirdPath.totalSteps, afterSecondMatch,
+                                afterSecondStock[third],
+                                brandSpotCount(config, config.spots[third].brand),
+                                thirdPath.totalFuel, thirdFuel),
+                            afterSecondDaily.count(config.spots[third].brand) ? 0 : 1,
+                            0, 0, -thirdPath.totalSteps, -thirdPath.totalFuel};
+                        thirdRank[2] = preferredSpots.empty() ||
+                            preferredSpots.count(static_cast<int>(third)) ? 1 : 0;
+                        auto withThird = withSecond;
+                        for (size_t i = 0; i < withThird.size(); ++i)
+                            withThird[i] += thirdRank[i];
+                        if (withThird > pairRank) pairRank = withThird;
+                    }
                 }
             }
 

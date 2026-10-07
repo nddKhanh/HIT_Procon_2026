@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 #include <sstream>
+#include <chrono>
 #include <nlohmann/json.hpp>
 #include "model/GameConfig.hpp"
 #include "GameState.hpp"
@@ -466,6 +467,39 @@ void test_first_spot_uses_global_shortest_assignment() {
     std::cout << "[PASS] Global first-spot assignment test passed!" << std::endl;
 }
 
+void test_first_wave_prefers_missing_match_types() {
+    GameConfig config{};
+    config.map.height = 1;
+    config.map.width = 5;
+    config.map.cells = {{0, 0, 0, 0, 0}};
+    config.daySteps = {1, 2};
+    config.fuelLimit = 10;
+    config.initialAgentPositions = {1, 3};
+    config.spots = {
+        {0, 1, 2}, {0, 3, 2}, {0, 2, 1},
+        {1, 0, 1}, {2, 4, 1}
+    };
+
+    GameState state{};
+    state.day = 0;
+    state.agents = {{0, 1, 10}, {0, 3, 10}};
+    Map map(1, 5, config.map.cells);
+    Solver solver;
+    auto firstActions = solver.solve(config, state, map, false);
+    auto firstDay = MoveSimulator::simulateDay(config, state, firstActions, map);
+    assert(firstDay.valid && firstDay.brands == std::set<int>({0}));
+    solver.commitLastPlan();
+
+    state.day = 1;
+    state.agents = firstDay.agents;
+    auto secondActions = solver.solve(config, state, map, false);
+    auto secondDay = MoveSimulator::simulateDay(config, state, secondActions, map);
+
+    assert(secondDay.valid);
+    assert(secondDay.brands == std::set<int>({0, 1, 2}));
+    std::cout << "[PASS] First wave protects missing match types before daily repeats!" << std::endl;
+}
+
 void test_upgrade_plan_policies() {
     std::set<int> none;
     assert(SpotScorer::scoreSpot(0, 5, none, 1, 1, 6, 10) == 5235);
@@ -521,6 +555,11 @@ void test_upgrade_plan_policies() {
     // With no reachable stock, save the route with more usable steps instead of
     // choosing the larger fuel deficit.
     assert(targetPatrol == 0 && !supplyActions.empty());
+    supplyActions = SupplyPlanner::planDay(config, map, agents[2], agents,
+        2, 10, {-1, -1, -1}, {{1, 0}, {1, 0}, {2, 0}}, patrolActions,
+        targetPatrol, targetSpot, targetPos, stepSpots, stepPositions,
+        {}, {}, {}, true);
+    assert(targetPatrol == 1 && !supplyActions.empty());
 
     // For equal deficits, prefer the refill that can still reach remaining stock.
     agents = {{0, 0, 1}, {0, 4, 1}, {1, 2, 0}};
@@ -912,6 +951,59 @@ void test_match_0c599133_day_one_collects_every_brand() {
     std::cout << "[PASS] Match 0c599133 day-one conflict regression passed!" << std::endl;
 }
 
+void test_many_player_daily_coverage_regression() {
+    using nlohmann::json;
+    auto path = std::filesystem::path(__FILE__).parent_path() /
+        "match_5b893df5_config.json";
+    std::ifstream input(path);
+    assert(input && "Missing 5b893df5 match config");
+    json j;
+    input >> j;
+
+    GameConfig config{};
+    config.daySteps = j["daySteps"].get<std::vector<int>>();
+    config.fuelLimit = j["fuelLimits"];
+    config.players = j["players"];
+    config.busyThreshold = j["busyThreshold"];
+    config.jammedThreshold = j["jammedThreshold"];
+    config.initialAgentPositions = j["agents"].get<std::vector<int>>();
+    config.map = {j["map"]["height"], j["map"]["width"],
+                  j["map"]["cells"].get<std::vector<std::vector<int>>>()};
+    for (const auto& spot : j["spots"])
+        config.spots.push_back({spot["brand"], spot["pos"], spot["stocks"]});
+
+    const auto types = AgentStrategy::decideAgentTypes(config);
+    assert(types == std::vector<int>({0, 1, 0, 0}));
+    GameState state{};
+    for (size_t i = 0; i < config.initialAgentPositions.size(); ++i)
+        state.agents.push_back({types[i],
+            config.initialAgentPositions[i], config.fuelLimit});
+    Map map(config.map.height, config.map.width, config.map.cells);
+    Solver solver;
+    MatchScore score;
+    std::vector<long long> previousOccupancy;
+    for (size_t day = 0; day < config.daySteps.size(); ++day) {
+        state.day = static_cast<int>(day);
+        auto result = MoveSimulator::simulateDay(
+            config, state, solver.solve(config, state, map), map);
+        assert(result.valid);
+        score.add(result);
+        state.agents = result.agents;
+        if (day + 1 < config.daySteps.size()) {
+            for (auto& count : result.roadOccupancy) count *= 0;
+            state.traffics = MoveSimulator::nextTraffic(
+                config, previousOccupancy, result.roadOccupancy);
+            previousOccupancy = result.roadOccupancy;
+        }
+        solver.commitLastPlan();
+    }
+    assert(std::get<0>(score.rank()) == 12);
+    std::cout << "[DAILY REGRESSION] score=" << std::get<0>(score.rank()) << '/'
+              << std::get<1>(score.rank()) << '/' << std::get<2>(score.rank()) << std::endl;
+    assert(std::get<1>(score.rank()) >= 52);
+    std::cout << "[PASS] Many-player daily coverage regression passed!" << std::endl;
+}
+
 void test_incidental_spot_updates_planner_state() {
     GameConfig config{};
     config.map.height = 1;
@@ -997,11 +1089,19 @@ void test_agent_strategy_simulates_supply_counts() {
     config.jammedThreshold = 4;
     config.initialAgentPositions = {0, 1, 2, 3, 4, 5};
     assert(AgentStrategy::decideAgentTypes(config) == std::vector<int>(6, 0));
+    std::ostringstream timedLog;
+    auto* oldTimedLog = std::cerr.rdbuf(timedLog.rdbuf());
+    const auto timedStart = std::chrono::steady_clock::now();
+    const auto timedTypes = AgentStrategy::decideAgentTypes(config, nullptr, 1'000);
+    const auto timedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - timedStart).count();
+    std::cerr.rdbuf(oldTimedLog);
+    assert(timedTypes == std::vector<int>(6, 0));
+    assert(timedMs < 1'000); // Exhaustive small search must not wait for the cap.
 
-    // Start at the middle supply count, probe both sides, then continue only
-    // toward the better side. A tie goes toward fewer supplies. Each
-    // non-trivial count also tries a second position assignment instead of
-    // assuming the last agents are Supplies.
+    // Start at the middle supply count, then exhaust every count by expanding
+    // to both sides. Each non-trivial count also tries a second position
+    // assignment instead of assuming the last agents are Supplies.
     config.daySeconds = {1};
     config.daySteps = {0};
     config.map = {1, 1, {{0}}};
@@ -1018,8 +1118,7 @@ void test_agent_strategy_simulates_supply_counts() {
     const auto three = log.find("[FORMATION] supply=3 ");
     const auto four = log.find("[FORMATION] supply=4 ");
     assert(flatTypes == std::vector<int>(8, 0));
-    assert(two < one && one < three && three < zero);
-    assert(four == std::string::npos);
+    assert(two < one && one < three && three < zero && zero < four);
     assert(log.find("types=[0,0,0,0,0,0,0,1]") != std::string::npos);
     assert(log.find("types=[1,0,0,0,0,0,0,0]") != std::string::npos);
 
@@ -1286,6 +1385,7 @@ int main() {
     test_final_day_drops_redundant_supply();
     test_recorded_match_120_score_regression();
     test_match_0c599133_day_one_collects_every_brand();
+    test_many_player_daily_coverage_regression();
     test_incidental_spot_updates_planner_state();
     test_map_and_geometry();
     test_travel_time_and_fuel();
@@ -1302,6 +1402,7 @@ int main() {
     test_lexicographic_brand_ranking();
     test_stock_aware_coordination_and_reset();
     test_first_spot_uses_global_shortest_assignment();
+    test_first_wave_prefers_missing_match_types();
     test_upgrade_plan_policies();
     test_solver_retry_is_transactional();
     test_zero_wait_multiday_movement();

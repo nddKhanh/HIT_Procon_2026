@@ -1,11 +1,6 @@
 #include <iostream>
 #include <string>
 #include <chrono>
-#include <cstdint>
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -20,60 +15,13 @@
 #include "api/LiveMatchGuard.hpp"
 
 namespace {
+constexpr long long kLargeFormationSimulationMs = 30'000;
+
 long long currentEpochMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-void hashFormationValue(std::uint64_t& hash, long long value) {
-    for (int byte = 0; byte < 8; ++byte) {
-        hash ^= static_cast<unsigned char>(value >> (byte * 8));
-        hash *= 1099511628211ULL;
-    }
-}
-
-std::filesystem::path formationCachePath(const GameConfig& config) {
-    std::uint64_t hash = 1469598103934665603ULL;
-    hashFormationValue(hash, 3); // Formation policy/cache schema version.
-    hashFormationValue(hash, config.map.height);
-    hashFormationValue(hash, config.map.width);
-    hashFormationValue(hash, config.fuelLimit);
-    for (int value : config.daySteps) hashFormationValue(hash, value);
-    for (int value : config.initialAgentPositions) hashFormationValue(hash, value);
-    for (const auto& row : config.map.cells)
-        for (int value : row) hashFormationValue(hash, value);
-    for (const auto& spot : config.spots) {
-        hashFormationValue(hash, spot.brand);
-        hashFormationValue(hash, spot.pos);
-        hashFormationValue(hash, spot.stocks);
-    }
-    std::ostringstream name;
-    name << "formation_" << std::hex << hash << ".txt";
-    return std::filesystem::path("HexaUdon") / ".formation_cache" / name.str();
-}
-
-bool loadFormationCache(const GameConfig& config, std::vector<int>& types) {
-    std::ifstream input(formationCachePath(config));
-    size_t count = 0;
-    if (!(input >> count) || count != config.initialAgentPositions.size()) return false;
-    std::vector<int> loaded(count);
-    for (int& kind : loaded)
-        if (!(input >> kind) || (kind != 0 && kind != 1)) return false;
-    types = std::move(loaded);
-    return true;
-}
-
-void saveFormationCache(const GameConfig& config, const std::vector<int>& types) {
-    const auto path = formationCachePath(config);
-    std::error_code error;
-    std::filesystem::create_directories(path.parent_path(), error);
-    if (error) return;
-    std::ofstream output(path);
-    if (!output) return;
-    output << types.size();
-    for (int kind : types) output << ' ' << kind;
-    output << '\n';
-}
 }
 
 // =============================================================================
@@ -132,13 +80,14 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
     }
     // --- Step 2: Submit agent types ---
     std::vector<int> agentTypes;
-    if (!freshRun && loadFormationCache(config, agentTypes)) {
-        std::cout << "[2/4] Da nap doi hinh tu cache (khong can mo phong lai).\n";
+    if (LiveMatchGuard::hasLiveStatus(selectionState, totalDays)) {
+        std::cout << "[2/4] Tran da Start: dung doi hinh server, vao vong dau ngay.\n";
+        for (const auto& agent : selectionState.agents) agentTypes.push_back(agent.kind);
     } else {
-        std::cout << "[2/4] CHUAN BI TRUOC START: dang tinh lua chon loai xe"
+        std::cout << "[2/4] CHUAN BI TRUOC START: mo phong het cac truong hop;"
+                  << " gioi han 30 giay neu khong gian tim kiem lon"
                   << " (chua gui action)...\n";
-        agentTypes = solver.decideAgentTypes(config);
-        if (!freshRun) saveFormationCache(config, agentTypes);
+        agentTypes = solver.decideAgentTypes(config, kLargeFormationSimulationMs);
     }
     std::cout << "  -> Loai xe: [";
     for (size_t i = 0; i < agentTypes.size(); ++i) {

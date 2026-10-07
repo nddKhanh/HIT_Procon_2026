@@ -82,7 +82,8 @@ std::vector<int> SupplyPlanner::planDay(
     std::vector<Position>& plannedStepPositions,
     const std::set<int>& collectedBrands,
     const std::vector<int>& remainingStock,
-    const std::set<int>& excludedPatrols
+    const std::set<int>& excludedPatrols,
+    bool prioritizeFuelDeficit
 ) {
     plannedTargetPatrol = -1;
     plannedTargetSpot = -1;
@@ -140,8 +141,11 @@ std::vector<int> SupplyPlanner::planDay(
             if (!plannedDailyBrands.count(config.spots[si].brand))
                 missingDailyBrands.insert(config.spots[si].brand);
         }
-        auto rank = std::make_tuple(static_cast<int>(missingDailyBrands.size()),
-                                    deficit, extensionPotential, usableSteps);
+        auto rank = prioritizeFuelDeficit
+            ? std::make_tuple(static_cast<int>(missingDailyBrands.size()),
+                              deficit, extensionPotential, usableSteps)
+            : std::make_tuple(static_cast<int>(missingDailyBrands.size()),
+                              extensionPotential, usableSteps, deficit);
         if (rank > bestRank) {
             bestRank = rank;
             targetPatrol = i;
@@ -190,14 +194,19 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
     auto result = MoveSimulator::simulateDay(config, state, actions, map);
     if (!result.valid) return;
     PathCache cache(map);
-    auto rank = [&](const DaySimulation& day) {
+    auto rank = [&](const DaySimulation& day) -> std::tuple<int, int, int, int, int, int> {
         int fresh = 0, fuel = 0;
         for (int b : day.brands) fresh += !matchBrands.count(b);
-        for (const auto& a : day.agents) if (a.kind == 0) fuel += a.fuel;
+        for (const auto& a : day.agents) if (a.kind == 0) {
+            fuel += a.fuel;
+        }
         // Fuel can only help on a later day. On the final day, never replace an
         // equally scoring plan merely because a Supply shadows a Patrol.
-        if (state.day + 1 == static_cast<int>(config.daySteps.size())) fuel = 0;
-        return std::make_tuple(fresh, day.brands.size(), day.collections.size(), fuel);
+        if (state.day + 1 == static_cast<int>(config.daySteps.size())) {
+            fuel = 0;
+        }
+        return {fresh, static_cast<int>(day.brands.size()),
+                static_cast<int>(day.collections.size()), fuel, 0, 0};
     };
     auto inTime = [&] {
         return std::chrono::duration_cast<std::chrono::milliseconds>(

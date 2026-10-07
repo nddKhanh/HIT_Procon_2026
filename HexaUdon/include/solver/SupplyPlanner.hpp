@@ -80,6 +80,7 @@ public:
         std::vector<Position>& plannedStepPositions,
         const std::set<int>& collectedBrands,
         const std::vector<int>& remainingStock,
-        const std::set<int>& excludedPatrols = {}
+        const std::set<int>& excludedPatrols = {},
+        bool prioritizeFuelDeficit = false
     );
 };

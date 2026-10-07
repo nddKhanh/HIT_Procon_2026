@@ -12,7 +12,8 @@
 class AgentStrategy {
 public:
     static std::vector<int> decideAgentTypes(
-        const GameConfig& config, bool* useRegions = nullptr);
+        const GameConfig& config, bool* useRegions = nullptr,
+        long long simulationBudgetMs = 0);
 };
 
 /**
@@ -27,7 +28,8 @@ public:
  */
 class Solver {
 public:
-    std::vector<int> decideAgentTypes(const GameConfig& config);
+    std::vector<int> decideAgentTypes(
+        const GameConfig& config, long long simulationBudgetMs = 0);
 
     /**
      * @brief Main solver: tạo kế hoạch hành động cho tất cả xe trong 1 ngày.
