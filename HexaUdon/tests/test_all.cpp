@@ -18,7 +18,7 @@
 #include "solver/SupplyPlanner.hpp"
 #include "io/DiaryWriter.hpp"
 #include "api/LiveMatchGuard.hpp"
-#include "solver\SpotScorer.hpp"
+#include "solver/SpotScorer.hpp"
 
 void test_live_match_start_and_snapshot_guards() {
     GameState original{};
@@ -197,11 +197,12 @@ void test_validator_travel_time() {
 // Test 6: ActionValidator fuel check
 // =============================================================================
 void test_validator_fuel_check() {
-    GameConfig config;
+    GameConfig config{};
     config.map.height = 1;
     config.map.width = 5;
     config.map.cells = {{0, 0, 0, 0, 0}};
     config.daySteps = {100};
+    config.fuelLimit = 2;
 
     GameState state;
     state.day = 0;
@@ -380,6 +381,31 @@ void test_fuel_weighted_path() {
     assert(fuelAware.totalFuel < fastest.totalFuel);
     assert(fuelAware.totalSteps > fastest.totalSteps);
     std::cout << "[PASS] Fuel-weighted path test passed!" << std::endl;
+}
+
+void test_path_respects_time_and_fuel_together() {
+    Map map(2, 4, {{0, 1, 1, 0}, {0, 0, 0, 0}});
+    auto fastest = PathFinder::findPath({0, 0}, {3, 0}, map);
+    auto paths = PathFinder::computeSSSP({0, 0}, map, 20, 10.0);
+    auto economical = paths.extractPath(3);
+    assert(economical.found && economical.totalSteps > fastest.totalSteps);
+    auto timely = paths.extractPath(3, fastest.totalSteps);
+    assert(timely.found && timely.totalSteps == fastest.totalSteps);
+    assert(timely.totalFuel <= 20);
+    auto direct = PathFinder::findPath({0, 0}, {3, 0}, map, 20, 10.0,
+                                       fastest.totalSteps);
+    assert(direct.found && direct.totalSteps == timely.totalSteps);
+    auto trace = MoveSimulator::simulate(timely.directions, map, {0, 0},
+                                         fastest.totalSteps, 20, true);
+    assert((trace.finalPos == Position{3, 0}));
+    assert(trace.stepsUsed == timely.totalSteps && trace.fuelUsed == timely.totalFuel);
+    assert(!paths.extractPath(3, fastest.totalSteps - 1).found);
+    assert(!paths.extractPath(0, -1).found);
+    assert(paths.extractPath(0, 0).found);
+    assert(!PathFinder::findPath({0, 0}, {0, 0}, map, 20, 1.0, -1).found);
+    auto lowFuel = PathFinder::computeSSSP({0, 0}, map, economical.totalFuel, 10.0);
+    assert(!lowFuel.extractPath(3, fastest.totalSteps).found);
+    std::cout << "[PASS] Path selection enforces both step and fuel budgets." << std::endl;
 }
 
 void test_pareto_path_and_cache() {
@@ -972,8 +998,9 @@ void test_many_player_daily_coverage_regression() {
     for (const auto& spot : j["spots"])
         config.spots.push_back({spot["brand"], spot["pos"], spot["stocks"]});
 
-    const auto types = AgentStrategy::decideAgentTypes(config);
-    assert(types == std::vector<int>({0, 1, 0, 0}));
+    // Isolate routing from the wall-clock-dependent formation search. This is
+    // the vehicle assignment used by the recorded 53/60 match.
+    const std::vector<int> types{0, 0, 1, 0};
     GameState state{};
     for (size_t i = 0; i < config.initialAgentPositions.size(); ++i)
         state.agents.push_back({types[i],
@@ -987,6 +1014,14 @@ void test_many_player_daily_coverage_regression() {
         auto result = MoveSimulator::simulateDay(
             config, state, solver.solve(config, state, map), map);
         assert(result.valid);
+        std::cout << "[DAILY REGRESSION] day=" << day
+                  << " brands=" << result.brands.size() << " missing=";
+        for (int brand = 0; brand < 12; ++brand)
+            if (!result.brands.count(brand)) std::cout << brand << ',';
+        std::cout << " fuel=";
+        for (const auto& agent : result.agents)
+            if (agent.kind == 0) std::cout << agent.fuel << ',';
+        std::cout << std::endl;
         score.add(result);
         state.agents = result.agents;
         if (day + 1 < config.daySteps.size()) {
@@ -1000,7 +1035,7 @@ void test_many_player_daily_coverage_regression() {
     assert(std::get<0>(score.rank()) == 12);
     std::cout << "[DAILY REGRESSION] score=" << std::get<0>(score.rank()) << '/'
               << std::get<1>(score.rank()) << '/' << std::get<2>(score.rank()) << std::endl;
-    assert(std::get<1>(score.rank()) >= 52);
+    assert(std::get<1>(score.rank()) >= 56);
     std::cout << "[PASS] Many-player daily coverage regression passed!" << std::endl;
 }
 
@@ -1370,7 +1405,42 @@ void test_lookahead_scores_one_second_spot() {
     std::cout << "[PASS] Lookahead compares alternatives without accumulating them!" << std::endl;
 }
 
+void test_adaptive_fleet_repair() {
+    GameConfig config{};
+    config.map = {1, 7, {std::vector<int>(7, 0)}};
+    config.daySteps = {8};
+    config.fuelLimit = 10;
+    config.spots = {{0, 0, 1}, {1, 6, 1}};
+    GameState state{};
+    state.agents = {{0, 2, 4}, {0, 5, 10}};
+    Map map(1, 7, config.map.cells);
+    std::vector<std::vector<int>> actions{{-8}, {-8}};
+    const auto waiting = actions;
+    SupplyPlanner::repairCoverage(config, state, map, actions, {}, 0);
+    assert(actions == waiting); // Expired deadline must preserve the valid plan.
+    SupplyPlanner::repairCoverage(config, state, map, actions, {}, LLONG_MAX, 0);
+    assert(actions == waiting);
+    SupplyPlanner::repairCoverage(config, state, map, actions, {});
+    auto result = MoveSimulator::simulateDay(config, state, actions, map);
+    assert(result.valid && result.brands == std::set<int>({0, 1}));
+    assert(result.collections.size() == 2); // One serving per available stock.
+    const auto complete = actions;
+    SupplyPlanner::repairCoverage(config, state, map, actions, {});
+    assert(actions == complete); // No endpoint churn on an equal official score.
+
+    config.daySteps = {13};
+    config.spots = {{0, 2, 1}};
+    state.agents = {{0, 0, 0}, {1, 3, 10}};
+    actions = {{-13}, {-13}};
+    SupplyPlanner::repairCoverage(config, state, map, actions, {});
+    result = MoveSimulator::simulateDay(config, state, actions, map);
+    assert(result.valid && result.refuels > 0 && result.brands == std::set<int>({0}));
+    std::cout << "[PASS] Adaptive fleet repair: scarce brands, refueling, stock and deadlines!\n";
+}
+
 int main() {
+    test_adaptive_fleet_repair();
+    test_path_respects_time_and_fuel_together();
     test_live_match_start_and_snapshot_guards();
     test_lookahead_scores_one_second_spot();
     test_spot_reward_paths();

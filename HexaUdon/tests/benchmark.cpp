@@ -8,9 +8,88 @@
 #include "solver/Solver.hpp"
 #include "solver/MoveSimulator.hpp"
 
+namespace {
+GameConfig readConfig(const nlohmann::json& c) {
+    GameConfig config{};
+    config.map = {c["map"]["height"], c["map"]["width"],
+        c["map"]["cells"].get<std::vector<std::vector<int>>>()};
+    config.daySteps = c["daySteps"].get<std::vector<int>>();
+    config.initialAgentPositions = c["agents"].get<std::vector<int>>();
+    config.fuelLimit = c["fuelLimits"];
+    config.players = c["players"];
+    config.busyThreshold = c["busyThreshold"];
+    config.jammedThreshold = c["jammedThreshold"];
+    for (const auto& s : c["spots"]) config.spots.push_back({s["brand"], s["pos"], s["stocks"]});
+    return config;
+}
+
+int runCoverageBenchmark(bool fleetRepair = true, int onlySeed = -1) {
+    using nlohmann::json;
+    std::ifstream input("HexaUdon/tests/coverage_cases.json");
+    if (!input) { std::cerr << "Coverage cases not found\n"; return 1; }
+    json cases;
+    input >> cases;
+    json output = json::array();
+    bool passed = true;
+    for (const auto& test : cases) {
+        if (onlySeed >= 0 && test.at("seed").get<int>() != onlySeed) continue;
+        auto config = readConfig(test.at("config"));
+        auto types = test.at("types").get<std::vector<int>>();
+        GameState state{};
+        for (size_t i = 0; i < types.size(); ++i)
+            state.agents.push_back({types[i], config.initialAgentPositions[i], config.fuelLimit});
+        Map map(config.map.height, config.map.width, config.map.cells);
+        Solver solver(fleetRepair);
+        MatchScore score;
+        std::vector<long long> previous;
+        json days = json::array();
+        auto started = std::chrono::steady_clock::now();
+        for (size_t day = 0; day < config.daySteps.size(); ++day) {
+            state.day = static_cast<int>(day);
+            auto actions = solver.solve(config, state, map);
+            auto result = MoveSimulator::simulateDay(config, state, actions, map);
+            if (!result.valid) {
+                std::cerr << "Invalid seed=" << test.at("seed") << " day=" << day
+                          << ": " << result.error << '\n';
+                return 2;
+            }
+            days.push_back({result.brands.size(), result.collections.size()});
+            score.add(result);
+            state.agents = result.agents;
+            for (auto& count : result.roadOccupancy)
+                count *= test.at("trafficMultiplier").get<int>();
+            state.traffics = MoveSimulator::nextTraffic(config, previous, result.roadOccupancy);
+            previous = std::move(result.roadOccupancy);
+            solver.commitLastPlan();
+        }
+        std::vector<int> actual{static_cast<int>(score.brands.size()), score.dailyTypes, score.servings};
+        auto expected = test.at("expected").get<std::vector<int>>();
+        passed = passed && actual >= expected;
+        double ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - started).count();
+        output.push_back({{"seed", test.at("seed")}, {"baseline", test.at("baseline")},
+                          {"score", actual}, {"days", days}, {"ms", ms}});
+        std::cerr << (actual >= expected ? "[PASS]" : "[REGRESSION]")
+                  << " seed=" << test.at("seed") << " score=" << actual[0]
+                  << '/' << actual[1] << '/' << actual[2] << '\n';
+    }
+    std::cout << output.dump(2) << '\n';
+    return passed ? 0 : 4;
+}
+}
+
 // Same inputs for every revision; never submits actions to a server.
 int main(int argc, char** argv) {
     using nlohmann::json;
+    if (argc > 1 && std::string(argv[1]) == "--coverage") {
+        bool fleetRepair = true;
+        int seed = -1;
+        for (int i = 2; i < argc; ++i) {
+            if (std::string(argv[i]) == "--no-fleet-repair") fleetRepair = false;
+            else seed = std::stoi(argv[i]);
+        }
+        return runCoverageBenchmark(fleetRepair, seed);
+    }
     std::string replayPath = "HexaUdon/tests/replay_5cc3b9ea.json";
     bool formationMode = false;
     bool checkBaseline = false;
@@ -25,16 +104,7 @@ int main(int argc, char** argv) {
     if (!input) { std::cerr << "Replay file not found\n"; return 1; }
     json replay; input >> replay;
     const auto& c = replay["config"];
-    GameConfig config{};
-    config.map = {c["map"]["height"], c["map"]["width"],
-        c["map"]["cells"].get<std::vector<std::vector<int>>>()};
-    config.daySteps = c["daySteps"].get<std::vector<int>>();
-    config.initialAgentPositions = c["agents"].get<std::vector<int>>();
-    config.fuelLimit = c["fuelLimits"];
-    config.players = c["players"];
-    config.busyThreshold = c["busyThreshold"];
-    config.jammedThreshold = c["jammedThreshold"];
-    for (const auto& s : c["spots"]) config.spots.push_back({s["brand"], s["pos"], s["stocks"]});
+    GameConfig config = readConfig(c);
     struct Scenario {
         int shift;
         bool fixed;

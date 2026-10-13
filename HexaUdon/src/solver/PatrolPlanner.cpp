@@ -17,7 +17,7 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
     const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
     const std::set<int>& claimedSpots, bool officialRanking,
     bool exclusiveClaims, PathCache* pathCache,
-    const std::set<int>& preferredSpots) {
+    const std::set<int>& preferredSpots, bool boundedPaths) {
     auto localCurrent = pathCache ? SSSPResult{} :
         PathFinder::computeSSSP(currentPos, map, fuelRemaining, 1.0);
     const auto& fromCurrent = pathCache ? pathCache->get(currentPos, fuelRemaining, 1.0) :
@@ -36,7 +36,7 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                 visitedToday.count(static_cast<int>(first)) ||
                 first >= remainingStock.size() || remainingStock[first] <= 0) continue;
 
-            auto firstPath = fromCurrent.extractPath(config.spots[first].pos);
+            auto firstPath = fromCurrent.extractPath(config.spots[first].pos, enforceSameDay && boundedPaths ? stepsRemaining : INT_MAX);
             if (!firstPath.found) continue;
             if (enforceSameDay && firstPath.totalSteps > stepsRemaining) continue;
 
@@ -87,7 +87,7 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                     if ((exclusiveClaims && claimedSpots.count(static_cast<int>(second))) ||
                         nextVisited.count(static_cast<int>(second)) || nextStock[second] <= 0)
                         continue;
-                    auto secondPath = fromFirst.extractPath(config.spots[second].pos);
+                    auto secondPath = fromFirst.extractPath(config.spots[second].pos, enforceSameDay && boundedPaths ? stepsRemaining - firstPath.totalSteps : INT_MAX);
                     if (!secondPath.found || (enforceSameDay && firstPath.totalSteps + secondPath.totalSteps > stepsRemaining))
                         continue;
                     auto secondRank = SpotScorer::rankSpot(config.spots[second].brand,
@@ -109,7 +109,7 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                     int thirdFuel = secondFuel - secondPath.totalFuel;
                     int usedSteps = firstPath.totalSteps + secondPath.totalSteps;
                     if (thirdFuel <= 0 || usedSteps >= stepsRemaining ||
-                        config.initialAgentPositions.size() > 6 ||
+                        (config.initialAgentPositions.size() > 6 && !boundedPaths) ||
                         config.spots.size() > 24) continue;
                     auto afterSecondVisited = nextVisited;
                     auto afterSecondStock = nextStock;
@@ -127,7 +127,7 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                         if ((exclusiveClaims && claimedSpots.count(static_cast<int>(third))) ||
                             afterSecondVisited.count(static_cast<int>(third)) ||
                             afterSecondStock[third] <= 0) continue;
-                        auto thirdPath = fromSecond.extractPath(config.spots[third].pos);
+                        auto thirdPath = fromSecond.extractPath(config.spots[third].pos, enforceSameDay && boundedPaths ? stepsRemaining - usedSteps : INT_MAX);
                         if (!thirdPath.found || (enforceSameDay &&
                             usedSteps + thirdPath.totalSteps > stepsRemaining)) continue;
                         auto thirdRank = SpotScorer::rankSpot(config.spots[third].brand,
@@ -192,7 +192,8 @@ std::vector<int> PatrolPlanner::planDay(
     PathCache* pathCache,
     int firstTargetSpot,
     const std::set<int>& preferredSpots,
-    bool rewardRoutes
+    bool rewardRoutes,
+    bool timeBoundedPaths
 ) {
     std::vector<int> allActions;
     int stepsUsed = 0;
@@ -218,7 +219,7 @@ std::vector<int> PatrolPlanner::planDay(
                 currentPos, config, map,
                 fuelRemaining, stepsRemaining,
                 visitedToday, remainingStock, matchBrands, dailyBrands, claimedSpots,
-                officialRanking, exclusiveClaims, pathCache, preferredSpots
+                officialRanking, exclusiveClaims, pathCache, preferredSpots, timeBoundedPaths
             );
         }
 
@@ -238,7 +239,7 @@ std::vector<int> PatrolPlanner::planDay(
             }
             auto path = rewardRoutes
                 ? PathFinder::findPathViaSpots(currentPos, spotPos, map,
-                    fuelRemaining, stepsRemaining, rewards, pathCache)
+                    fuelRemaining, stepsRemaining, rewards, pathCache, timeBoundedPaths)
                 : PathFinder::findPath(currentPos, spotPos, map, fuelRemaining, 1.0);
 
             if (path.found && !path.directions.empty()) {

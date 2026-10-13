@@ -34,9 +34,13 @@ struct SSSPResult {
     std::vector<int> labelPrev;
     std::vector<int> labelDir;
     std::vector<int> bestLabel;
+    // Retain the active Pareto alternatives so a time budget can select a
+    // faster route when the weighted-best route arrives too late.
+    std::vector<std::vector<int>> feasibleLabels;
+    double fuelWeight = 0.0;
 
-    // Extract path from source to goalPos
-    PathResult extractPath(int goalPos) const;
+    // Extract the weighted-best path that also fits maxSteps.
+    PathResult extractPath(int goalPos, int maxSteps = INT_MAX) const;
 };
 
 class PathCache {
@@ -57,7 +61,7 @@ public:
     // Physical budgets remain hard constraints; rewards are indexed by map cell.
     static PathResult findPathViaSpots(Position start, Position goal, const Map& map,
         int maxFuel, int maxSteps, const std::vector<double>& rewards,
-        PathCache* cache = nullptr);
+        PathCache* cache = nullptr, bool timeBounded = false);
     /**
      * @brief Dijkstra pathfinding on hex grid with travel time weights.
      */
@@ -66,7 +70,8 @@ public:
         Position goal,
         const Map& map,
         int maxFuel = INT_MAX,
-        double fuelWeight = 0.0
+        double fuelWeight = 0.0,
+        int maxSteps = INT_MAX
     );
 
     /**

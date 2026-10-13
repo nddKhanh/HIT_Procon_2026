@@ -523,3 +523,17 @@ Cập nhật cùng commit nếu có một trong các thay đổi sau:
 
 Khi chỉ sửa implementation nội bộ mà interface, thuật toán và giới hạn không đổi,
 không cần viết lại toàn bộ tài liệu; chỉ cập nhật ngày snapshot nếu việc đó hữu ích.
+
+## Update 2026-10-12 — guarded daily coverage search
+
+Path extraction now accepts an optional step budget and retains active Pareto
+alternatives. `Solver::solve` preserves the existing policy, then optionally
+searches time-bounded paths, unrestricted first targets, missing-type first-wave
+matching, pair-swapped fleet orders and three-target lookahead for larger teams.
+The second pass can replace the incumbent only after complete-team simulation
+proves a strict gain in new match types or daily types. Its copied solver state
+remains pending until server acceptance. The existing two-day forecast guard and
+live deadline remain in force. `tests/coverage_cases.json` and benchmark
+`--coverage` pin 16 synthetic multi-day routing scenarios. See
+[the full report](DAILY_OPTIMIZATION_2026-10-12.md), including the unsolved 55/60
+ten-player Daily case and the absence of a universal full-Daily guarantee.

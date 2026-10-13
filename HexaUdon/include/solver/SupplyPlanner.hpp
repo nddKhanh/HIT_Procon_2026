@@ -16,6 +16,12 @@
  */
 class SupplyPlanner {
 public:
+    // Bounded adaptive suffix repair of the whole fleet; accepts only official
+    // Types/Daily/Serving improvements verified by the full-day simulator.
+    static void repairCoverage(const GameConfig& config, const GameState& state,
+        const Map& map, std::vector<std::vector<int>>& actions,
+        const std::set<int>& matchBrands, long long deadlineMs = LLONG_MAX,
+        int budgetMs = 1200);
     // Refine an already valid joint plan; keep every accepted change simulator-valid.
     // Reuse a supply after a meeting and replan the rescued patrol's suffix.
     static void improveDay(const GameConfig& config, const GameState& state,

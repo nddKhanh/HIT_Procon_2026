@@ -3,15 +3,16 @@
 #include <algorithm>
 #include <cmath>
 #include <set>
+#include <limits>
 
 // =============================================================================
 // SSSPResult::extractPath — Extract path from SSSP result to a specific goal
 // =============================================================================
 
-PathResult SSSPResult::extractPath(int goalPos) const {
+PathResult SSSPResult::extractPath(int goalPos, int maxSteps) const {
     PathResult result;
 
-    if (goalPos < 0 || goalPos >= static_cast<int>(dist.size())) {
+    if (maxSteps < 0 || goalPos < 0 || goalPos >= static_cast<int>(dist.size())) {
         result.found = false;
         return result;
     }
@@ -28,12 +29,27 @@ PathResult SSSPResult::extractPath(int goalPos) const {
         return result;
     }
 
+    int selected = bestLabel.empty() ? -1 : bestLabel[goalPos];
+    if (dist[goalPos] > maxSteps) {
+        selected = -1;
+        double bestWeight = std::numeric_limits<double>::infinity();
+        if (goalPos < static_cast<int>(feasibleLabels.size()))
+            for (int label : feasibleLabels[goalPos]) {
+                if (labelSteps[label] > maxSteps) continue;
+                double weight = labelSteps[label] + fuelWeight * labelFuel[label];
+                if (weight < bestWeight || (weight == bestWeight &&
+                    (selected < 0 || labelSteps[label] < labelSteps[selected]))) {
+                    bestWeight = weight;
+                    selected = label;
+                }
+            }
+        if (selected < 0) return result;
+    }
     result.found = true;
-    result.totalSteps = dist[goalPos];
-    result.totalFuel = fuel[goalPos];
-
-    if (!bestLabel.empty() && bestLabel[goalPos] >= 0) {
-        for (int label = bestLabel[goalPos]; labelPrev[label] >= 0;
+    result.totalSteps = selected < 0 ? dist[goalPos] : labelSteps[selected];
+    result.totalFuel = selected < 0 ? fuel[goalPos] : labelFuel[selected];
+    if (selected >= 0) {
+        for (int label = selected; labelPrev[label] >= 0;
              label = labelPrev[label]) {
             result.directions.push_back(labelDir[label]);
         }
@@ -65,6 +81,8 @@ static SSSPResult runDijkstra(
     int totalCells = H * W;
 
     SSSPResult sssp;
+    sssp.fuelWeight = fuelWeight;
+    sssp.feasibleLabels.resize(totalCells);
     sssp.dist.assign(totalCells, INT_MAX);
     sssp.fuel.assign(totalCells, INT_MAX);
     sssp.prevDir.assign(totalCells, -1);
@@ -157,6 +175,7 @@ static SSSPResult runDijkstra(
         double bestWeight = static_cast<double>(INT_MAX);
         for (int label : frontier[cell]) {
             if (!active[label]) continue;
+            sssp.feasibleLabels[cell].push_back(label);
             double weight = sssp.labelSteps[label] + fuelWeight * sssp.labelFuel[label];
             if (weight < bestWeight ||
                 (weight == bestWeight && sssp.labelSteps[label] < sssp.dist[cell])) {
@@ -183,8 +202,10 @@ PathResult PathFinder::findPath(
     Position goal,
     const Map& map,
     int maxFuel,
-    double fuelWeight
+    double fuelWeight,
+    int maxSteps
 ) {
+    if (maxSteps < 0) return {};
     if (start == goal) {
         PathResult result;
         result.found = true;
@@ -192,8 +213,8 @@ PathResult PathFinder::findPath(
     }
 
     int goalIdx = map.coordinateToPos(goal);
-    auto sssp = runDijkstra(start, map, maxFuel, fuelWeight, goalIdx);
-    return sssp.extractPath(goalIdx);
+    auto sssp = runDijkstra(start, map, maxFuel, fuelWeight, maxSteps == INT_MAX ? goalIdx : -1);
+    return sssp.extractPath(goalIdx, maxSteps);
 }
 
 // =============================================================================
@@ -218,12 +239,13 @@ const SSSPResult& PathCache::get(Position source, int maxFuel, double fuelWeight
 }
 
 PathResult PathFinder::findPathViaSpots(Position start, Position goal, const Map& map,
-    int maxFuel, int maxSteps, const std::vector<double>& rewards, PathCache* cache) {
+    int maxFuel, int maxSteps, const std::vector<double>& rewards, PathCache* cache, bool timeBounded) {
     PathCache localCache(map);
     auto& paths = cache ? *cache : localCache;
     const int goalCell = map.coordinateToPos(goal);
     const auto& fromStart = paths.get(start, maxFuel, 1.0);
-    auto best = fromStart.extractPath(goalCell);
+    auto best = fromStart.extractPath(goalCell, timeBounded ? maxSteps : INT_MAX);
+    if (!best.found) best = fromStart.extractPath(goalCell);
     // Preserve the existing partial, multi-day route when today's target is out of reach.
     if (!best.found || best.totalSteps > maxSteps || start == goal) return best;
     const int baseCost = best.totalSteps + best.totalFuel;
@@ -253,11 +275,11 @@ PathResult PathFinder::findPathViaSpots(Position start, Position goal, const Map
                        cell < static_cast<int>(rewards.size()); ++cell) {
         if (rewards[cell] <= 0 || cell == map.coordinateToPos(start) ||
             cell == map.coordinateToPos(goal)) continue;
-        auto first = fromStart.extractPath(cell);
+        auto first = fromStart.extractPath(cell, timeBounded ? maxSteps : INT_MAX);
         if (!first.found || first.totalSteps > maxSteps ||
             first.totalSteps + first.totalFuel > baseCost + maxReward) continue;
         auto second = paths.get(map.posToCoordinate(cell), maxFuel - first.totalFuel, 1.0)
-                          .extractPath(goalCell);
+                          .extractPath(goalCell, timeBounded ? maxSteps - first.totalSteps : INT_MAX);
         if (!second.found) continue;
         first.totalSteps += second.totalSteps;
         first.totalFuel += second.totalFuel;
