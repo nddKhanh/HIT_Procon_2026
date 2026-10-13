@@ -31,11 +31,17 @@ int main(int argc, char** argv) {
     };
     const bool regressionReplay = argc <= 1;
     const bool selectFormation = argc > 2 && std::string(argv[2]) == "formation";
-    const int selectionBudgetSeconds = argc > 3 ? std::stoi(argv[3]) : 10;
+    const std::string mode = argc > 2 ? argv[2] : "";
+    const bool quickReplay = mode == "quick" || mode == "quick_dynamic";
+    const int selectionBudgetSeconds = selectFormation && argc > 3 ? std::stoi(argv[3]) : 10;
     size_t scenarioIndex = 0;
     const std::vector<int> supplyCounts = selectFormation ? std::vector<int>{-1} : regressionReplay
         ? std::vector<int>{3, 2} : std::vector<int>{3, 2, 1, 0};
-    for (int shift : {0, 2}) for (bool fixed : {true, false}) for (int supplies : supplyCounts) {
+    const std::vector<int> shifts = quickReplay ? std::vector<int>{0} : std::vector<int>{0, 2};
+    const std::vector<bool> trafficModes = quickReplay
+        ? std::vector<bool>{mode == "quick"} : std::vector<bool>{true, false};
+    const std::vector<int> evaluatedSupplies = quickReplay ? std::vector<int>{2} : supplyCounts;
+    for (int shift : shifts) for (bool fixed : trafficModes) for (int supplies : evaluatedSupplies) {
         auto scenario = config;
         std::rotate(scenario.initialAgentPositions.begin(), scenario.initialAgentPositions.begin() + shift,
                     scenario.initialAgentPositions.end());

@@ -1000,6 +1000,7 @@ void test_agent_strategy_simulates_supply_counts() {
     std::cerr.rdbuf(oldLog);
     assert(expiredFormationTypes == std::vector<int>({0, 0, 0, 0, 0, 0, 0, 1}));
     assert(staleLog.str().find("startsAt is stale") != std::string::npos);
+    assert(staleLog.str().find("55s bounded search") != std::string::npos);
     assert(staleLog.str().find("[FORMATION] supply=1 ") != std::string::npos);
     config.initialAgentPositions.assign(10, 0);
     auto tenAgentFallback = AgentStrategy::decideAgentTypes(config);

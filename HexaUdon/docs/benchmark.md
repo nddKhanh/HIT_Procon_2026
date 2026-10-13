@@ -91,6 +91,17 @@ interpreting results.
 cmd /c build.bat benchmark
 ```
 
+For a faster iteration, run only the recorded start layout with two Supplies:
+
+```powershell
+cmd /c build.bat benchmark quick
+cmd /c build.bat benchmark quick_dynamic
+```
+
+These modes use the same `replay_5cc3b9ea.json` fixture with recorded or mirrored
+traffic respectively. They are screening runs; use the full benchmark before
+keeping a routing change.
+
 Formation-budget trial on the same replay (seconds; repeats all four position/
 traffic scenarios):
 
