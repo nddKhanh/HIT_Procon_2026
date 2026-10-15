@@ -1,0 +1,4464 @@
+{
+  "date": "2026-10-12",
+  "evaluation": "offline simulation; not live-server results",
+  "replayBefore": [
+    {
+      "days": [
+        {
+          "brands": 19,
+          "missing": [
+            5
+          ],
+          "ms": 890.012643,
+          "patrol_wait": 4,
+          "servings": 27,
+          "supply_wait": 58
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 563.594586,
+          "patrol_wait": 6,
+          "servings": 32,
+          "supply_wait": 40
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 501.055232,
+          "patrol_wait": 4,
+          "servings": 27,
+          "supply_wait": 38
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 404.176749,
+          "patrol_wait": 6,
+          "servings": 29,
+          "supply_wait": 80
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 268.731754,
+          "patrol_wait": 3,
+          "servings": 29,
+          "supply_wait": 52
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 295.685081,
+          "patrol_wait": 2,
+          "servings": 29,
+          "supply_wait": 50
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 106.489628,
+          "patrol_wait": 4,
+          "servings": 35,
+          "supply_wait": 123
+        }
+      ],
+      "ms": 3029.745673,
+      "score": [
+        20,
+        139,
+        208
+      ],
+      "shift": 0,
+      "supplies": 3,
+      "traffic": "recorded-fixed",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 885.275298,
+          "patrol_wait": 5,
+          "servings": 29,
+          "supply_wait": 20
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1079.859792,
+          "patrol_wait": 13,
+          "servings": 39,
+          "supply_wait": 67
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 752.666887,
+          "patrol_wait": 6,
+          "servings": 36,
+          "supply_wait": 52
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 977.271545,
+          "patrol_wait": 10,
+          "servings": 28,
+          "supply_wait": 74
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 939.477773,
+          "patrol_wait": 23,
+          "servings": 34,
+          "supply_wait": 40
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 728.151819,
+          "patrol_wait": 26,
+          "servings": 36,
+          "supply_wait": 27
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 232.956765,
+          "patrol_wait": 6,
+          "servings": 39,
+          "supply_wait": 77
+        }
+      ],
+      "ms": 5595.659879,
+      "score": [
+        20,
+        140,
+        241
+      ],
+      "shift": 0,
+      "supplies": 2,
+      "traffic": "recorded-fixed",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 19,
+          "missing": [
+            5
+          ],
+          "ms": 878.765317,
+          "patrol_wait": 4,
+          "servings": 27,
+          "supply_wait": 58
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 467.37887,
+          "patrol_wait": 2,
+          "servings": 30,
+          "supply_wait": 45
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 639.202098,
+          "patrol_wait": 4,
+          "servings": 30,
+          "supply_wait": 85
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 687.092403,
+          "patrol_wait": 11,
+          "servings": 28,
+          "supply_wait": 51
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 449.066653,
+          "patrol_wait": 9,
+          "servings": 35,
+          "supply_wait": 48
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 304.555436,
+          "patrol_wait": 2,
+          "servings": 33,
+          "supply_wait": 117
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 96.902315,
+          "patrol_wait": 4,
+          "servings": 31,
+          "supply_wait": 133
+        }
+      ],
+      "ms": 3522.9630919999995,
+      "score": [
+        20,
+        139,
+        214
+      ],
+      "shift": 0,
+      "supplies": 3,
+      "traffic": "mirrored-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 884.399523,
+          "patrol_wait": 5,
+          "servings": 29,
+          "supply_wait": 20
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 780.420299,
+          "patrol_wait": 10,
+          "servings": 37,
+          "supply_wait": 63
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 892.917849,
+          "patrol_wait": 18,
+          "servings": 33,
+          "supply_wait": 41
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 967.518595,
+          "patrol_wait": 6,
+          "servings": 38,
+          "supply_wait": 71
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1025.274959,
+          "patrol_wait": 6,
+          "servings": 40,
+          "supply_wait": 73
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 789.162072,
+          "patrol_wait": 7,
+          "servings": 28,
+          "supply_wait": 84
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 196.270287,
+          "patrol_wait": 53,
+          "servings": 32,
+          "supply_wait": 77
+        }
+      ],
+      "ms": 5535.963584,
+      "score": [
+        20,
+        140,
+        237
+      ],
+      "shift": 0,
+      "supplies": 2,
+      "traffic": "mirrored-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 19,
+          "missing": [
+            5
+          ],
+          "ms": 434.683306,
+          "patrol_wait": 3,
+          "servings": 28,
+          "supply_wait": 100
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 515.270012,
+          "patrol_wait": 4,
+          "servings": 32,
+          "supply_wait": 88
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 480.786978,
+          "patrol_wait": 6,
+          "servings": 29,
+          "supply_wait": 61
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 773.226527,
+          "patrol_wait": 5,
+          "servings": 27,
+          "supply_wait": 91
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 468.216288,
+          "patrol_wait": 5,
+          "servings": 27,
+          "supply_wait": 41
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 327.620417,
+          "patrol_wait": 5,
+          "servings": 29,
+          "supply_wait": 41
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 102.473275,
+          "patrol_wait": 17,
+          "servings": 33,
+          "supply_wait": 107
+        }
+      ],
+      "ms": 3102.2768029999997,
+      "score": [
+        20,
+        139,
+        205
+      ],
+      "shift": 2,
+      "supplies": 3,
+      "traffic": "recorded-fixed",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 949.730221,
+          "patrol_wait": 3,
+          "servings": 34,
+          "supply_wait": 31
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 882.579584,
+          "patrol_wait": 4,
+          "servings": 40,
+          "supply_wait": 63
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 807.347754,
+          "patrol_wait": 8,
+          "servings": 38,
+          "supply_wait": 69
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 819.541801,
+          "patrol_wait": 4,
+          "servings": 36,
+          "supply_wait": 68
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 997.614667,
+          "patrol_wait": 9,
+          "servings": 39,
+          "supply_wait": 67
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 858.625071,
+          "patrol_wait": 3,
+          "servings": 39,
+          "supply_wait": 89
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 244.329941,
+          "patrol_wait": 8,
+          "servings": 41,
+          "supply_wait": 62
+        }
+      ],
+      "ms": 5559.769039,
+      "score": [
+        20,
+        140,
+        267
+      ],
+      "shift": 2,
+      "supplies": 2,
+      "traffic": "recorded-fixed",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 19,
+          "missing": [
+            5
+          ],
+          "ms": 433.16647,
+          "patrol_wait": 3,
+          "servings": 28,
+          "supply_wait": 100
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 495.796671,
+          "patrol_wait": 6,
+          "servings": 30,
+          "supply_wait": 91
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 734.714822,
+          "patrol_wait": 5,
+          "servings": 25,
+          "supply_wait": 75
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 531.937771,
+          "patrol_wait": 3,
+          "servings": 30,
+          "supply_wait": 80
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 352.861071,
+          "patrol_wait": 10,
+          "servings": 31,
+          "supply_wait": 58
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 401.154213,
+          "patrol_wait": 3,
+          "servings": 30,
+          "supply_wait": 42
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 161.801775,
+          "patrol_wait": 4,
+          "servings": 31,
+          "supply_wait": 119
+        }
+      ],
+      "ms": 3111.432793,
+      "score": [
+        20,
+        139,
+        205
+      ],
+      "shift": 2,
+      "supplies": 3,
+      "traffic": "mirrored-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 947.98862,
+          "patrol_wait": 3,
+          "servings": 34,
+          "supply_wait": 31
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 864.540518,
+          "patrol_wait": 3,
+          "servings": 37,
+          "supply_wait": 76
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 922.371647,
+          "patrol_wait": 6,
+          "servings": 39,
+          "supply_wait": 76
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 925.863809,
+          "patrol_wait": 5,
+          "servings": 35,
+          "supply_wait": 70
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 874.829598,
+          "patrol_wait": 12,
+          "servings": 37,
+          "supply_wait": 52
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 764.740778,
+          "patrol_wait": 22,
+          "servings": 37,
+          "supply_wait": 65
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 222.933902,
+          "patrol_wait": 40,
+          "servings": 37,
+          "supply_wait": 98
+        }
+      ],
+      "ms": 5523.268872,
+      "score": [
+        20,
+        140,
+        256
+      ],
+      "shift": 2,
+      "supplies": 2,
+      "traffic": "mirrored-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    }
+  ],
+  "replayAfter": [
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 4652.19148,
+          "patrol_wait": 3,
+          "servings": 22,
+          "supply_wait": 28
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 575.462293,
+          "patrol_wait": 2,
+          "servings": 30,
+          "supply_wait": 46
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 722.735336,
+          "patrol_wait": 18,
+          "servings": 23,
+          "supply_wait": 84
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 638.029642,
+          "patrol_wait": 24,
+          "servings": 29,
+          "supply_wait": 47
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 608.210836,
+          "patrol_wait": 3,
+          "servings": 31,
+          "supply_wait": 93
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 463.757172,
+          "patrol_wait": 11,
+          "servings": 35,
+          "supply_wait": 53
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 171.200495,
+          "patrol_wait": 2,
+          "servings": 34,
+          "supply_wait": 147
+        }
+      ],
+      "ms": 7831.587253999999,
+      "score": [
+        20,
+        140,
+        204
+      ],
+      "shift": 0,
+      "supplies": 3,
+      "traffic": "recorded-fixed",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1003.815761,
+          "patrol_wait": 5,
+          "servings": 29,
+          "supply_wait": 20
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1231.565986,
+          "patrol_wait": 13,
+          "servings": 39,
+          "supply_wait": 67
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 854.62231,
+          "patrol_wait": 6,
+          "servings": 36,
+          "supply_wait": 52
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1109.607094,
+          "patrol_wait": 10,
+          "servings": 28,
+          "supply_wait": 74
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1074.556161,
+          "patrol_wait": 23,
+          "servings": 34,
+          "supply_wait": 40
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 828.060529,
+          "patrol_wait": 26,
+          "servings": 36,
+          "supply_wait": 27
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 262.730825,
+          "patrol_wait": 6,
+          "servings": 39,
+          "supply_wait": 77
+        }
+      ],
+      "ms": 6364.9586659999995,
+      "score": [
+        20,
+        140,
+        241
+      ],
+      "shift": 0,
+      "supplies": 2,
+      "traffic": "recorded-fixed",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 4600.701698,
+          "patrol_wait": 3,
+          "servings": 22,
+          "supply_wait": 28
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 648.867033,
+          "patrol_wait": 6,
+          "servings": 27,
+          "supply_wait": 39
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 537.002247,
+          "patrol_wait": 2,
+          "servings": 23,
+          "supply_wait": 73
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 762.65292,
+          "patrol_wait": 7,
+          "servings": 26,
+          "supply_wait": 76
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 542.947996,
+          "patrol_wait": 7,
+          "servings": 30,
+          "supply_wait": 88
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 334.374689,
+          "patrol_wait": 6,
+          "servings": 31,
+          "supply_wait": 55
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 97.720541,
+          "patrol_wait": 4,
+          "servings": 34,
+          "supply_wait": 103
+        }
+      ],
+      "ms": 7524.267124,
+      "score": [
+        20,
+        140,
+        193
+      ],
+      "shift": 0,
+      "supplies": 3,
+      "traffic": "mirrored-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1002.52396,
+          "patrol_wait": 5,
+          "servings": 29,
+          "supply_wait": 20
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 877.274336,
+          "patrol_wait": 10,
+          "servings": 37,
+          "supply_wait": 63
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1006.05415,
+          "patrol_wait": 18,
+          "servings": 33,
+          "supply_wait": 41
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1086.316876,
+          "patrol_wait": 6,
+          "servings": 38,
+          "supply_wait": 71
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1156.164563,
+          "patrol_wait": 6,
+          "servings": 40,
+          "supply_wait": 73
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 887.870823,
+          "patrol_wait": 7,
+          "servings": 28,
+          "supply_wait": 84
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 218.904469,
+          "patrol_wait": 53,
+          "servings": 32,
+          "supply_wait": 77
+        }
+      ],
+      "ms": 6235.109177,
+      "score": [
+        20,
+        140,
+        237
+      ],
+      "shift": 0,
+      "supplies": 2,
+      "traffic": "mirrored-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 19,
+          "missing": [
+            5
+          ],
+          "ms": 4643.378614,
+          "patrol_wait": 3,
+          "servings": 28,
+          "supply_wait": 100
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 588.938936,
+          "patrol_wait": 4,
+          "servings": 32,
+          "supply_wait": 88
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 551.414435,
+          "patrol_wait": 6,
+          "servings": 29,
+          "supply_wait": 61
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 883.58759,
+          "patrol_wait": 5,
+          "servings": 27,
+          "supply_wait": 91
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 540.121694,
+          "patrol_wait": 5,
+          "servings": 27,
+          "supply_wait": 41
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 373.476413,
+          "patrol_wait": 5,
+          "servings": 29,
+          "supply_wait": 41
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 114.296857,
+          "patrol_wait": 17,
+          "servings": 33,
+          "supply_wait": 107
+        }
+      ],
+      "ms": 7695.2145390000005,
+      "score": [
+        20,
+        139,
+        205
+      ],
+      "shift": 2,
+      "supplies": 3,
+      "traffic": "recorded-fixed",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1064.395993,
+          "patrol_wait": 3,
+          "servings": 34,
+          "supply_wait": 31
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 988.503163,
+          "patrol_wait": 4,
+          "servings": 40,
+          "supply_wait": 63
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 913.264361,
+          "patrol_wait": 8,
+          "servings": 38,
+          "supply_wait": 69
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 926.04414,
+          "patrol_wait": 4,
+          "servings": 36,
+          "supply_wait": 68
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1118.722125,
+          "patrol_wait": 9,
+          "servings": 39,
+          "supply_wait": 67
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 972.221164,
+          "patrol_wait": 3,
+          "servings": 39,
+          "supply_wait": 89
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 274.687557,
+          "patrol_wait": 8,
+          "servings": 41,
+          "supply_wait": 62
+        }
+      ],
+      "ms": 6257.838503,
+      "score": [
+        20,
+        140,
+        267
+      ],
+      "shift": 2,
+      "supplies": 2,
+      "traffic": "recorded-fixed",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 19,
+          "missing": [
+            5
+          ],
+          "ms": 4635.787206,
+          "patrol_wait": 3,
+          "servings": 28,
+          "supply_wait": 100
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 570.323425,
+          "patrol_wait": 6,
+          "servings": 30,
+          "supply_wait": 91
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 837.65085,
+          "patrol_wait": 5,
+          "servings": 25,
+          "supply_wait": 75
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 587.361567,
+          "patrol_wait": 3,
+          "servings": 30,
+          "supply_wait": 80
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 405.060687,
+          "patrol_wait": 10,
+          "servings": 31,
+          "supply_wait": 58
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 452.369491,
+          "patrol_wait": 3,
+          "servings": 30,
+          "supply_wait": 42
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 180.824152,
+          "patrol_wait": 4,
+          "servings": 31,
+          "supply_wait": 119
+        }
+      ],
+      "ms": 7669.377378,
+      "score": [
+        20,
+        139,
+        205
+      ],
+      "shift": 2,
+      "supplies": 3,
+      "traffic": "mirrored-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "days": [
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1063.09942,
+          "patrol_wait": 3,
+          "servings": 34,
+          "supply_wait": 31
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 978.842782,
+          "patrol_wait": 3,
+          "servings": 37,
+          "supply_wait": 76
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1042.097497,
+          "patrol_wait": 6,
+          "servings": 39,
+          "supply_wait": 76
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 1049.054751,
+          "patrol_wait": 5,
+          "servings": 35,
+          "supply_wait": 70
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 992.196717,
+          "patrol_wait": 12,
+          "servings": 37,
+          "supply_wait": 52
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 861.338724,
+          "patrol_wait": 22,
+          "servings": 37,
+          "supply_wait": 65
+        },
+        {
+          "brands": 20,
+          "missing": [],
+          "ms": 250.584578,
+          "patrol_wait": 40,
+          "servings": 37,
+          "supply_wait": 98
+        }
+      ],
+      "ms": 6237.214469,
+      "score": [
+        20,
+        140,
+        256
+      ],
+      "shift": 2,
+      "supplies": 2,
+      "traffic": "mirrored-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    }
+  ],
+  "syntheticBefore": [
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              63,
+              1
+            ],
+            [
+              26,
+              14
+            ],
+            [
+              18,
+              13
+            ],
+            [
+              26,
+              14
+            ]
+          ],
+          "brands": 15,
+          "missing": [
+            7
+          ],
+          "servings": 16
+        },
+        {
+          "agents": [
+            [
+              29,
+              14
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              29,
+              14
+            ],
+            [
+              29,
+              14
+            ]
+          ],
+          "brands": 16,
+          "missing": [],
+          "servings": 18
+        },
+        {
+          "agents": [
+            [
+              41,
+              9
+            ],
+            [
+              21,
+              8
+            ],
+            [
+              54,
+              13
+            ],
+            [
+              63,
+              14
+            ]
+          ],
+          "brands": 14,
+          "missing": [
+            7,
+            13
+          ],
+          "servings": 17
+        },
+        {
+          "agents": [
+            [
+              28,
+              9
+            ],
+            [
+              0,
+              14
+            ],
+            [
+              12,
+              0
+            ],
+            [
+              0,
+              14
+            ]
+          ],
+          "brands": 16,
+          "missing": [],
+          "servings": 19
+        },
+        {
+          "agents": [
+            [
+              12,
+              5
+            ],
+            [
+              48,
+              1
+            ],
+            [
+              63,
+              0
+            ],
+            [
+              16,
+              14
+            ]
+          ],
+          "brands": 16,
+          "missing": [],
+          "servings": 20
+        }
+      ],
+      "ms": 428.589387,
+      "score": [
+        16,
+        77,
+        90
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 0,
+      "maxDaily": 80
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              227,
+              25
+            ],
+            [
+              79,
+              2
+            ],
+            [
+              227,
+              25
+            ]
+          ],
+          "brands": 13,
+          "missing": [
+            2,
+            3,
+            6,
+            11,
+            12,
+            15
+          ],
+          "servings": 13
+        },
+        {
+          "agents": [
+            [
+              156,
+              25
+            ],
+            [
+              95,
+              1
+            ],
+            [
+              156,
+              25
+            ]
+          ],
+          "brands": 6,
+          "missing": [
+            1,
+            3,
+            4,
+            7,
+            8,
+            9,
+            10,
+            12,
+            14,
+            15,
+            16,
+            17,
+            18
+          ],
+          "servings": 6
+        },
+        {
+          "agents": [
+            [
+              37,
+              13
+            ],
+            [
+              126,
+              25
+            ],
+            [
+              126,
+              25
+            ]
+          ],
+          "brands": 6,
+          "missing": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            6,
+            7,
+            8,
+            10,
+            11,
+            15,
+            17,
+            18
+          ],
+          "servings": 6
+        },
+        {
+          "agents": [
+            [
+              112,
+              0
+            ],
+            [
+              7,
+              23
+            ],
+            [
+              24,
+              25
+            ]
+          ],
+          "brands": 7,
+          "missing": [
+            0,
+            2,
+            4,
+            5,
+            6,
+            7,
+            8,
+            10,
+            11,
+            13,
+            16,
+            18
+          ],
+          "servings": 7
+        },
+        {
+          "agents": [
+            [
+              112,
+              0
+            ],
+            [
+              138,
+              15
+            ],
+            [
+              24,
+              25
+            ]
+          ],
+          "brands": 5,
+          "missing": [
+            0,
+            2,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            11,
+            12,
+            13,
+            16,
+            17,
+            18
+          ],
+          "servings": 5
+        }
+      ],
+      "ms": 1938.376421,
+      "score": [
+        19,
+        37,
+        37
+      ],
+      "types": [
+        0,
+        0,
+        1
+      ],
+      "seed": 1,
+      "maxDaily": 95
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              27,
+              16
+            ],
+            [
+              27,
+              16
+            ],
+            [
+              60,
+              11
+            ],
+            [
+              7,
+              13
+            ],
+            [
+              59,
+              9
+            ],
+            [
+              35,
+              18
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 29
+        },
+        {
+          "agents": [
+            [
+              7,
+              18
+            ],
+            [
+              58,
+              10
+            ],
+            [
+              58,
+              0
+            ],
+            [
+              1,
+              0
+            ],
+            [
+              7,
+              18
+            ],
+            [
+              7,
+              18
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 31
+        },
+        {
+          "agents": [
+            [
+              51,
+              18
+            ],
+            [
+              1,
+              18
+            ],
+            [
+              58,
+              0
+            ],
+            [
+              36,
+              12
+            ],
+            [
+              60,
+              16
+            ],
+            [
+              51,
+              18
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 19
+        },
+        {
+          "agents": [
+            [
+              27,
+              11
+            ],
+            [
+              15,
+              7
+            ],
+            [
+              53,
+              17
+            ],
+            [
+              61,
+              18
+            ],
+            [
+              18,
+              2
+            ],
+            [
+              61,
+              18
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 20
+        },
+        {
+          "agents": [
+            [
+              22,
+              11
+            ],
+            [
+              27,
+              6
+            ],
+            [
+              58,
+              2
+            ],
+            [
+              7,
+              0
+            ],
+            [
+              58,
+              7
+            ],
+            [
+              53,
+              18
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 30
+        }
+      ],
+      "ms": 536.806197,
+      "score": [
+        12,
+        60,
+        129
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 2,
+      "maxDaily": 60
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              247,
+              3
+            ],
+            [
+              145,
+              5
+            ],
+            [
+              159,
+              15
+            ],
+            [
+              159,
+              15
+            ]
+          ],
+          "brands": 11,
+          "missing": [
+            0,
+            3,
+            5,
+            8,
+            11,
+            14,
+            15,
+            16,
+            18
+          ],
+          "servings": 13
+        },
+        {
+          "agents": [
+            [
+              199,
+              15
+            ],
+            [
+              96,
+              0
+            ],
+            [
+              29,
+              3
+            ],
+            [
+              199,
+              15
+            ]
+          ],
+          "brands": 8,
+          "missing": [
+            2,
+            5,
+            7,
+            8,
+            9,
+            10,
+            13,
+            14,
+            15,
+            16,
+            17,
+            19
+          ],
+          "servings": 8
+        },
+        {
+          "agents": [
+            [
+              78,
+              13
+            ],
+            [
+              96,
+              0
+            ],
+            [
+              21,
+              6
+            ],
+            [
+              94,
+              15
+            ]
+          ],
+          "brands": 12,
+          "missing": [
+            0,
+            2,
+            3,
+            12,
+            13,
+            16,
+            17,
+            19
+          ],
+          "servings": 12
+        },
+        {
+          "agents": [
+            [
+              171,
+              1
+            ],
+            [
+              113,
+              15
+            ],
+            [
+              28,
+              6
+            ],
+            [
+              113,
+              15
+            ]
+          ],
+          "brands": 12,
+          "missing": [
+            0,
+            2,
+            3,
+            12,
+            13,
+            17,
+            18,
+            19
+          ],
+          "servings": 13
+        },
+        {
+          "agents": [
+            [
+              127,
+              7
+            ],
+            [
+              247,
+              1
+            ],
+            [
+              63,
+              0
+            ],
+            [
+              172,
+              15
+            ]
+          ],
+          "brands": 13,
+          "missing": [
+            4,
+            5,
+            8,
+            11,
+            15,
+            18,
+            19
+          ],
+          "servings": 14
+        }
+      ],
+      "ms": 1929.790792,
+      "score": [
+        20,
+        56,
+        60
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 3,
+      "maxDaily": 100
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              61,
+              4
+            ],
+            [
+              9,
+              13
+            ],
+            [
+              8,
+              14
+            ]
+          ],
+          "brands": 14,
+          "missing": [
+            9
+          ],
+          "servings": 14
+        },
+        {
+          "agents": [
+            [
+              18,
+              1
+            ],
+            [
+              61,
+              13
+            ],
+            [
+              53,
+              14
+            ]
+          ],
+          "brands": 15,
+          "missing": [],
+          "servings": 17
+        },
+        {
+          "agents": [
+            [
+              22,
+              13
+            ],
+            [
+              15,
+              6
+            ],
+            [
+              21,
+              14
+            ]
+          ],
+          "brands": 11,
+          "missing": [
+            2,
+            8,
+            9,
+            12
+          ],
+          "servings": 12
+        },
+        {
+          "agents": [
+            [
+              16,
+              4
+            ],
+            [
+              44,
+              12
+            ],
+            [
+              52,
+              14
+            ]
+          ],
+          "brands": 13,
+          "missing": [
+            0,
+            8
+          ],
+          "servings": 14
+        },
+        {
+          "agents": [
+            [
+              8,
+              3
+            ],
+            [
+              10,
+              9
+            ],
+            [
+              21,
+              14
+            ]
+          ],
+          "brands": 14,
+          "missing": [
+            3
+          ],
+          "servings": 16
+        }
+      ],
+      "ms": 364.014943,
+      "score": [
+        15,
+        67,
+        73
+      ],
+      "types": [
+        0,
+        0,
+        1
+      ],
+      "seed": 4,
+      "maxDaily": 75
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              28,
+              1
+            ],
+            [
+              20,
+              14
+            ],
+            [
+              63,
+              4
+            ],
+            [
+              20,
+              14
+            ]
+          ],
+          "brands": 10,
+          "missing": [
+            3,
+            5,
+            12
+          ],
+          "servings": 10
+        },
+        {
+          "agents": [
+            [
+              90,
+              8
+            ],
+            [
+              58,
+              13
+            ],
+            [
+              111,
+              0
+            ],
+            [
+              42,
+              14
+            ]
+          ],
+          "brands": 9,
+          "missing": [
+            0,
+            2,
+            4,
+            12
+          ],
+          "servings": 10
+        },
+        {
+          "agents": [
+            [
+              9,
+              10
+            ],
+            [
+              42,
+              14
+            ],
+            [
+              111,
+              0
+            ],
+            [
+              42,
+              14
+            ]
+          ],
+          "brands": 8,
+          "missing": [
+            3,
+            4,
+            9,
+            10,
+            12
+          ],
+          "servings": 10
+        },
+        {
+          "agents": [
+            [
+              178,
+              1
+            ],
+            [
+              106,
+              0
+            ],
+            [
+              63,
+              12
+            ],
+            [
+              79,
+              14
+            ]
+          ],
+          "brands": 11,
+          "missing": [
+            3,
+            9
+          ],
+          "servings": 12
+        },
+        {
+          "agents": [
+            [
+              178,
+              1
+            ],
+            [
+              85,
+              6
+            ],
+            [
+              10,
+              5
+            ],
+            [
+              74,
+              14
+            ]
+          ],
+          "brands": 10,
+          "missing": [
+            1,
+            3,
+            9
+          ],
+          "servings": 11
+        }
+      ],
+      "ms": 1126.723071,
+      "score": [
+        13,
+        48,
+        53
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 5,
+      "maxDaily": 65
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              57,
+              4
+            ],
+            [
+              61,
+              20
+            ],
+            [
+              217,
+              2
+            ],
+            [
+              110,
+              26
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 13
+        },
+        {
+          "agents": [
+            [
+              21,
+              25
+            ],
+            [
+              189,
+              7
+            ],
+            [
+              199,
+              0
+            ],
+            [
+              37,
+              26
+            ]
+          ],
+          "brands": 8,
+          "missing": [
+            0,
+            6,
+            7,
+            9
+          ],
+          "servings": 8
+        },
+        {
+          "agents": [
+            [
+              62,
+              8
+            ],
+            [
+              153,
+              20
+            ],
+            [
+              199,
+              26
+            ],
+            [
+              199,
+              26
+            ]
+          ],
+          "brands": 8,
+          "missing": [
+            0,
+            5,
+            7,
+            9
+          ],
+          "servings": 9
+        },
+        {
+          "agents": [
+            [
+              216,
+              13
+            ],
+            [
+              175,
+              26
+            ],
+            [
+              57,
+              5
+            ],
+            [
+              175,
+              26
+            ]
+          ],
+          "brands": 11,
+          "missing": [
+            7
+          ],
+          "servings": 13
+        },
+        {
+          "agents": [
+            [
+              217,
+              0
+            ],
+            [
+              189,
+              10
+            ],
+            [
+              67,
+              23
+            ],
+            [
+              21,
+              26
+            ]
+          ],
+          "brands": 11,
+          "missing": [
+            7
+          ],
+          "servings": 11
+        }
+      ],
+      "ms": 1742.691105,
+      "score": [
+        12,
+        50,
+        54
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 6,
+      "maxDaily": 60
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              38,
+              14
+            ],
+            [
+              8,
+              5
+            ],
+            [
+              21,
+              17
+            ],
+            [
+              22,
+              18
+            ],
+            [
+              23,
+              6
+            ],
+            [
+              22,
+              18
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 31
+        },
+        {
+          "agents": [
+            [
+              23,
+              16
+            ],
+            [
+              5,
+              18
+            ],
+            [
+              53,
+              6
+            ],
+            [
+              8,
+              11
+            ],
+            [
+              54,
+              9
+            ],
+            [
+              5,
+              18
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 41
+        },
+        {
+          "agents": [
+            [
+              38,
+              11
+            ],
+            [
+              25,
+              5
+            ],
+            [
+              3,
+              18
+            ],
+            [
+              31,
+              12
+            ],
+            [
+              21,
+              10
+            ],
+            [
+              3,
+              18
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 43
+        },
+        {
+          "agents": [
+            [
+              12,
+              18
+            ],
+            [
+              3,
+              17
+            ],
+            [
+              23,
+              11
+            ],
+            [
+              8,
+              1
+            ],
+            [
+              22,
+              1
+            ],
+            [
+              12,
+              18
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 31
+        },
+        {
+          "agents": [
+            [
+              54,
+              7
+            ],
+            [
+              15,
+              0
+            ],
+            [
+              15,
+              13
+            ],
+            [
+              28,
+              11
+            ],
+            [
+              10,
+              3
+            ],
+            [
+              8,
+              18
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 37
+        }
+      ],
+      "ms": 994.453664,
+      "score": [
+        14,
+        70,
+        183
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 7,
+      "maxDaily": 70
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              46,
+              15
+            ],
+            [
+              29,
+              20
+            ],
+            [
+              51,
+              23
+            ],
+            [
+              52,
+              24
+            ],
+            [
+              52,
+              24
+            ],
+            [
+              52,
+              24
+            ]
+          ],
+          "brands": 9,
+          "missing": [],
+          "servings": 22
+        },
+        {
+          "agents": [
+            [
+              7,
+              14
+            ],
+            [
+              46,
+              21
+            ],
+            [
+              2,
+              9
+            ],
+            [
+              2,
+              11
+            ],
+            [
+              9,
+              11
+            ],
+            [
+              51,
+              24
+            ]
+          ],
+          "brands": 9,
+          "missing": [],
+          "servings": 33
+        },
+        {
+          "agents": [
+            [
+              5,
+              23
+            ],
+            [
+              3,
+              1
+            ],
+            [
+              13,
+              22
+            ],
+            [
+              44,
+              20
+            ],
+            [
+              52,
+              24
+            ],
+            [
+              14,
+              24
+            ]
+          ],
+          "brands": 9,
+          "missing": [],
+          "servings": 31
+        },
+        {
+          "agents": [
+            [
+              58,
+              21
+            ],
+            [
+              51,
+              24
+            ],
+            [
+              35,
+              22
+            ],
+            [
+              46,
+              21
+            ],
+            [
+              9,
+              7
+            ],
+            [
+              51,
+              24
+            ]
+          ],
+          "brands": 9,
+          "missing": [],
+          "servings": 32
+        },
+        {
+          "agents": [
+            [
+              51,
+              0
+            ],
+            [
+              6,
+              21
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              2,
+              21
+            ],
+            [
+              44,
+              15
+            ],
+            [
+              5,
+              24
+            ]
+          ],
+          "brands": 9,
+          "missing": [],
+          "servings": 32
+        }
+      ],
+      "ms": 573.723664,
+      "score": [
+        9,
+        45,
+        150
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 8,
+      "maxDaily": 45
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              106,
+              14
+            ],
+            [
+              48,
+              1
+            ],
+            [
+              106,
+              14
+            ]
+          ],
+          "brands": 13,
+          "missing": [
+            2,
+            14,
+            15
+          ],
+          "servings": 14
+        },
+        {
+          "agents": [
+            [
+              43,
+              14
+            ],
+            [
+              49,
+              0
+            ],
+            [
+              43,
+              14
+            ]
+          ],
+          "brands": 8,
+          "missing": [
+            0,
+            4,
+            6,
+            7,
+            8,
+            9,
+            10,
+            15
+          ],
+          "servings": 8
+        },
+        {
+          "agents": [
+            [
+              73,
+              14
+            ],
+            [
+              89,
+              6
+            ],
+            [
+              73,
+              14
+            ]
+          ],
+          "brands": 11,
+          "missing": [
+            5,
+            8,
+            10,
+            12,
+            13
+          ],
+          "servings": 13
+        },
+        {
+          "agents": [
+            [
+              48,
+              1
+            ],
+            [
+              95,
+              7
+            ],
+            [
+              92,
+              14
+            ]
+          ],
+          "brands": 12,
+          "missing": [
+            4,
+            7,
+            10,
+            14
+          ],
+          "servings": 12
+        },
+        {
+          "agents": [
+            [
+              49,
+              0
+            ],
+            [
+              101,
+              11
+            ],
+            [
+              92,
+              14
+            ]
+          ],
+          "brands": 8,
+          "missing": [
+            1,
+            2,
+            4,
+            6,
+            7,
+            10,
+            14,
+            15
+          ],
+          "servings": 8
+        }
+      ],
+      "ms": 624.094732,
+      "score": [
+        16,
+        52,
+        55
+      ],
+      "types": [
+        0,
+        0,
+        1
+      ],
+      "seed": 9,
+      "maxDaily": 80
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              121,
+              0
+            ],
+            [
+              28,
+              13
+            ],
+            [
+              79,
+              18
+            ],
+            [
+              90,
+              21
+            ],
+            [
+              12,
+              9
+            ],
+            [
+              91,
+              22
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 29
+        },
+        {
+          "agents": [
+            [
+              91,
+              22
+            ],
+            [
+              78,
+              22
+            ],
+            [
+              86,
+              3
+            ],
+            [
+              92,
+              21
+            ],
+            [
+              43,
+              1
+            ],
+            [
+              91,
+              22
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 27
+        },
+        {
+          "agents": [
+            [
+              14,
+              21
+            ],
+            [
+              86,
+              19
+            ],
+            [
+              63,
+              22
+            ],
+            [
+              104,
+              4
+            ],
+            [
+              101,
+              10
+            ],
+            [
+              26,
+              22
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 25
+        },
+        {
+          "agents": [
+            [
+              103,
+              21
+            ],
+            [
+              12,
+              1
+            ],
+            [
+              114,
+              20
+            ],
+            [
+              30,
+              15
+            ],
+            [
+              121,
+              0
+            ],
+            [
+              102,
+              22
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 28
+        },
+        {
+          "agents": [
+            [
+              114,
+              7
+            ],
+            [
+              12,
+              1
+            ],
+            [
+              104,
+              0
+            ],
+            [
+              43,
+              3
+            ],
+            [
+              90,
+              10
+            ],
+            [
+              121,
+              22
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 20
+        }
+      ],
+      "ms": 957.671883,
+      "score": [
+        12,
+        60,
+        129
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 10,
+      "maxDaily": 60
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              5,
+              3
+            ],
+            [
+              21,
+              12
+            ],
+            [
+              34,
+              14
+            ],
+            [
+              43,
+              15
+            ]
+          ],
+          "brands": 22,
+          "missing": [],
+          "servings": 28
+        },
+        {
+          "agents": [
+            [
+              23,
+              5
+            ],
+            [
+              49,
+              13
+            ],
+            [
+              24,
+              1
+            ],
+            [
+              42,
+              15
+            ]
+          ],
+          "brands": 20,
+          "missing": [
+            9,
+            21
+          ],
+          "servings": 22
+        },
+        {
+          "agents": [
+            [
+              51,
+              1
+            ],
+            [
+              6,
+              13
+            ],
+            [
+              23,
+              15
+            ],
+            [
+              15,
+              15
+            ]
+          ],
+          "brands": 22,
+          "missing": [],
+          "servings": 33
+        },
+        {
+          "agents": [
+            [
+              31,
+              3
+            ],
+            [
+              45,
+              13
+            ],
+            [
+              14,
+              1
+            ],
+            [
+              44,
+              15
+            ]
+          ],
+          "brands": 22,
+          "missing": [],
+          "servings": 29
+        },
+        {
+          "agents": [
+            [
+              9,
+              3
+            ],
+            [
+              8,
+              14
+            ],
+            [
+              43,
+              8
+            ],
+            [
+              16,
+              15
+            ]
+          ],
+          "brands": 21,
+          "missing": [
+            10
+          ],
+          "servings": 24
+        }
+      ],
+      "ms": 2360.688234,
+      "score": [
+        22,
+        107,
+        136
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 11,
+      "maxDaily": 110
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              48,
+              1
+            ],
+            [
+              81,
+              1
+            ],
+            [
+              6,
+              3
+            ],
+            [
+              20,
+              4
+            ],
+            [
+              140,
+              15
+            ],
+            [
+              140,
+              15
+            ]
+          ],
+          "brands": 19,
+          "missing": [
+            8
+          ],
+          "servings": 22
+        },
+        {
+          "agents": [
+            [
+              60,
+              0
+            ],
+            [
+              143,
+              11
+            ],
+            [
+              31,
+              15
+            ],
+            [
+              53,
+              0
+            ],
+            [
+              34,
+              3
+            ],
+            [
+              31,
+              15
+            ]
+          ],
+          "brands": 14,
+          "missing": [
+            10,
+            12,
+            14,
+            16,
+            18,
+            19
+          ],
+          "servings": 16
+        },
+        {
+          "agents": [
+            [
+              40,
+              15
+            ],
+            [
+              140,
+              0
+            ],
+            [
+              30,
+              1
+            ],
+            [
+              28,
+              14
+            ],
+            [
+              22,
+              2
+            ],
+            [
+              40,
+              15
+            ]
+          ],
+          "brands": 20,
+          "missing": [],
+          "servings": 28
+        },
+        {
+          "agents": [
+            [
+              88,
+              14
+            ],
+            [
+              140,
+              0
+            ],
+            [
+              131,
+              1
+            ],
+            [
+              60,
+              9
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              87,
+              15
+            ]
+          ],
+          "brands": 20,
+          "missing": [],
+          "servings": 30
+        },
+        {
+          "agents": [
+            [
+              40,
+              0
+            ],
+            [
+              53,
+              1
+            ],
+            [
+              117,
+              4
+            ],
+            [
+              48,
+              3
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              143,
+              15
+            ]
+          ],
+          "brands": 19,
+          "missing": [
+            8
+          ],
+          "servings": 24
+        }
+      ],
+      "ms": 2258.250954,
+      "score": [
+        20,
+        92,
+        120
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 12,
+      "maxDaily": 100
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              38,
+              18
+            ],
+            [
+              61,
+              3
+            ],
+            [
+              55,
+              16
+            ],
+            [
+              19,
+              20
+            ],
+            [
+              2,
+              16
+            ],
+            [
+              36,
+              23
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 35
+        },
+        {
+          "agents": [
+            [
+              32,
+              22
+            ],
+            [
+              35,
+              13
+            ],
+            [
+              4,
+              12
+            ],
+            [
+              54,
+              15
+            ],
+            [
+              55,
+              16
+            ],
+            [
+              24,
+              23
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 36
+        },
+        {
+          "agents": [
+            [
+              7,
+              3
+            ],
+            [
+              4,
+              23
+            ],
+            [
+              55,
+              13
+            ],
+            [
+              3,
+              22
+            ],
+            [
+              2,
+              20
+            ],
+            [
+              4,
+              23
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 40
+        },
+        {
+          "agents": [
+            [
+              61,
+              19
+            ],
+            [
+              16,
+              13
+            ],
+            [
+              24,
+              22
+            ],
+            [
+              7,
+              5
+            ],
+            [
+              55,
+              15
+            ],
+            [
+              25,
+              23
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 38
+        },
+        {
+          "agents": [
+            [
+              28,
+              7
+            ],
+            [
+              28,
+              1
+            ],
+            [
+              4,
+              23
+            ],
+            [
+              2,
+              21
+            ],
+            [
+              44,
+              3
+            ],
+            [
+              4,
+              23
+            ]
+          ],
+          "brands": 14,
+          "missing": [],
+          "servings": 29
+        }
+      ],
+      "ms": 1259.122441,
+      "score": [
+        14,
+        70,
+        178
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 13,
+      "maxDaily": 70
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              25,
+              2
+            ],
+            [
+              19,
+              3
+            ],
+            [
+              63,
+              12
+            ],
+            [
+              38,
+              13
+            ],
+            [
+              63,
+              12
+            ],
+            [
+              39,
+              14
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 31
+        },
+        {
+          "agents": [
+            [
+              42,
+              0
+            ],
+            [
+              41,
+              5
+            ],
+            [
+              39,
+              14
+            ],
+            [
+              60,
+              8
+            ],
+            [
+              41,
+              7
+            ],
+            [
+              39,
+              14
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 26
+        },
+        {
+          "agents": [
+            [
+              42,
+              0
+            ],
+            [
+              59,
+              5
+            ],
+            [
+              19,
+              10
+            ],
+            [
+              12,
+              10
+            ],
+            [
+              54,
+              14
+            ],
+            [
+              54,
+              14
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 23
+        },
+        {
+          "agents": [
+            [
+              42,
+              0
+            ],
+            [
+              38,
+              11
+            ],
+            [
+              38,
+              13
+            ],
+            [
+              25,
+              2
+            ],
+            [
+              61,
+              6
+            ],
+            [
+              30,
+              14
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 18
+        },
+        {
+          "agents": [
+            [
+              42,
+              13
+            ],
+            [
+              19,
+              1
+            ],
+            [
+              63,
+              6
+            ],
+            [
+              42,
+              14
+            ],
+            [
+              25,
+              12
+            ],
+            [
+              41,
+              14
+            ]
+          ],
+          "brands": 12,
+          "missing": [],
+          "servings": 18
+        }
+      ],
+      "ms": 367.31426,
+      "score": [
+        12,
+        60,
+        116
+      ],
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "seed": 14,
+      "maxDaily": 60
+    },
+    {
+      "days": [
+        {
+          "agents": [
+            [
+              4,
+              12
+            ],
+            [
+              106,
+              2
+            ],
+            [
+              5,
+              13
+            ]
+          ],
+          "brands": 12,
+          "missing": [
+            1,
+            5,
+            7,
+            14
+          ],
+          "servings": 12
+        },
+        {
+          "agents": [
+            [
+              120,
+              12
+            ],
+            [
+              131,
+              0
+            ],
+            [
+              132,
+              13
+            ]
+          ],
+          "brands": 8,
+          "missing": [
+            0,
+            2,
+            3,
+            6,
+            9,
+            13,
+            14,
+            15
+          ],
+          "servings": 8
+        },
+        {
+          "agents": [
+            [
+              12,
+              0
+            ],
+            [
+              119,
+              13
+            ],
+            [
+              119,
+              13
+            ]
+          ],
+          "brands": 3,
+          "missing": [
+            0,
+            2,
+            3,
+            4,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            15
+          ],
+          "servings": 3
+        },
+        {
+          "agents": [
+            [
+              12,
+              0
+            ],
+            [
+              65,
+              12
+            ],
+            [
+              77,
+              13
+            ]
+          ],
+          "brands": 5,
+          "missing": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            9,
+            13,
+            15
+          ],
+          "servings": 5
+        },
+        {
+          "agents": [
+            [
+              12,
+              0
+            ],
+            [
+              4,
+              5
+            ],
+            [
+              34,
+              13
+            ]
+          ],
+          "brands": 9,
+          "missing": [
+            1,
+            2,
+            5,
+            7,
+            8,
+            11,
+            12
+          ],
+          "servings": 9
+        }
+      ],
+      "ms": 517.151517,
+      "score": [
+        16,
+        37,
+        37
+      ],
+      "types": [
+        0,
+        0,
+        1
+      ],
+      "seed": 15,
+      "maxDaily": 80
+    }
+  ],
+  "syntheticAfter": [
+    {
+      "baseline": [
+        16,
+        77,
+        90
+      ],
+      "days": [
+        [
+          15,
+          16
+        ],
+        [
+          16,
+          18
+        ],
+        [
+          14,
+          17
+        ],
+        [
+          16,
+          19
+        ],
+        [
+          16,
+          20
+        ]
+      ],
+      "ms": 763.957931,
+      "score": [
+        16,
+        77,
+        90
+      ],
+      "seed": 100
+    },
+    {
+      "baseline": [
+        19,
+        37,
+        37
+      ],
+      "days": [
+        [
+          14,
+          14
+        ],
+        [
+          10,
+          11
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          10,
+          10
+        ]
+      ],
+      "ms": 4839.181803,
+      "score": [
+        19,
+        51,
+        52
+      ],
+      "seed": 101
+    },
+    {
+      "baseline": [
+        12,
+        60,
+        129
+      ],
+      "days": [
+        [
+          12,
+          29
+        ],
+        [
+          12,
+          31
+        ],
+        [
+          12,
+          19
+        ],
+        [
+          12,
+          20
+        ],
+        [
+          12,
+          30
+        ]
+      ],
+      "ms": 807.393,
+      "score": [
+        12,
+        60,
+        129
+      ],
+      "seed": 102
+    },
+    {
+      "baseline": [
+        20,
+        56,
+        60
+      ],
+      "days": [
+        [
+          11,
+          13
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          11,
+          11
+        ],
+        [
+          14,
+          17
+        ]
+      ],
+      "ms": 5205.766744,
+      "score": [
+        20,
+        57,
+        62
+      ],
+      "seed": 103
+    },
+    {
+      "baseline": [
+        15,
+        67,
+        73
+      ],
+      "days": [
+        [
+          14,
+          14
+        ],
+        [
+          15,
+          17
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          14,
+          15
+        ],
+        [
+          15,
+          16
+        ]
+      ],
+      "ms": 955.954297,
+      "score": [
+        15,
+        69,
+        74
+      ],
+      "seed": 104
+    },
+    {
+      "baseline": [
+        13,
+        48,
+        53
+      ],
+      "days": [
+        [
+          10,
+          10
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          8,
+          10
+        ],
+        [
+          11,
+          12
+        ],
+        [
+          10,
+          11
+        ]
+      ],
+      "ms": 2758.96322,
+      "score": [
+        13,
+        48,
+        53
+      ],
+      "seed": 105
+    },
+    {
+      "baseline": [
+        12,
+        50,
+        54
+      ],
+      "days": [
+        [
+          12,
+          13
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          8,
+          9
+        ],
+        [
+          11,
+          13
+        ],
+        [
+          11,
+          11
+        ]
+      ],
+      "ms": 2765.48819,
+      "score": [
+        12,
+        50,
+        54
+      ],
+      "seed": 106
+    },
+    {
+      "baseline": [
+        14,
+        70,
+        183
+      ],
+      "days": [
+        [
+          14,
+          31
+        ],
+        [
+          14,
+          41
+        ],
+        [
+          14,
+          43
+        ],
+        [
+          14,
+          31
+        ],
+        [
+          14,
+          37
+        ]
+      ],
+      "ms": 1665.154294,
+      "score": [
+        14,
+        70,
+        183
+      ],
+      "seed": 107
+    },
+    {
+      "baseline": [
+        9,
+        45,
+        150
+      ],
+      "days": [
+        [
+          9,
+          22
+        ],
+        [
+          9,
+          33
+        ],
+        [
+          9,
+          31
+        ],
+        [
+          9,
+          32
+        ],
+        [
+          9,
+          32
+        ]
+      ],
+      "ms": 870.047367,
+      "score": [
+        9,
+        45,
+        150
+      ],
+      "seed": 108
+    },
+    {
+      "baseline": [
+        16,
+        52,
+        55
+      ],
+      "days": [
+        [
+          13,
+          14
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          11,
+          13
+        ],
+        [
+          12,
+          12
+        ],
+        [
+          8,
+          8
+        ]
+      ],
+      "ms": 1591.563428,
+      "score": [
+        16,
+        52,
+        55
+      ],
+      "seed": 109
+    },
+    {
+      "baseline": [
+        12,
+        60,
+        129
+      ],
+      "days": [
+        [
+          12,
+          29
+        ],
+        [
+          12,
+          27
+        ],
+        [
+          12,
+          25
+        ],
+        [
+          12,
+          28
+        ],
+        [
+          12,
+          20
+        ]
+      ],
+      "ms": 1627.16265,
+      "score": [
+        12,
+        60,
+        129
+      ],
+      "seed": 110
+    },
+    {
+      "baseline": [
+        22,
+        107,
+        136
+      ],
+      "days": [
+        [
+          22,
+          28
+        ],
+        [
+          20,
+          22
+        ],
+        [
+          22,
+          33
+        ],
+        [
+          22,
+          29
+        ],
+        [
+          21,
+          24
+        ]
+      ],
+      "ms": 4807.285214,
+      "score": [
+        22,
+        107,
+        136
+      ],
+      "seed": 111
+    },
+    {
+      "baseline": [
+        20,
+        92,
+        120
+      ],
+      "days": [
+        [
+          19,
+          22
+        ],
+        [
+          14,
+          16
+        ],
+        [
+          20,
+          28
+        ],
+        [
+          20,
+          30
+        ],
+        [
+          19,
+          24
+        ]
+      ],
+      "ms": 3604.847907,
+      "score": [
+        20,
+        92,
+        120
+      ],
+      "seed": 112
+    },
+    {
+      "baseline": [
+        14,
+        70,
+        178
+      ],
+      "days": [
+        [
+          14,
+          35
+        ],
+        [
+          14,
+          36
+        ],
+        [
+          14,
+          40
+        ],
+        [
+          14,
+          38
+        ],
+        [
+          14,
+          29
+        ]
+      ],
+      "ms": 2046.309714,
+      "score": [
+        14,
+        70,
+        178
+      ],
+      "seed": 113
+    },
+    {
+      "baseline": [
+        12,
+        60,
+        116
+      ],
+      "days": [
+        [
+          12,
+          31
+        ],
+        [
+          12,
+          26
+        ],
+        [
+          12,
+          23
+        ],
+        [
+          12,
+          18
+        ],
+        [
+          12,
+          18
+        ]
+      ],
+      "ms": 515.524986,
+      "score": [
+        12,
+        60,
+        116
+      ],
+      "seed": 114
+    },
+    {
+      "baseline": [
+        16,
+        37,
+        37
+      ],
+      "days": [
+        [
+          12,
+          12
+        ],
+        [
+          8,
+          8
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          9,
+          9
+        ]
+      ],
+      "ms": 1273.682797,
+      "score": [
+        16,
+        37,
+        37
+      ],
+      "seed": 115
+    }
+  ]
+}

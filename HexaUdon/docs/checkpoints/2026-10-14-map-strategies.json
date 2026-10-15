@@ -1,0 +1,236 @@
+[
+  {
+    "sample": "sample_16.json",
+    "sha256": "15ba3fd41ca8a69a2e22f707092d23f569ca75350524c2a0ecf956cedcaf823a",
+    "legacy": {
+      "days": [
+        {
+          "daily": 12,
+          "ms": 451.6229,
+          "serving": 14
+        },
+        {
+          "daily": 11,
+          "ms": 2352.7479,
+          "serving": 12
+        },
+        {
+          "daily": 10,
+          "ms": 11047.1899,
+          "serving": 10
+        },
+        {
+          "daily": 11,
+          "ms": 3989.6417,
+          "serving": 11
+        },
+        {
+          "daily": 12,
+          "ms": 2059.1476,
+          "serving": 14
+        }
+      ],
+      "profile": "legacy",
+      "score": [
+        12,
+        56,
+        61
+      ],
+      "supplyIndex": 2,
+      "traffic": "neutral"
+    },
+    "auto": {
+      "days": [
+        {
+          "daily": 12,
+          "ms": 445.1623,
+          "serving": 14
+        },
+        {
+          "daily": 11,
+          "ms": 2308.5688,
+          "serving": 12
+        },
+        {
+          "daily": 10,
+          "ms": 6181.006,
+          "serving": 10
+        },
+        {
+          "daily": 11,
+          "ms": 3892.5533,
+          "serving": 11
+        },
+        {
+          "daily": 12,
+          "ms": 1906.4101,
+          "serving": 14
+        }
+      ],
+      "profile": "compact-exact",
+      "score": [
+        12,
+        56,
+        61
+      ],
+      "supplyIndex": 2,
+      "traffic": "neutral"
+    }
+  },
+  {
+    "sample": "sample_24.json",
+    "sha256": "4081cbca170ad09e291015c10b76224bc0d960b4bc3baa72d9d96752c112d9a5",
+    "legacy": {
+      "days": [
+        {
+          "daily": 18,
+          "ms": 10172.1306,
+          "serving": 22
+        },
+        {
+          "daily": 17,
+          "ms": 10129.7619,
+          "serving": 20
+        },
+        {
+          "daily": 18,
+          "ms": 9106.8819,
+          "serving": 26
+        },
+        {
+          "daily": 15,
+          "ms": 13365.7671,
+          "serving": 17
+        },
+        {
+          "daily": 16,
+          "ms": 16034.5851,
+          "serving": 20
+        }
+      ],
+      "profile": "legacy",
+      "score": [
+        18,
+        84,
+        105
+      ],
+      "supplyIndex": 4,
+      "traffic": "neutral"
+    },
+    "auto": {
+      "days": [
+        {
+          "daily": 18,
+          "ms": 10174.2671,
+          "serving": 22
+        },
+        {
+          "daily": 17,
+          "ms": 9815.1459,
+          "serving": 20
+        },
+        {
+          "daily": 18,
+          "ms": 9020.5384,
+          "serving": 26
+        },
+        {
+          "daily": 15,
+          "ms": 13264.7896,
+          "serving": 17
+        },
+        {
+          "daily": 16,
+          "ms": 15788.3153,
+          "serving": 20
+        }
+      ],
+      "profile": "regional-repair",
+      "score": [
+        18,
+        84,
+        105
+      ],
+      "supplyIndex": 4,
+      "traffic": "neutral"
+    }
+  },
+  {
+    "sample": "sample_32.json",
+    "sha256": "3293a63681f7f248d39013bab903619968ba7832c0a5368162c508d5ec7fadaa",
+    "legacy": {
+      "days": [
+        {
+          "daily": 24,
+          "ms": 25642.8416,
+          "serving": 31
+        },
+        {
+          "daily": 24,
+          "ms": 23640.0307,
+          "serving": 28
+        },
+        {
+          "daily": 21,
+          "ms": 21743.0435,
+          "serving": 23
+        },
+        {
+          "daily": 23,
+          "ms": 22823.055,
+          "serving": 28
+        },
+        {
+          "daily": 22,
+          "ms": 22033.2354,
+          "serving": 25
+        }
+      ],
+      "profile": "legacy",
+      "score": [
+        24,
+        114,
+        135
+      ],
+      "supplyIndex": 6,
+      "traffic": "neutral"
+    },
+    "auto": {
+      "days": [
+        {
+          "daily": 24,
+          "ms": 22984.584,
+          "serving": 31
+        },
+        {
+          "daily": 24,
+          "ms": 21714.5477,
+          "serving": 28
+        },
+        {
+          "daily": 21,
+          "ms": 20076.2595,
+          "serving": 23
+        },
+        {
+          "daily": 23,
+          "ms": 21082.8972,
+          "serving": 28
+        },
+        {
+          "daily": 22,
+          "ms": 19810.5089,
+          "serving": 25
+        }
+      ],
+      "profile": "large-bounded",
+      "score": [
+        24,
+        114,
+        135
+      ],
+      "supplyIndex": 6,
+      "traffic": "neutral"
+    }
+  }
+]

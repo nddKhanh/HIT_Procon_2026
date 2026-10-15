@@ -1,0 +1,49 @@
+{
+  "days": [
+    {
+      "daily": 12,
+      "missing": [],
+      "ms": 631.8078,
+      "serving": 14
+    },
+    {
+      "daily": 11,
+      "missing": [
+        10
+      ],
+      "ms": 3092.6716,
+      "serving": 12
+    },
+    {
+      "daily": 10,
+      "missing": [
+        4,
+        10
+      ],
+      "ms": 12429.2995,
+      "serving": 10
+    },
+    {
+      "daily": 11,
+      "missing": [
+        10
+      ],
+      "ms": 9376.0397,
+      "serving": 11
+    },
+    {
+      "daily": 12,
+      "missing": [],
+      "ms": 11001.2914,
+      "serving": 15
+    }
+  ],
+  "profile": "compact-exact",
+  "score": [
+    12,
+    56,
+    62
+  ],
+  "supplyIndex": 2,
+  "traffic": "neutral"
+}

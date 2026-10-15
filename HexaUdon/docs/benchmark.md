@@ -133,3 +133,12 @@ an otherwise invalid command. The accepted replay does not establish the server'
 behavior for rejected plans or a synthetic zero-fuel patrol co-located with supply
 at initial time 0. No special initial refueling is assumed. Add independent real
 replays when available; matching this sample is not proof of every engine case.
+
+## Daily coverage regression (2026-10-12)
+
+`build.bat benchmark --coverage` runs 16 stored synthetic multi-day cases and
+fails if an official score tuple falls below its tracked expectation. It uses
+fixed vehicle types and mirrored dynamic traffic, so it measures routing rather
+than live-opponent performance or formation quality. See
+[the daily optimization report](DAILY_OPTIMIZATION_2026-10-12.md) for changes,
+results, Linux core-check commands and remaining coverage gaps.

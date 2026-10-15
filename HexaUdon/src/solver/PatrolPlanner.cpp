@@ -4,6 +4,183 @@
 #include "solver/PathFinder.hpp"
 #include <algorithm>
 #include <climits>
+#include <chrono>
+
+void PatrolPlanner::improveRoutes(const GameConfig& config, const GameState& state,
+    const Map& inputMap, std::vector<std::vector<int>>& actions,
+    const std::set<int>& matchBrands, long long deadlineMs, int budgetMs) {
+    using Clock = std::chrono::steady_clock;
+    const auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    if (budgetMs <= 0 || deadlineMs <= epoch) return;
+    const auto stop = Clock::now() + std::chrono::milliseconds(
+        std::min<long long>(budgetMs, deadlineMs - epoch));
+    auto inTime = [&] { return Clock::now() < stop; };
+    Map map = inputMap;
+    map.updateTraffic(state.traffics);
+    auto incumbent = MoveSimulator::simulateDay(config, state, actions, map);
+    if (!incumbent.valid) return;
+    const int daySteps = config.getDaySteps(state.day);
+    const bool finalDay = state.day + 1 == static_cast<int>(config.daySteps.size());
+    auto rank = [&](const DaySimulation& day) {
+        int fresh = 0;
+        for (int b : day.brands) fresh += !matchBrands.count(b);
+        return std::make_tuple(fresh, day.brands.size(), day.collections.size());
+    };
+    PathCache cache(map);
+    // ponytail: at most eight accepted insertion rounds; bridges span <=32
+    // actions. Revisit this ceiling only with measured missed opportunities.
+    for (int round = 0; round < 8 && inTime(); ++round) {
+        auto best = incumbent;
+        auto bestActions = actions;
+        std::vector<int> targets;
+        for (size_t s = 0; s < config.spots.size(); ++s)
+            if (incumbent.remainingStock[s] > 0) targets.push_back(static_cast<int>(s));
+        std::stable_sort(targets.begin(), targets.end(), [&](int a, int b) {
+            return std::make_pair(!matchBrands.count(config.spots[a].brand),
+                                 !incumbent.brands.count(config.spots[a].brand)) >
+                   std::make_pair(!matchBrands.count(config.spots[b].brand),
+                                 !incumbent.brands.count(config.spots[b].brand));
+        });
+        // Search missing Types/Daily across the fleet before spending the
+        // shared repair budget on duplicate-brand servings for the first car.
+        for (int phase = 0; phase < 2 && inTime(); ++phase) {
+            for (int p = 0; p < static_cast<int>(state.agents.size()) && inTime(); ++p) {
+                if (state.agents[p].kind != 0) continue;
+                // Unit waits expose safe departure boundaries after a refill.
+                std::vector<int> route;
+                for (int a : actions[p]) {
+                    if (a < 0) route.insert(route.end(), -a, -1);
+                    else route.push_back(a);
+                }
+                std::vector<int> times{0}, positions{state.agents[p].pos};
+                std::set<int> visited{state.agents[p].pos};
+                int tail = 0;
+                for (auto it = route.rbegin(); it != route.rend() && *it < 0; ++it) ++tail;
+                for (int a : route) {
+                    auto pos = map.posToCoordinate(positions.back());
+                    times.push_back(times.back() + (a < 0 ? -a : map.getTravelTime(pos)));
+                    positions.push_back(a < 0 ? positions.back() :
+                        map.coordinateToPos(map.nextPosition(pos, a)));
+                    visited.insert(positions.back());
+                }
+                for (int target : targets) {
+                    if (!inTime()) break;
+                    const bool missing = !incumbent.brands.count(config.spots[target].brand);
+                    if (missing != (phase == 0)) continue;
+                    const int cell = config.spots[target].pos;
+                    if (visited.count(cell)) continue;
+                    for (size_t begin = 0; begin < route.size() && inTime(); ++begin) {
+                        const int fuel = incumbent.fuelAtTime[p][times[begin]];
+                        if (fuel <= 0) continue;
+                        auto first = cache.get(map.posToCoordinate(positions[begin]), fuel, 1.0)
+                            .extractPath(cell, daySteps - times[begin]);
+                        if (!first.found) continue;
+                        size_t previousEnd = route.size() + 1;
+                        for (int span : {0, 1, 2, 4, 8, 16, 32}) {
+                            if (!inTime()) break;
+                            const size_t end = std::min(route.size(), begin + span);
+                            if (end == previousEnd) continue;
+                            previousEnd = end;
+                            const int availableWait = std::min<int>(tail, route.size() - end);
+                            const bool finish = finalDay && begin >= route.size() - tail;
+                            auto second = finish ? PathResult{{}, 0, 0, true} :
+                                cache.get(map.posToCoordinate(cell), fuel - first.totalFuel, 1.0)
+                                    .extractPath(positions[end], times[end] - times[begin] + availableWait - first.totalSteps);
+                            if (!second.found) continue;
+                            const int newDuration = first.totalSteps + second.totalSteps;
+                            const int replacedDuration = finish ? daySteps - times[begin] : times[end] - times[begin];
+                            const int extra = newDuration - replacedDuration;
+                            if (extra > availableWait || (finish && extra > 0)) continue;
+                            auto candidate = actions;
+                            auto& changed = candidate[p];
+                            changed.assign(route.begin(), route.begin() + begin);
+                            changed.insert(changed.end(), first.directions.begin(), first.directions.end());
+                            changed.insert(changed.end(), second.directions.begin(), second.directions.end());
+                            if (!finish) changed.insert(changed.end(), route.begin() + end,
+                                route.end() - std::max(0, extra));
+                            if (extra < 0) changed.push_back(extra);
+                            auto result = MoveSimulator::simulateDay(config, state, candidate, map);
+                            if (!result.valid || rank(result) <= rank(best)) continue;
+                            bool preservesFuture = true;
+                            if (!finalDay) {
+                                for (size_t i = 0; i < state.agents.size(); ++i)
+                                    preservesFuture &= result.agents[i].pos == incumbent.agents[i].pos &&
+                                        result.agents[i].fuel >= incumbent.agents[i].fuel;
+                            }
+                            if (!preservesFuture) continue;
+                            best = std::move(result);
+                            bestActions = std::move(candidate);
+                        }
+                    }
+                }
+            }
+        }
+        if (bestActions == actions) break;
+        actions = std::move(bestActions);
+        incumbent = std::move(best);
+    }
+
+    // Adapt khanh's suffix rebuilding without spending tomorrow's fuel or
+    // extending the existing repair budget. Each trial owns its mutable stock.
+    if (!finalDay) return;
+    // ponytail: one sweep over the last 12 action boundaries plus departure;
+    // use a wider neighborhood only after replay gains justify its cost.
+    for (int p = 0; p < static_cast<int>(state.agents.size()) && inTime(); ++p) {
+        if (state.agents[p].kind != 0) continue;
+        const auto original = actions[p];
+        auto best = incumbent;
+        auto bestActions = actions;
+        int time = 0;
+        auto pos = map.posToCoordinate(state.agents[p].pos);
+        std::set<int> visited;
+        for (size_t edge = 0; edge < original.size() && inTime(); ++edge) {
+            for (size_t s = 0; s < config.spots.size(); ++s)
+                if (config.spots[s].pos == map.coordinateToPos(pos))
+                    visited.insert(static_cast<int>(s));
+            if (edge == 0 || edge + 12 >= original.size()) {
+                std::vector<int> reservedStock;
+                for (const auto& spot : config.spots) reservedStock.push_back(spot.stocks);
+                auto reservedBrands = matchBrands;
+                std::set<int> reservedDaily;
+                for (const auto& event : incumbent.collections) {
+                    if (event.agent == p && event.step > time) continue;
+                    --reservedStock[event.spot];
+                    reservedBrands.insert(event.brand);
+                    reservedDaily.insert(event.brand);
+                }
+                for (size_t target = 0; target < config.spots.size() && inTime(); ++target) {
+                    if (reservedStock[target] <= 0 || visited.count(static_cast<int>(target))) continue;
+                    auto stock = reservedStock;
+                    auto seen = visited;
+                    auto brands = reservedBrands;
+                    auto daily = reservedDaily;
+                    std::set<int> claims;
+                    int lastTarget = -1;
+                    Position lastPosition;
+                    std::vector<int> stepSpots;
+                    std::vector<Position> stepPositions;
+                    auto suffix = planDay(config, map, pos, daySteps - time,
+                        incumbent.fuelAtTime[p][time], stock, seen, brands, daily,
+                        lastTarget, lastPosition, stepSpots, stepPositions, claims,
+                        true, false, &cache, static_cast<int>(target), {}, true, true, 0.0);
+                    auto candidate = actions;
+                    candidate[p].assign(original.begin(), original.begin() + edge);
+                    candidate[p].insert(candidate[p].end(), suffix.begin(), suffix.end());
+                    auto result = MoveSimulator::simulateDay(config, state, candidate, map);
+                    if (!result.valid || rank(result) <= rank(best)) continue;
+                    best = std::move(result);
+                    bestActions = std::move(candidate);
+                }
+            }
+            const int action = original[edge];
+            time += action < 0 ? -action : map.getTravelTime(pos);
+            if (action >= 0) pos = map.nextPosition(pos, action);
+        }
+        actions = std::move(bestActions);
+        incumbent = std::move(best);
+    }
+}
 
 static int brandSpotCount(const GameConfig& config, int brand) {
     int count = 0;
@@ -17,10 +194,11 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
     const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
     const std::set<int>& claimedSpots, bool officialRanking,
     bool exclusiveClaims, PathCache* pathCache,
-    const std::set<int>& preferredSpots) {
+    const std::set<int>& preferredSpots, bool boundedPaths, double fuelWeight,
+    bool deepLookahead) {
     auto localCurrent = pathCache ? SSSPResult{} :
-        PathFinder::computeSSSP(currentPos, map, fuelRemaining, 1.0);
-    const auto& fromCurrent = pathCache ? pathCache->get(currentPos, fuelRemaining, 1.0) :
+        PathFinder::computeSSSP(currentPos, map, fuelRemaining, fuelWeight);
+    const auto& fromCurrent = pathCache ? pathCache->get(currentPos, fuelRemaining, fuelWeight) :
                                           localCurrent;
 
     struct FirstCandidate {
@@ -36,7 +214,7 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                 visitedToday.count(static_cast<int>(first)) ||
                 first >= remainingStock.size() || remainingStock[first] <= 0) continue;
 
-            auto firstPath = fromCurrent.extractPath(config.spots[first].pos);
+            auto firstPath = fromCurrent.extractPath(config.spots[first].pos, enforceSameDay && boundedPaths ? stepsRemaining : INT_MAX);
             if (!firstPath.found) continue;
             if (enforceSameDay && firstPath.totalSteps > stepsRemaining) continue;
 
@@ -80,14 +258,14 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
             int secondFuel = fuelRemaining - firstPath.totalFuel;
             if (secondFuel > 0 && (!enforceSameDay || firstPath.totalSteps < stepsRemaining)) {
                 auto localFirst = pathCache ? SSSPResult{} :
-                    PathFinder::computeSSSP(firstPos, map, secondFuel, 1.0);
-                const auto& fromFirst = pathCache ? pathCache->get(firstPos, secondFuel, 1.0) :
+                    PathFinder::computeSSSP(firstPos, map, secondFuel, fuelWeight);
+                const auto& fromFirst = pathCache ? pathCache->get(firstPos, secondFuel, fuelWeight) :
                                                    localFirst;
                 for (size_t second = 0; second < config.spots.size(); ++second) {
                     if ((exclusiveClaims && claimedSpots.count(static_cast<int>(second))) ||
                         nextVisited.count(static_cast<int>(second)) || nextStock[second] <= 0)
                         continue;
-                    auto secondPath = fromFirst.extractPath(config.spots[second].pos);
+                    auto secondPath = fromFirst.extractPath(config.spots[second].pos, enforceSameDay && boundedPaths ? stepsRemaining - firstPath.totalSteps : INT_MAX);
                     if (!secondPath.found || (enforceSameDay && firstPath.totalSteps + secondPath.totalSteps > stepsRemaining))
                         continue;
                     auto secondRank = SpotScorer::rankSpot(config.spots[second].brand,
@@ -105,6 +283,54 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                     auto withSecond = candidate.rank;
                     for (size_t i = 0; i < withSecond.size(); ++i) withSecond[i] += secondRank[i];
                     if (withSecond > pairRank) pairRank = withSecond;
+
+                    int thirdFuel = secondFuel - secondPath.totalFuel;
+                    int usedSteps = firstPath.totalSteps + secondPath.totalSteps;
+                    // ponytail: origin/khanh's two-stop baseline bounds branching;
+                    // reward-route search keeps the third stop. Solver compares
+                    // complete fleet plans; deeper search needs more time budget.
+                    if (!deepLookahead || thirdFuel <= 0 || usedSteps >= stepsRemaining ||
+                        (config.initialAgentPositions.size() > 6 && !boundedPaths) ||
+                        config.spots.size() > 24) continue;
+                    auto afterSecondVisited = nextVisited;
+                    auto afterSecondStock = nextStock;
+                    auto afterSecondMatch = nextMatchBrands;
+                    auto afterSecondDaily = nextDailyBrands;
+                    afterSecondVisited.insert(static_cast<int>(second));
+                    --afterSecondStock[second];
+                    afterSecondMatch.insert(config.spots[second].brand);
+                    afterSecondDaily.insert(config.spots[second].brand);
+                    Position secondPos = map.posToCoordinate(config.spots[second].pos);
+                    const auto& fromSecond = pathCache
+                        ? pathCache->get(secondPos, thirdFuel, fuelWeight)
+                        : PathFinder::computeSSSP(secondPos, map, thirdFuel, fuelWeight);
+                    for (size_t third = 0; third < config.spots.size(); ++third) {
+                        if ((exclusiveClaims && claimedSpots.count(static_cast<int>(third))) ||
+                            afterSecondVisited.count(static_cast<int>(third)) ||
+                            afterSecondStock[third] <= 0) continue;
+                        auto thirdPath = fromSecond.extractPath(config.spots[third].pos, enforceSameDay && boundedPaths ? stepsRemaining - usedSteps : INT_MAX);
+                        if (!thirdPath.found || (enforceSameDay &&
+                            usedSteps + thirdPath.totalSteps > stepsRemaining)) continue;
+                        auto thirdRank = SpotScorer::rankSpot(config.spots[third].brand,
+                            thirdPath.totalSteps, afterSecondMatch, afterSecondDaily,
+                            afterSecondStock[third],
+                            brandSpotCount(config, config.spots[third].brand),
+                            thirdPath.totalFuel);
+                        if (!officialRanking) thirdRank = {
+                            SpotScorer::scoreSpot(config.spots[third].brand,
+                                thirdPath.totalSteps, afterSecondMatch,
+                                afterSecondStock[third],
+                                brandSpotCount(config, config.spots[third].brand),
+                                thirdPath.totalFuel, thirdFuel),
+                            afterSecondDaily.count(config.spots[third].brand) ? 0 : 1,
+                            0, 0, -thirdPath.totalSteps, -thirdPath.totalFuel};
+                        thirdRank[2] = preferredSpots.empty() ||
+                            preferredSpots.count(static_cast<int>(third)) ? 1 : 0;
+                        auto withThird = withSecond;
+                        for (size_t i = 0; i < withThird.size(); ++i)
+                            withThird[i] += thirdRank[i];
+                        if (withThird > pairRank) pairRank = withThird;
+                    }
                 }
             }
 
@@ -147,7 +373,9 @@ std::vector<int> PatrolPlanner::planDay(
     PathCache* pathCache,
     int firstTargetSpot,
     const std::set<int>& preferredSpots,
-    bool rewardRoutes
+    bool rewardRoutes,
+    bool timeBoundedPaths,
+    double fuelWeight
 ) {
     std::vector<int> allActions;
     int stepsUsed = 0;
@@ -173,7 +401,8 @@ std::vector<int> PatrolPlanner::planDay(
                 currentPos, config, map,
                 fuelRemaining, stepsRemaining,
                 visitedToday, remainingStock, matchBrands, dailyBrands, claimedSpots,
-                officialRanking, exclusiveClaims, pathCache, preferredSpots
+                officialRanking, exclusiveClaims, pathCache, preferredSpots, timeBoundedPaths, fuelWeight,
+                rewardRoutes || config.players <= 2
             );
         }
 
@@ -193,8 +422,8 @@ std::vector<int> PatrolPlanner::planDay(
             }
             auto path = rewardRoutes
                 ? PathFinder::findPathViaSpots(currentPos, spotPos, map,
-                    fuelRemaining, stepsRemaining, rewards, pathCache)
-                : PathFinder::findPath(currentPos, spotPos, map, fuelRemaining, 1.0);
+                    fuelRemaining, stepsRemaining, rewards, pathCache, timeBoundedPaths, fuelWeight)
+                : PathFinder::findPath(currentPos, spotPos, map, fuelRemaining, fuelWeight);
 
             if (path.found && !path.directions.empty()) {
                 auto sim = MoveSimulator::simulate(

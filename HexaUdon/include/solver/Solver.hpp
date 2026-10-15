@@ -12,7 +12,8 @@
 class AgentStrategy {
 public:
     static std::vector<int> decideAgentTypes(
-        const GameConfig& config, bool* useRegions = nullptr);
+        const GameConfig& config, bool* useRegions = nullptr,
+        long long simulationBudgetMs = 0);
 };
 
 /**
@@ -27,7 +28,11 @@ public:
  */
 class Solver {
 public:
-    std::vector<int> decideAgentTypes(const GameConfig& config);
+    explicit Solver(bool enableFleetRepair = true, bool mapStrategies = true)
+        : enableFleetRepair_(enableFleetRepair), mapStrategies_(mapStrategies) {}
+
+    std::vector<int> decideAgentTypes(
+        const GameConfig& config, long long simulationBudgetMs = 0);
 
     /**
      * @brief Main solver: tạo kế hoạch hành động cho tất cả xe trong 1 ngày.
@@ -85,6 +90,10 @@ private:
     bool hasPendingPlan_ = false;
     bool useRegions_ = false;
     bool enableTwoDayLookahead_ = true;
+    bool expandExactSplits_ = true;
+    bool enableFleetRepair_ = true;
+    bool mapStrategies_ = true;
+    bool useTimeBoundedPaths_ = false;
     std::set<int> claimedSpots_; // Exclusive daily reservations per upgrade_plan.md.
     int currentDay_ = -1;
 

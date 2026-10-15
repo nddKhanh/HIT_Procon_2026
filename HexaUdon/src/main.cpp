@@ -1,11 +1,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
-#include <cstdint>
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
+#include <algorithm>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -18,62 +14,19 @@
 #include "solver/ActionValidator.hpp"
 #include "api/GameApiClient.hpp"
 #include "api/LiveMatchGuard.hpp"
+#include "solver/MapStrategy.hpp"
 
 namespace {
+constexpr long long kLargeFormationSimulationMs = 57'000;
+constexpr long long kBoundedDaySolveMs = 57'000;
+// Soft search deadlines; keep time for validation and the answer request.
+constexpr long long kAnswerReserveMs = 3'000;
+
 long long currentEpochMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-void hashFormationValue(std::uint64_t& hash, long long value) {
-    for (int byte = 0; byte < 8; ++byte) {
-        hash ^= static_cast<unsigned char>(value >> (byte * 8));
-        hash *= 1099511628211ULL;
-    }
-}
-
-std::filesystem::path formationCachePath(const GameConfig& config) {
-    std::uint64_t hash = 1469598103934665603ULL;
-    hashFormationValue(hash, 3); // Formation policy/cache schema version.
-    hashFormationValue(hash, config.map.height);
-    hashFormationValue(hash, config.map.width);
-    hashFormationValue(hash, config.fuelLimit);
-    for (int value : config.daySteps) hashFormationValue(hash, value);
-    for (int value : config.initialAgentPositions) hashFormationValue(hash, value);
-    for (const auto& row : config.map.cells)
-        for (int value : row) hashFormationValue(hash, value);
-    for (const auto& spot : config.spots) {
-        hashFormationValue(hash, spot.brand);
-        hashFormationValue(hash, spot.pos);
-        hashFormationValue(hash, spot.stocks);
-    }
-    std::ostringstream name;
-    name << "formation_" << std::hex << hash << ".txt";
-    return std::filesystem::path("HexaUdon") / ".formation_cache" / name.str();
-}
-
-bool loadFormationCache(const GameConfig& config, std::vector<int>& types) {
-    std::ifstream input(formationCachePath(config));
-    size_t count = 0;
-    if (!(input >> count) || count != config.initialAgentPositions.size()) return false;
-    std::vector<int> loaded(count);
-    for (int& kind : loaded)
-        if (!(input >> kind) || (kind != 0 && kind != 1)) return false;
-    types = std::move(loaded);
-    return true;
-}
-
-void saveFormationCache(const GameConfig& config, const std::vector<int>& types) {
-    const auto path = formationCachePath(config);
-    std::error_code error;
-    std::filesystem::create_directories(path.parent_path(), error);
-    if (error) return;
-    std::ofstream output(path);
-    if (!output) return;
-    output << types.size();
-    for (int kind : types) output << ' ' << kind;
-    output << '\n';
-}
 }
 
 // =============================================================================
@@ -88,6 +41,7 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
     std::cout << "========================================================================\n";
     std::cout << "  HEXAUDON BOT v2.0 — CHE DO THI DAU (API MODE)\n";
     std::cout << "========================================================================\n";
+    std::cout << "  Build  : " << __DATE__ << " " << __TIME__ << " (search 57s)\n";
     std::cout << "  Server : " << serverUrl << "\n";
     std::cout << "  Match  : " << matchId << "\n";
     std::cout << "  Local  : " << (freshRun ? "FRESH (bo qua lich su local)" : "RESUME") << "\n";
@@ -103,6 +57,11 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         return 1;
     }
     std::cout << "  -> Ban do: " << config.map.width << "x" << config.map.height << "\n";
+    const auto strategy = MapStrategy::select(config);
+    std::cout << "  -> Chien thuat: " << strategy.name
+              << "; brands=" << strategy.brands << "; daily ceiling=" << strategy.dailyCeiling
+              << "; fuel tight=" << (strategy.fuelTight ? "yes" : "no")
+              << "; repair budget=" << strategy.repairMs << "ms\n";
     std::cout << "  -> So xe: " << config.initialAgentPositions.size() << "\n";
     std::cout << "  -> So spot: " << config.spots.size() << "\n";
     std::cout << "  -> So ngay: " << config.daySteps.size() << "\n";
@@ -132,13 +91,14 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
     }
     // --- Step 2: Submit agent types ---
     std::vector<int> agentTypes;
-    if (!freshRun && loadFormationCache(config, agentTypes)) {
-        std::cout << "[2/4] Da nap doi hinh tu cache (khong can mo phong lai).\n";
+    if (LiveMatchGuard::hasLiveStatus(selectionState, totalDays)) {
+        std::cout << "[2/4] Tran da Start: dung doi hinh server, vao vong dau ngay.\n";
+        for (const auto& agent : selectionState.agents) agentTypes.push_back(agent.kind);
     } else {
-        std::cout << "[2/4] CHUAN BI TRUOC START: dang tinh lua chon loai xe"
+        std::cout << "[2/4] CHUAN BI TRUOC START: tim doi hinh trong ngan sach;"
+                  << " gioi han tim kiem 57 giay"
                   << " (chua gui action)...\n";
-        agentTypes = solver.decideAgentTypes(config);
-        if (!freshRun) saveFormationCache(config, agentTypes);
+        agentTypes = solver.decideAgentTypes(config, kLargeFormationSimulationMs);
     }
     std::cout << "  -> Loai xe: [";
     for (size_t i = 0; i < agentTypes.size(); ++i) {
@@ -187,6 +147,7 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
     }
     int retryCount = 0;
     int newDayPollCount = 0;
+    long long nextWaitLogMs = 0;
     const int MAX_RETRIES = 300;
     const int POLL_MS = 100;
     const int ERROR_RETRY_MS = 500;
@@ -217,6 +178,12 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         // A submitted day may remain "running" with an expired endsAt until
         // Next Day. Do not run deadline checks or fetch lifecycle twice here.
         if (state.day <= lastDay) {
+            const auto now = currentEpochMs();
+            if (now >= nextWaitLogMs) {
+                std::cout << "  [Cho server] Da nop ngay " << lastDay + 1
+                          << "; dang cho Next Day, khong mo phong.\n" << std::flush;
+                nextWaitLogMs = now + 5000;
+            }
             Sleep(POLL_MS);
             continue;
         }
@@ -261,14 +228,29 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         }
 
         // Solve
+        map.updateTraffic(state.traffics);
         auto solveStarted = std::chrono::steady_clock::now();
-        auto actions = solver.solve(config, state, map);
+        GameState planningState = state;
+        bool usedFallback = false;
+        // Every map shares the live planning cap and submission reserve.
+        {
+            const auto now = currentEpochMs();
+            if (state.endsAt * 1000LL - now <= kAnswerReserveMs) {
+                usedFallback = true;
+            } else {
+                // Keep the original snapshot for the day/revision check below.
+                planningState.endsAt = std::min(state.endsAt - kAnswerReserveMs / 1000,
+                    (now + kBoundedDaySolveMs + 750) / 1000);
+            }
+            std::cout << "  -> Ngan sach solver: toi da 57 giay; dung som theo endsAt, du phong nop bai 3 giay.\n";
+        }
+        auto actions = usedFallback ? solver.createFallbackActions(config, state)
+                                    : solver.solve(config, planningState, map);
         auto solveMs = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - solveStarted).count();
         auto remainingMs = state.endsAt * 1000LL - currentEpochMs();
         std::cout << "  -> Solver: " << solveMs << " ms, con "
                   << remainingMs << " ms truoc deadline\n";
-        bool usedFallback = false;
 
         // Sanity check: actions must not be empty
         if (actions.empty() || actions.size() != state.agents.size()) {
@@ -298,6 +280,7 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
 
         // The answer endpoint does not carry a day number. Never let a plan
         // computed from an old snapshot be accepted for a newer day.
+        std::cout << "  [API] Kiem tra ngay truoc khi nop...\n" << std::flush;
         GameState latest = api.getMatchStatus(matchId);
         if (!LiveMatchGuard::canSubmit(
                 "", state, latest, totalDays, currentEpochMs())) {
@@ -310,6 +293,7 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         }
 
         // Submit
+        std::cout << "  [API] Dang gui action...\n" << std::flush;
         if (api.submitActions(matchId, actions)) {
             std::cout << "  -> DA GUI THANH CONG!\n\n";
             if (usedFallback) solver.discardLastPlan();
@@ -358,12 +342,18 @@ int runStdinMode() {
     Map map(config.map.height, config.map.width, config.map.cells);
     Solver solver;
 
-    auto agentTypes = solver.decideAgentTypes(config);
+    auto agentTypes = solver.decideAgentTypes(config, kLargeFormationSimulationMs);
     JsonWriter::writeAgentTypes(agentTypes);
 
     for (size_t day = 0; day < config.daySteps.size(); ++day) {
         GameState state = JsonReader::readGameState();
-        auto actions = solver.solve(config, state, map);
+        GameState planningState = state;
+        const auto now = currentEpochMs();
+        // Local/replayed states can have stale epochs: still bound the CPU work.
+        const auto localEnd = (now + kBoundedDaySolveMs + 750) / 1000;
+        planningState.endsAt = state.endsAt * 1000LL > now
+            ? std::min(state.endsAt, localEnd) : localEnd;
+        auto actions = solver.solve(config, planningState, map);
         bool usedFallback = false;
 
         if (!ActionValidator::validate(config, state, actions, map)) {
@@ -385,6 +375,7 @@ int runStdinMode() {
 // =============================================================================
 void printUsage(const char* prog) {
     std::cout << "HexaUdon Bot v2.0 — Procon 2026\n\n";
+    std::cout << "Build: " << __DATE__ << " " << __TIME__ << " | search budget: 57s\n";
     std::cout << "Cach dung:\n\n";
     std::cout << "  CHE DO THI DAU (ket noi server):\n";
     std::cout << "    " << prog << " --server URL --token TOKEN --match MATCH_ID [--fresh]\n\n";
