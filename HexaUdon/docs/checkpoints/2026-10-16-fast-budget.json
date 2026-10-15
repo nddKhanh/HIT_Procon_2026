@@ -1,0 +1,117 @@
+[
+  {
+    "size": 24,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 9940.2744,
+        "serving": 22
+      },
+      {
+        "daily": 17,
+        "missing": [
+          17
+        ],
+        "ms": 9690.6646,
+        "serving": 20
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 10135.0775,
+        "serving": 23
+      },
+      {
+        "daily": 15,
+        "missing": [
+          0,
+          1,
+          10
+        ],
+        "ms": 9978.737,
+        "serving": 15
+      },
+      {
+        "daily": 15,
+        "missing": [
+          3,
+          9,
+          12
+        ],
+        "ms": 9921.1625,
+        "serving": 17
+      }
+    ],
+    "profile": "regional-repair",
+    "score": [
+      18,
+      83,
+      97
+    ],
+    "supplyIndex": 4,
+    "traffic": "neutral"
+  },
+  {
+    "size": 32,
+    "days": [
+      {
+        "daily": 23,
+        "missing": [
+          22
+        ],
+        "ms": 10201.5857,
+        "serving": 25
+      },
+      {
+        "daily": 23,
+        "missing": [
+          7
+        ],
+        "ms": 9970.6609,
+        "serving": 26
+      },
+      {
+        "daily": 18,
+        "missing": [
+          3,
+          6,
+          7,
+          17,
+          19,
+          21
+        ],
+        "ms": 10024.5089,
+        "serving": 20
+      },
+      {
+        "daily": 17,
+        "missing": [
+          7,
+          12,
+          14,
+          16,
+          19,
+          21,
+          22
+        ],
+        "ms": 10263.9599,
+        "serving": 19
+      },
+      {
+        "daily": 24,
+        "missing": [],
+        "ms": 9818.6662,
+        "serving": 33
+      }
+    ],
+    "profile": "large-bounded",
+    "score": [
+      24,
+      105,
+      123
+    ],
+    "supplyIndex": 6,
+    "traffic": "neutral"
+  }
+]

@@ -59,6 +59,25 @@ void test_live_match_start_and_snapshot_guards() {
     std::cout << "[PASS] Live start, deadline and stale-snapshot guards passed!" << std::endl;
 }
 
+void test_expired_live_solver_deadline() {
+    GameConfig config{};
+    config.map = {1, 3, {{0, 0, 0}}};
+    config.daySteps = {6};
+    config.fuelLimit = 10;
+    config.spots = {{1, 2, 1}};
+    GameState state{};
+    state.agents = {{0, 0, 10}};
+    const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    state.endsAt = now; // Live deadline already closed, even for the base plan.
+    Map map(1, 3, config.map.cells);
+    Solver solver;
+    const auto expected = solver.createFallbackActions(config, state);
+    assert(solver.solve(config, state, map) == expected);
+    assert(ActionValidator::validate(config, state, expected, map));
+    std::cout << "[PASS] Expired live planning deadline avoids recursive search!\n";
+}
+
 // =============================================================================
 // Test 1: Map basics and hex geometry
 // =============================================================================
@@ -1117,6 +1136,29 @@ void test_day_steps_are_per_day() {
     std::cout << "[PASS] Per-day step counts test passed!" << std::endl;
 }
 
+void test_formation_shares_deadline() {
+    GameConfig config{};
+    config.players = 10;
+    config.map = {24, 24, std::vector<std::vector<int>>(24, std::vector<int>(24, 0))};
+    config.initialAgentPositions = {0, 23, 276, 552, 575};
+    config.daySteps = {48, 56, 68, 68, 72};
+    config.fuelLimit = 80;
+    for (int i = 0; i < 24; ++i) config.spots.push_back({i % 18, i * 23, 2});
+    std::ostringstream log;
+    auto* previousLog = std::cerr.rdbuf(log.rdbuf());
+    const auto start = std::chrono::steady_clock::now();
+    auto types = AgentStrategy::decideAgentTypes(config, nullptr, 1);
+    std::cerr.rdbuf(previousLog);
+    // An exhausted rollout must not be ranked as a completed zero-score fleet.
+    assert(log.str().find("score=0/0/0") == std::string::npos);
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - start).count();
+    assert(types.size() == config.initialAgentPositions.size());
+    for (int type : types) assert(type == 0 || type == 1);
+    assert(ms < 3000); // Allows setup/clock granularity, rejects unlimited nested solves.
+    std::cout << "[PASS] Formation shares its deadline with nested solves!\n";
+}
+
 void test_agent_strategy_simulates_supply_counts() {
     GameConfig config{};
     config.players = 2;
@@ -1389,19 +1431,23 @@ void test_spot_reward_paths() {
 
 void test_lookahead_scores_one_second_spot() {
     GameConfig config{};
+    config.players = 10; // Exercise both the two-stop baseline and reward search.
     config.map = {1, 9, {std::vector<int>(9)}};
     config.spots = {{0,0,1}, {1,1,1}, {2,2,1}, {3,3,1}};
     Map map(1, 9, config.map.cells);
-    std::vector<int> stock(4, 1), stepSpots;
-    std::vector<Position> stepPositions;
-    std::set<int> visited, brands, daily, claims;
-    int target = -1;
-    Position targetPosition;
-    PatrolPlanner::planDay(config, map, {4,0}, 8, 30, stock, visited,
-        brands, daily, target, targetPosition, stepSpots, stepPositions, claims);
-    // Best pair is 3 -> 2. Accumulating alternative seconds incorrectly picks 2.
-    assert(stepSpots.front() == 3);
-    assert(visited == std::set<int>({0,1,2,3}));
+    for (bool rewardRoutes : {false, true}) {
+        std::vector<int> stock(4, 1), stepSpots;
+        std::vector<Position> stepPositions;
+        std::set<int> visited, brands, daily, claims;
+        int target = -1;
+        Position targetPosition;
+        PatrolPlanner::planDay(config, map, {4,0}, 8, 30, stock, visited,
+            brands, daily, target, targetPosition, stepSpots, stepPositions, claims,
+            true, false, nullptr, -2, {}, rewardRoutes);
+        // Best pair is 3 -> 2. Accumulating alternative seconds incorrectly picks 2.
+        assert(stepSpots.front() == 3);
+        assert(visited == std::set<int>({0,1,2,3}));
+    }
     std::cout << "[PASS] Lookahead compares alternatives without accumulating them!" << std::endl;
 }
 
@@ -1438,7 +1484,147 @@ void test_adaptive_fleet_repair() {
     std::cout << "[PASS] Adaptive fleet repair: scarce brands, refueling, stock and deadlines!\n";
 }
 
+#include "solver/MapStrategy.hpp"
+void test_map_strategy_selection() {
+    GameConfig config{};
+    config.map.width = config.map.height = 16;
+    config.daySteps = {32,36,40,40,48};
+    config.fuelLimit = 40;
+    config.initialAgentPositions.resize(4);
+    for (int i = 0; i < 16; ++i) config.spots.push_back({i % 12, i, 1});
+    auto small = MapStrategy::select(config);
+    assert(small.exactRoutes && small.brands == 12 && small.dailyCeiling == 60);
+    assert(!small.preferStartCoverage);
+    config.map.width = 24;
+    auto medium = MapStrategy::select(config);
+    assert(!medium.exactRoutes && medium.repairMs == 900);
+    assert(medium.preferStartCoverage);
+    config.map.height = 32; // Rectangles use the longer side.
+    auto large = MapStrategy::select(config);
+    assert(!large.exactRoutes && large.coverageOrderLimit == 16 && large.repairMs == 600);
+    assert(!large.preferStartCoverage);
+    config.fuelLimit = 12;
+    assert(MapStrategy::select(config).fuelTight && MapStrategy::select(config).repairMs == 1200);
+    config.map.width = config.map.height = 8;
+    config.initialAgentPositions.resize(8);
+    assert(!MapStrategy::select(config).exactRoutes); // Small geometry, large team.
+    std::cout << "[PASS] Map strategies use dimensions, workload and fuel budget!\n";
+}
+
+void test_route_insertion_preserves_future_resources() {
+    GameConfig config{};
+    config.map = {1, 4, {{0,0,0,0}}};
+    config.daySteps = {12,12};
+    config.fuelLimit = 10;
+    config.spots = {{7,2,1}};
+    GameState state{};
+    state.agents = {{0,0,0}, {1,0,10}};
+    Map map(1,4,config.map.cells);
+    std::vector<std::vector<int>> actions{{-12},{-12}};
+    auto original = actions;
+    PatrolPlanner::improveRoutes(config,state,map,actions,{},0);
+    assert(actions == original);
+    PatrolPlanner::improveRoutes(config,state,map,actions,{});
+    auto result = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(result.valid && result.brands.count(7));
+    assert(result.agents[0].pos == 0 && result.agents[0].fuel == 10);
+    assert(result.collections.size() == 1);
+
+    state.agents = {{0,0,10}};
+    actions = {{-12}};
+    original = actions;
+    PatrolPlanner::improveRoutes(config,state,map,actions,{});
+    assert(actions == original); // No extra serving at the cost of tomorrow's fuel.
+
+    config.daySteps = {4};
+    actions = {{-4}};
+    PatrolPlanner::improveRoutes(config,state,map,actions,{});
+    result = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(result.valid && result.brands.count(7) && result.agents[0].pos == 2);
+    assert(result.agents[0].fuel == 8); // Final day may spend the remaining fuel.
+    std::cout << "[PASS] Route insertion preserves future resources and spends them on the last day!\n";
+}
+
+void test_final_day_suffix_rebuild() {
+    GameConfig config{};
+    config.map = {1, 7, {std::vector<int>(7, 0)}};
+    config.daySteps = {6};
+    config.fuelLimit = 10;
+    config.spots = {{7,0,1}, {8,1,1}, {9,3,1}, {9,6,1}};
+    GameState state{};
+    state.agents = {{0,3,10}};
+    Map map(1,7,config.map.cells);
+    auto oldRoute = PathFinder::findPath(map.posToCoordinate(3),
+        map.posToCoordinate(6), map, 10).directions;
+    std::vector<std::vector<int>> actions{oldRoute};
+    auto before = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(before.valid && before.brands.size() == 1);
+    PatrolPlanner::improveRoutes(config,state,map,actions,{});
+    auto after = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(after.valid && after.brands == std::set<int>({7,8,9}));
+    assert(after.collections.size() == 3);
+    // Neither a zero budget nor a pre-final day may spend the future fuel.
+    actions = {oldRoute};
+    PatrolPlanner::improveRoutes(config,state,map,actions,{},LLONG_MAX,0);
+    assert(actions[0] == oldRoute);
+    config.daySteps.push_back(6);
+    PatrolPlanner::improveRoutes(config,state,map,actions,{});
+    assert(actions[0] == oldRoute);
+    std::cout << "[PASS] Final-day suffix rebuild replaces duplicate visits with missing brands!\n";
+}
+
+void test_long_daily_bridge_preserves_next_day() {
+    GameConfig config{};
+    config.map = {1, 21, {std::vector<int>(21, 0)}};
+    config.daySteps = {60,60};
+    config.fuelLimit = 40;
+    config.spots = {{0,10,1}, {1,20,1}};
+    GameState state{};
+    state.agents = {{0,0,40}};
+    Map map(1,21,config.map.cells);
+    std::vector<int> route;
+    for (auto leg : {std::make_pair(0,10), std::make_pair(10,0), std::make_pair(0,10)}) {
+        auto path = PathFinder::findPath(map.posToCoordinate(leg.first),
+            map.posToCoordinate(leg.second),map);
+        route.insert(route.end(),path.directions.begin(),path.directions.end());
+    }
+    std::vector<std::vector<int>> actions{route};
+    auto before = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(before.valid && before.brands.size() == 1);
+    PatrolPlanner::improveRoutes(config,state,map,actions,{});
+    auto after = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(after.valid && after.brands.size() == 2);
+    assert(after.agents[0].pos == before.agents[0].pos);
+    assert(after.agents[0].fuel >= before.agents[0].fuel);
+    // The same continuation remains feasible on the following day.
+    state.day = 1;
+    state.agents = after.agents;
+    auto tomorrow = MoveSimulator::simulateDay(config,state,{{-60}},map);
+    assert(tomorrow.valid && tomorrow.brands.count(0));
+    std::cout << "[PASS] Long bridge gains Daily without spending tomorrow's position or fuel!\n";
+}
+
+void test_reward_detour_lower_bound() {
+    Map map(1,7,{{0,0,0,0,0,0,0}});
+    PathCache cache(map);
+    std::vector<double> rewards(7,0.0);
+    rewards[0] = 1.25;
+    auto direct = PathFinder::findPath({3,0},{6,0},map,20,1.0);
+    auto result = PathFinder::findPathViaSpots({3,0},{6,0},map,
+        20,20,rewards,&cache,true,1.0);
+    assert(result.found && result.directions == direct.directions);
+    assert(result.totalSteps == direct.totalSteps && result.totalFuel == direct.totalFuel);
+    assert(cache.size() == 1); // The opposite-direction waypoint cannot fit the reward cap.
+    std::cout << "[PASS] Impossible reward detour skips an unnecessary Pareto tree!\n";
+}
+
 int main() {
+    test_reward_detour_lower_bound();
+    test_long_daily_bridge_preserves_next_day();
+    test_expired_live_solver_deadline();
+    test_final_day_suffix_rebuild();
+    test_route_insertion_preserves_future_resources();
+    test_map_strategy_selection();
     test_adaptive_fleet_repair();
     test_path_respects_time_and_fuel_together();
     test_live_match_start_and_snapshot_guards();
@@ -1448,6 +1634,7 @@ int main() {
     test_simulator_step_boundaries();
     test_diary_uses_canonical_simulation();
     test_day_steps_are_per_day();
+    test_formation_shares_deadline();
     test_agent_strategy_simulates_supply_counts();
     test_patrol_region_is_a_soft_preference();
     test_joint_simulator();

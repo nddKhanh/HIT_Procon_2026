@@ -1,0 +1,342 @@
+{
+  "note": "Offline fixed one-Supply fleet, neutral traffic. Live-budget results depend on host throughput; 32x32 before/after ran sequentially in this session.",
+  "samples": [
+    {
+      "sample": "sample_16.json",
+      "sha256": "15ba3fd41ca8a69a2e22f707092d23f569ca75350524c2a0ecf956cedcaf823a",
+      "liveBudgetMs": 0,
+      "before": {
+        "days": [
+          {
+            "daily": 12,
+            "ms": 485.9509,
+            "serving": 14
+          },
+          {
+            "daily": 11,
+            "ms": 2228.9996,
+            "serving": 12
+          },
+          {
+            "daily": 10,
+            "ms": 5732.2533,
+            "serving": 10
+          },
+          {
+            "daily": 11,
+            "ms": 3680.1955,
+            "serving": 11
+          },
+          {
+            "daily": 12,
+            "ms": 3718.5892,
+            "serving": 15
+          }
+        ],
+        "profile": "compact-exact",
+        "score": [
+          12,
+          56,
+          62
+        ],
+        "supplyIndex": 2,
+        "traffic": "neutral"
+      },
+      "after": {
+        "days": [
+          {
+            "daily": 12,
+            "missing": [],
+            "ms": 424.8071,
+            "serving": 14
+          },
+          {
+            "daily": 11,
+            "missing": [
+              10
+            ],
+            "ms": 2187.9092,
+            "serving": 12
+          },
+          {
+            "daily": 10,
+            "missing": [
+              4,
+              10
+            ],
+            "ms": 9881.2032,
+            "serving": 10
+          },
+          {
+            "daily": 11,
+            "missing": [
+              10
+            ],
+            "ms": 7938.1538,
+            "serving": 11
+          },
+          {
+            "daily": 12,
+            "missing": [],
+            "ms": 10728.3428,
+            "serving": 15
+          }
+        ],
+        "profile": "compact-exact",
+        "score": [
+          12,
+          56,
+          62
+        ],
+        "supplyIndex": 2,
+        "traffic": "neutral"
+      }
+    },
+    {
+      "sample": "sample_24.json",
+      "sha256": "4081cbca170ad09e291015c10b76224bc0d960b4bc3baa72d9d96752c112d9a5",
+      "liveBudgetMs": 0,
+      "before": {
+        "days": [
+          {
+            "daily": 18,
+            "ms": 9563.9567,
+            "serving": 22
+          },
+          {
+            "daily": 17,
+            "ms": 7860.2309,
+            "serving": 20
+          },
+          {
+            "daily": 18,
+            "ms": 8470.9919,
+            "serving": 24
+          },
+          {
+            "daily": 17,
+            "ms": 13621.242,
+            "serving": 19
+          },
+          {
+            "daily": 17,
+            "ms": 8951.6915,
+            "serving": 21
+          }
+        ],
+        "profile": "regional-repair",
+        "score": [
+          18,
+          87,
+          106
+        ],
+        "supplyIndex": 4,
+        "traffic": "neutral"
+      },
+      "after": {
+        "days": [
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 20250.2542,
+            "serving": 22
+          },
+          {
+            "daily": 17,
+            "missing": [
+              17
+            ],
+            "ms": 17017.236,
+            "serving": 20
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 22839.6054,
+            "serving": 25
+          },
+          {
+            "daily": 17,
+            "missing": [
+              17
+            ],
+            "ms": 31232.1917,
+            "serving": 22
+          },
+          {
+            "daily": 17,
+            "missing": [
+              1
+            ],
+            "ms": 22085.5462,
+            "serving": 21
+          }
+        ],
+        "profile": "regional-repair",
+        "score": [
+          18,
+          87,
+          110
+        ],
+        "supplyIndex": 4,
+        "traffic": "neutral"
+      }
+    },
+    {
+      "sample": "sample_32.json",
+      "sha256": "3293a63681f7f248d39013bab903619968ba7832c0a5368162c508d5ec7fadaa",
+      "liveBudgetMs": 20000,
+      "before": {
+        "days": [
+          {
+            "daily": 23,
+            "ms": 19603.4725,
+            "serving": 29
+          },
+          {
+            "daily": 21,
+            "ms": 19896.401,
+            "serving": 24
+          },
+          {
+            "daily": 20,
+            "ms": 19966.7712,
+            "serving": 20
+          },
+          {
+            "daily": 22,
+            "ms": 19990.8739,
+            "serving": 24
+          },
+          {
+            "daily": 20,
+            "ms": 20057.8167,
+            "serving": 23
+          }
+        ],
+        "profile": "large-bounded",
+        "score": [
+          24,
+          106,
+          120
+        ],
+        "supplyIndex": 6,
+        "traffic": "neutral"
+      },
+      "after": {
+        "days": [
+          {
+            "daily": 23,
+            "missing": [
+              19
+            ],
+            "ms": 20158.2599,
+            "serving": 29
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 19876.8935,
+            "serving": 30
+          },
+          {
+            "daily": 21,
+            "missing": [
+              6,
+              7,
+              17
+            ],
+            "ms": 19774.6627,
+            "serving": 22
+          },
+          {
+            "daily": 20,
+            "missing": [
+              7,
+              8,
+              10,
+              17
+            ],
+            "ms": 20086.0458,
+            "serving": 22
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 19949.6795,
+            "serving": 40
+          }
+        ],
+        "profile": "large-bounded",
+        "score": [
+          24,
+          112,
+          143
+        ],
+        "supplyIndex": 6,
+        "traffic": "neutral"
+      }
+    }
+  ],
+  "coverage": {
+    "cases": 16,
+    "daily": 1012,
+    "serving": 1624,
+    "regressions": []
+  },
+  "dynamicSmoke": {
+    "days": [
+      {
+        "daily": 12,
+        "missing": [],
+        "ms": 431.5416,
+        "serving": 14
+      },
+      {
+        "daily": 10,
+        "missing": [
+          9,
+          10
+        ],
+        "ms": 1270.8742,
+        "serving": 12
+      },
+      {
+        "daily": 10,
+        "missing": [
+          9,
+          10
+        ],
+        "ms": 2605.1761,
+        "serving": 10
+      },
+      {
+        "daily": 11,
+        "missing": [
+          9
+        ],
+        "ms": 3245.9132,
+        "serving": 11
+      },
+      {
+        "daily": 8,
+        "missing": [
+          6,
+          7,
+          9,
+          11
+        ],
+        "ms": 4882.7303,
+        "serving": 11
+      }
+    ],
+    "profile": "compact-exact",
+    "score": [
+      12,
+      51,
+      58
+    ],
+    "supplyIndex": 2,
+    "traffic": "mirrored-dynamic"
+  }
+}

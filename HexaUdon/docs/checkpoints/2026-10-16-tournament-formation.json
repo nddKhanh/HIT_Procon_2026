@@ -1,0 +1,416 @@
+{
+  "method": "Auto formation 57000ms; live daily budget 57000ms; neutral traffic; sample configs unchanged; scores are timing-sensitive",
+  "samples": [
+    {
+      "size": 16,
+      "before": {
+        "autoFormation": true,
+        "days": [
+          {
+            "daily": 12,
+            "missing": [],
+            "ms": 1332.0963,
+            "serving": 13
+          },
+          {
+            "daily": 10,
+            "missing": [
+              8,
+              10
+            ],
+            "ms": 6932.3198,
+            "serving": 12
+          },
+          {
+            "daily": 11,
+            "missing": [
+              11
+            ],
+            "ms": 6172.5332,
+            "serving": 13
+          },
+          {
+            "daily": 10,
+            "missing": [
+              9,
+              10
+            ],
+            "ms": 8469.7039,
+            "serving": 10
+          },
+          {
+            "daily": 11,
+            "missing": [
+              9
+            ],
+            "ms": 11552.7113,
+            "serving": 17
+          }
+        ],
+        "formationMs": 56042.7323,
+        "profile": "compact-exact",
+        "score": [
+          12,
+          54,
+          65
+        ],
+        "supplyIndex": 3,
+        "traffic": "neutral",
+        "types": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "candidate": {
+        "autoFormation": true,
+        "days": [
+          {
+            "daily": 12,
+            "missing": [],
+            "ms": 1219.6922,
+            "serving": 14
+          },
+          {
+            "daily": 11,
+            "missing": [
+              10
+            ],
+            "ms": 5498.5081,
+            "serving": 12
+          },
+          {
+            "daily": 10,
+            "missing": [
+              4,
+              10
+            ],
+            "ms": 5300.0176,
+            "serving": 10
+          },
+          {
+            "daily": 11,
+            "missing": [
+              10
+            ],
+            "ms": 3264.1685,
+            "serving": 11
+          },
+          {
+            "daily": 12,
+            "missing": [],
+            "ms": 3203.0146,
+            "serving": 15
+          }
+        ],
+        "formationMs": 56581.0931,
+        "profile": "compact-exact",
+        "score": [
+          12,
+          56,
+          62
+        ],
+        "supplyIndex": -1,
+        "traffic": "neutral",
+        "types": [
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    {
+      "size": 24,
+      "before": {
+        "autoFormation": true,
+        "days": [
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 7901.1002,
+            "serving": 22
+          },
+          {
+            "daily": 17,
+            "missing": [
+              17
+            ],
+            "ms": 18112.8181,
+            "serving": 20
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 18993.4469,
+            "serving": 26
+          },
+          {
+            "daily": 16,
+            "missing": [
+              1,
+              10
+            ],
+            "ms": 29181.8521,
+            "serving": 20
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 25473.2833,
+            "serving": 24
+          }
+        ],
+        "formationMs": 56489.9462,
+        "profile": "regional-repair",
+        "score": [
+          18,
+          87,
+          112
+        ],
+        "supplyIndex": 4,
+        "traffic": "neutral",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "candidate": {
+        "autoFormation": true,
+        "days": [
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 11803.9687,
+            "serving": 22
+          },
+          {
+            "daily": 17,
+            "missing": [
+              17
+            ],
+            "ms": 19383.9181,
+            "serving": 20
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 16634.801,
+            "serving": 26
+          },
+          {
+            "daily": 16,
+            "missing": [
+              1,
+              10
+            ],
+            "ms": 11307.0911,
+            "serving": 20
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 14570.6374,
+            "serving": 24
+          }
+        ],
+        "formationMs": 56555.1888,
+        "profile": "regional-repair",
+        "score": [
+          18,
+          87,
+          112
+        ],
+        "supplyIndex": -1,
+        "traffic": "neutral",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "size": 32,
+      "before": {
+        "autoFormation": true,
+        "days": [
+          {
+            "daily": 22,
+            "missing": [
+              19,
+              22
+            ],
+            "ms": 31102.7739,
+            "serving": 24
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 23695.5223,
+            "serving": 31
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 10659.9253,
+            "serving": 30
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 30761.543,
+            "serving": 29
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 39300.2792,
+            "serving": 34
+          }
+        ],
+        "formationMs": 56773.6119,
+        "profile": "large-bounded",
+        "score": [
+          24,
+          118,
+          148
+        ],
+        "supplyIndex": 6,
+        "traffic": "neutral",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      "candidate": {
+        "autoFormation": true,
+        "days": [
+          {
+            "daily": 22,
+            "missing": [
+              19,
+              22
+            ],
+            "ms": 37657.1393,
+            "serving": 24
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 35991.8774,
+            "serving": 30
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 17865.3792,
+            "serving": 31
+          },
+          {
+            "daily": 22,
+            "missing": [
+              2,
+              8
+            ],
+            "ms": 35201.3649,
+            "serving": 23
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 26224.5211,
+            "serving": 31
+          }
+        ],
+        "formationMs": 56305.4771,
+        "profile": "large-bounded",
+        "score": [
+          24,
+          116,
+          139
+        ],
+        "supplyIndex": -1,
+        "traffic": "neutral",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "final32Repeat": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 23,
+        "missing": [
+          17
+        ],
+        "ms": 30908.101,
+        "serving": 25
+      },
+      {
+        "daily": 24,
+        "missing": [],
+        "ms": 33804.8963,
+        "serving": 28
+      },
+      {
+        "daily": 24,
+        "missing": [],
+        "ms": 31019.6687,
+        "serving": 29
+      },
+      {
+        "daily": 22,
+        "missing": [
+          2,
+          10
+        ],
+        "ms": 26689.9485,
+        "serving": 25
+      },
+      {
+        "daily": 24,
+        "missing": [],
+        "ms": 28469.4942,
+        "serving": 33
+      }
+    ],
+    "formationMs": 57045.468,
+    "profile": "large-bounded",
+    "score": [
+      24,
+      117,
+      140
+    ],
+    "supplyIndex": -1,
+    "traffic": "neutral",
+    "types": [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      1
+    ]
+  }
+}

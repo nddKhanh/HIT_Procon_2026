@@ -239,18 +239,19 @@ const SSSPResult& PathCache::get(Position source, int maxFuel, double fuelWeight
 }
 
 PathResult PathFinder::findPathViaSpots(Position start, Position goal, const Map& map,
-    int maxFuel, int maxSteps, const std::vector<double>& rewards, PathCache* cache, bool timeBounded) {
+    int maxFuel, int maxSteps, const std::vector<double>& rewards, PathCache* cache, bool timeBounded, double fuelWeight) {
     PathCache localCache(map);
     auto& paths = cache ? *cache : localCache;
     const int goalCell = map.coordinateToPos(goal);
-    const auto& fromStart = paths.get(start, maxFuel, 1.0);
+    const auto& fromStart = paths.get(start, maxFuel, fuelWeight);
     auto best = fromStart.extractPath(goalCell, timeBounded ? maxSteps : INT_MAX);
     if (!best.found) best = fromStart.extractPath(goalCell);
     // Preserve the existing partial, multi-day route when today's target is out of reach.
     if (!best.found || best.totalSteps > maxSteps || start == goal) return best;
-    const int baseCost = best.totalSteps + best.totalFuel;
-    // Route costs are integral. This permits at most one extra combined
-    // step+fuel unit, and only for a high-priority type reward above one.
+    const double baseCost = best.totalSteps + fuelWeight * best.totalFuel;
+    // Bound the extra weighted cost. At the default weight this permits one
+    // additional step+fuel unit for a high-priority type; weight zero is the
+    // final-day speed policy. Both physical budgets remain mandatory.
     constexpr double maxReward = 1.49;
     auto rank = [&](const PathResult& route) {
         auto pos = start;
@@ -264,7 +265,7 @@ PathResult PathFinder::findPathViaSpots(Position start, Position goal, const Map
             if (cell >= 0 && cell < static_cast<int>(rewards.size()) &&
                 collected.insert(cell).second) reward += rewards[cell];
         }
-        int cost = route.totalSteps + route.totalFuel;
+        double cost = route.totalSteps + fuelWeight * route.totalFuel;
         return std::make_tuple(cost - std::min(maxReward, reward), cost,
                                -reward, route.totalSteps, route.totalFuel);
     };
@@ -277,14 +278,25 @@ PathResult PathFinder::findPathViaSpots(Position start, Position goal, const Map
             cell == map.coordinateToPos(goal)) continue;
         auto first = fromStart.extractPath(cell, timeBounded ? maxSteps : INT_MAX);
         if (!first.found || first.totalSteps > maxSteps ||
-            first.totalSteps + first.totalFuel > baseCost + maxReward) continue;
-        auto second = paths.get(map.posToCoordinate(cell), maxFuel - first.totalFuel, 1.0)
+            first.totalSteps + fuelWeight * first.totalFuel > baseCost + maxReward) continue;
+        const auto waypoint = map.posToCoordinate(cell);
+        // Every hex move changes each coordinate by at most one and consumes
+        // at least one step and one fuel. Reject impossible detours before
+        // building another Pareto tree; this bound never removes a feasible
+        // candidate within the existing reward cap (including on jammed roads).
+        const int minMoves = std::max(std::abs(waypoint.x - goal.x),
+                                      std::abs(waypoint.y - goal.y));
+        if (first.totalSteps + minMoves > maxSteps ||
+            first.totalFuel + minMoves > maxFuel ||
+            (fuelWeight >= 0 && first.totalSteps + fuelWeight * first.totalFuel +
+                minMoves * (1.0 + fuelWeight) > baseCost + maxReward)) continue;
+        auto second = paths.get(waypoint, maxFuel - first.totalFuel, fuelWeight)
                           .extractPath(goalCell, timeBounded ? maxSteps - first.totalSteps : INT_MAX);
         if (!second.found) continue;
         first.totalSteps += second.totalSteps;
         first.totalFuel += second.totalFuel;
         if (first.totalSteps > maxSteps || first.totalFuel > maxFuel ||
-            first.totalSteps + first.totalFuel > baseCost + maxReward) continue;
+            first.totalSteps + fuelWeight * first.totalFuel > baseCost + maxReward) continue;
         first.directions.insert(first.directions.end(), second.directions.begin(), second.directions.end());
         auto candidateRank = rank(first);
         if (candidateRank < bestRank) {

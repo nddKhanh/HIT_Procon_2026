@@ -28,7 +28,8 @@ public:
  */
 class Solver {
 public:
-    explicit Solver(bool enableFleetRepair = true) : enableFleetRepair_(enableFleetRepair) {}
+    explicit Solver(bool enableFleetRepair = true, bool mapStrategies = true)
+        : enableFleetRepair_(enableFleetRepair), mapStrategies_(mapStrategies) {}
 
     std::vector<int> decideAgentTypes(
         const GameConfig& config, long long simulationBudgetMs = 0);
@@ -91,6 +92,7 @@ private:
     bool enableTwoDayLookahead_ = true;
     bool expandExactSplits_ = true;
     bool enableFleetRepair_ = true;
+    bool mapStrategies_ = true;
     bool useTimeBoundedPaths_ = false;
     std::set<int> claimedSpots_; // Exclusive daily reservations per upgrade_plan.md.
     int currentDay_ = -1;

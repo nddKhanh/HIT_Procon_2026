@@ -1,0 +1,236 @@
+[
+  {
+    "sample": "sample_16.json",
+    "sha256": "15ba3fd41ca8a69a2e22f707092d23f569ca75350524c2a0ecf956cedcaf823a",
+    "before": {
+      "days": [
+        {
+          "daily": 12,
+          "ms": 445.1623,
+          "serving": 14
+        },
+        {
+          "daily": 11,
+          "ms": 2308.5688,
+          "serving": 12
+        },
+        {
+          "daily": 10,
+          "ms": 6181.006,
+          "serving": 10
+        },
+        {
+          "daily": 11,
+          "ms": 3892.5533,
+          "serving": 11
+        },
+        {
+          "daily": 12,
+          "ms": 1906.4101,
+          "serving": 14
+        }
+      ],
+      "profile": "compact-exact",
+      "score": [
+        12,
+        56,
+        61
+      ],
+      "supplyIndex": 2,
+      "traffic": "neutral"
+    },
+    "after": {
+      "days": [
+        {
+          "daily": 12,
+          "ms": 488.3006,
+          "serving": 14
+        },
+        {
+          "daily": 11,
+          "ms": 2493.4656,
+          "serving": 12
+        },
+        {
+          "daily": 10,
+          "ms": 12178.7517,
+          "serving": 10
+        },
+        {
+          "daily": 11,
+          "ms": 9317.5973,
+          "serving": 11
+        },
+        {
+          "daily": 12,
+          "ms": 10488.7795,
+          "serving": 15
+        }
+      ],
+      "profile": "compact-exact",
+      "score": [
+        12,
+        56,
+        62
+      ],
+      "supplyIndex": 2,
+      "traffic": "neutral"
+    }
+  },
+  {
+    "sample": "sample_24.json",
+    "sha256": "4081cbca170ad09e291015c10b76224bc0d960b4bc3baa72d9d96752c112d9a5",
+    "before": {
+      "days": [
+        {
+          "daily": 18,
+          "ms": 10174.2671,
+          "serving": 22
+        },
+        {
+          "daily": 17,
+          "ms": 9815.1459,
+          "serving": 20
+        },
+        {
+          "daily": 18,
+          "ms": 9020.5384,
+          "serving": 26
+        },
+        {
+          "daily": 15,
+          "ms": 13264.7896,
+          "serving": 17
+        },
+        {
+          "daily": 16,
+          "ms": 15788.3153,
+          "serving": 20
+        }
+      ],
+      "profile": "regional-repair",
+      "score": [
+        18,
+        84,
+        105
+      ],
+      "supplyIndex": 4,
+      "traffic": "neutral"
+    },
+    "after": {
+      "days": [
+        {
+          "daily": 18,
+          "ms": 22961.7821,
+          "serving": 22
+        },
+        {
+          "daily": 17,
+          "ms": 24387.8787,
+          "serving": 20
+        },
+        {
+          "daily": 18,
+          "ms": 25090.8057,
+          "serving": 26
+        },
+        {
+          "daily": 16,
+          "ms": 31580.8708,
+          "serving": 17
+        },
+        {
+          "daily": 17,
+          "ms": 24003.1986,
+          "serving": 22
+        }
+      ],
+      "profile": "regional-repair",
+      "score": [
+        18,
+        86,
+        107
+      ],
+      "supplyIndex": 4,
+      "traffic": "neutral"
+    }
+  },
+  {
+    "sample": "sample_32.json",
+    "sha256": "3293a63681f7f248d39013bab903619968ba7832c0a5368162c508d5ec7fadaa",
+    "before": {
+      "days": [
+        {
+          "daily": 24,
+          "ms": 22984.584,
+          "serving": 31
+        },
+        {
+          "daily": 24,
+          "ms": 21714.5477,
+          "serving": 28
+        },
+        {
+          "daily": 21,
+          "ms": 20076.2595,
+          "serving": 23
+        },
+        {
+          "daily": 23,
+          "ms": 21082.8972,
+          "serving": 28
+        },
+        {
+          "daily": 22,
+          "ms": 19810.5089,
+          "serving": 25
+        }
+      ],
+      "profile": "large-bounded",
+      "score": [
+        24,
+        114,
+        135
+      ],
+      "supplyIndex": 6,
+      "traffic": "neutral"
+    },
+    "after": {
+      "days": [
+        {
+          "daily": 24,
+          "ms": 39305.2689,
+          "serving": 31
+        },
+        {
+          "daily": 24,
+          "ms": 22452.32,
+          "serving": 28
+        },
+        {
+          "daily": 21,
+          "ms": 21367.497,
+          "serving": 23
+        },
+        {
+          "daily": 23,
+          "ms": 22343.9803,
+          "serving": 28
+        },
+        {
+          "daily": 22,
+          "ms": 19338.2833,
+          "serving": 27
+        }
+      ],
+      "profile": "large-bounded",
+      "score": [
+        24,
+        114,
+        137
+      ],
+      "supplyIndex": 6,
+      "traffic": "neutral"
+    }
+  }
+]

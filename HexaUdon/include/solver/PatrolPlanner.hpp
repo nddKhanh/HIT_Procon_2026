@@ -14,6 +14,12 @@
  */
 class PatrolPlanner {
 public:
+    // Insert collectible waypoints into existing routes using their spare wait.
+    // Preserve future endpoints/fuel; on the final day spend remaining resources.
+    static void improveRoutes(const GameConfig& config, const GameState& state,
+        const Map& map, std::vector<std::vector<int>>& actions,
+        const std::set<int>& matchBrands, long long deadlineMs = LLONG_MAX,
+        int budgetMs = 600);
     /**
      * @brief Lập kế hoạch chuỗi Spot cho 1 xe Patrol trong 1 ngày.
      *
@@ -55,6 +61,7 @@ public:
         int firstTargetSpot = -2,
         const std::set<int>& preferredSpots = {},
         bool rewardRoutes = true,
-        bool timeBoundedPaths = false
+        bool timeBoundedPaths = false,
+        double fuelWeight = 1.0
     );
 };

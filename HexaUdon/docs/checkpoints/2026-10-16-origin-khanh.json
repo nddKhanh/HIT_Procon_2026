@@ -1,0 +1,245 @@
+{
+  "reference": "origin/khanh",
+  "referenceCommit": "a41b875196304f77f75cc15a5c83ab71069a1a2e",
+  "target": "Quan",
+  "method": "Fixed one-Supply fleet, neutral traffic, common Quan simulator, approximately 20 seconds per solve; no formation or live server comparison",
+  "samples": [
+    {
+      "size": 16,
+      "originKhanh": {
+        "sample": "sample_16.json",
+        "supplyIndex": 2,
+        "traffic": "neutral",
+        "budgetMs": 20000,
+        "score": [
+          12,
+          50,
+          62
+        ],
+        "days": [
+          {
+            "daily": 12,
+            "serving": 14,
+            "ms": 296.373
+          },
+          {
+            "daily": 9,
+            "serving": 11,
+            "ms": 818.0394
+          },
+          {
+            "daily": 10,
+            "serving": 13,
+            "ms": 773.741
+          },
+          {
+            "daily": 9,
+            "serving": 9,
+            "ms": 625.925
+          },
+          {
+            "daily": 10,
+            "serving": 15,
+            "ms": 259.734
+          }
+        ]
+      },
+      "quan": {
+        "sample": "sample_16.json",
+        "supplyIndex": 2,
+        "traffic": "neutral",
+        "budgetMs": 20000,
+        "score": [
+          12,
+          56,
+          62
+        ],
+        "days": [
+          {
+            "daily": 12,
+            "serving": 14,
+            "ms": 389.0577
+          },
+          {
+            "daily": 11,
+            "serving": 12,
+            "ms": 2052.8262
+          },
+          {
+            "daily": 10,
+            "serving": 10,
+            "ms": 8632.4501
+          },
+          {
+            "daily": 11,
+            "serving": 11,
+            "ms": 7466.6527
+          },
+          {
+            "daily": 12,
+            "serving": 15,
+            "ms": 8741.9443
+          }
+        ]
+      }
+    },
+    {
+      "size": 24,
+      "originKhanh": {
+        "sample": "sample_24.json",
+        "supplyIndex": 4,
+        "traffic": "neutral",
+        "budgetMs": 20000,
+        "score": [
+          18,
+          84,
+          102
+        ],
+        "days": [
+          {
+            "daily": 18,
+            "serving": 22,
+            "ms": 10984.6444
+          },
+          {
+            "daily": 16,
+            "serving": 18,
+            "ms": 14438.3192
+          },
+          {
+            "daily": 16,
+            "serving": 20,
+            "ms": 4501.5023
+          },
+          {
+            "daily": 16,
+            "serving": 20,
+            "ms": 7574.8095
+          },
+          {
+            "daily": 18,
+            "serving": 22,
+            "ms": 4157.3305
+          }
+        ]
+      },
+      "quan": {
+        "sample": "sample_24.json",
+        "supplyIndex": 4,
+        "traffic": "neutral",
+        "budgetMs": 20000,
+        "score": [
+          18,
+          86,
+          106
+        ],
+        "days": [
+          {
+            "daily": 18,
+            "serving": 22,
+            "ms": 15473.4791
+          },
+          {
+            "daily": 17,
+            "serving": 20,
+            "ms": 17434.5171
+          },
+          {
+            "daily": 18,
+            "serving": 26,
+            "ms": 17115.3442
+          },
+          {
+            "daily": 16,
+            "serving": 19,
+            "ms": 19747.8727
+          },
+          {
+            "daily": 17,
+            "serving": 19,
+            "ms": 19967.1908
+          }
+        ]
+      }
+    },
+    {
+      "size": 32,
+      "originKhanh": {
+        "sample": "sample_32.json",
+        "supplyIndex": 6,
+        "traffic": "neutral",
+        "budgetMs": 20000,
+        "score": [
+          24,
+          104,
+          135
+        ],
+        "days": [
+          {
+            "daily": 22,
+            "serving": 32,
+            "ms": 20146.8117
+          },
+          {
+            "daily": 23,
+            "serving": 31,
+            "ms": 19919.9625
+          },
+          {
+            "daily": 18,
+            "serving": 22,
+            "ms": 19959.9441
+          },
+          {
+            "daily": 20,
+            "serving": 24,
+            "ms": 20037.4184
+          },
+          {
+            "daily": 21,
+            "serving": 26,
+            "ms": 16076.6034
+          }
+        ]
+      },
+      "quan": {
+        "sample": "sample_32.json",
+        "supplyIndex": 6,
+        "traffic": "neutral",
+        "budgetMs": 20000,
+        "score": [
+          24,
+          107,
+          135
+        ],
+        "days": [
+          {
+            "daily": 23,
+            "serving": 29,
+            "ms": 19947.7116
+          },
+          {
+            "daily": 24,
+            "serving": 30,
+            "ms": 20051.948
+          },
+          {
+            "daily": 21,
+            "serving": 23,
+            "ms": 19854.2009
+          },
+          {
+            "daily": 15,
+            "serving": 17,
+            "ms": 19894.8992
+          },
+          {
+            "daily": 24,
+            "serving": 36,
+            "ms": 20183.502
+          }
+        ]
+      }
+    }
+  ]
+}

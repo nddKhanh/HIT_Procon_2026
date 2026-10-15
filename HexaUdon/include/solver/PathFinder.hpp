@@ -57,11 +57,11 @@ private:
 
 class PathFinder {
 public:
-    // Rank complete patrol routes by steps + fuel - capped collectible-spot reward.
+    // Rank routes by steps + fuelWeight * fuel - capped collectible-spot reward.
     // Physical budgets remain hard constraints; rewards are indexed by map cell.
     static PathResult findPathViaSpots(Position start, Position goal, const Map& map,
         int maxFuel, int maxSteps, const std::vector<double>& rewards,
-        PathCache* cache = nullptr, bool timeBounded = false);
+        PathCache* cache = nullptr, bool timeBounded = false, double fuelWeight = 1.0);
     /**
      * @brief Dijkstra pathfinding on hex grid with travel time weights.
      */
