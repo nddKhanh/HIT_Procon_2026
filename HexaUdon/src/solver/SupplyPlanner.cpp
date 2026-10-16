@@ -32,9 +32,10 @@ void SupplyPlanner::repairCoverage(const GameConfig& config, const GameState& st
     PathCache cache(map);
     int attempts[4]{}, rewards[4]{1, 1, 1, 1};
     std::set<std::vector<std::vector<int>>> evaluated;
-    // ponytail: four suffix-destruction operators, 32 trials and 1.2s by default.
-    // Keep the incumbent; increase the beam only after replay evidence warrants it.
-    for (int trial = 0; trial < 32 && inTime(); ++trial) {
+    // ponytail: bounded four-operator search; extra live time permits more
+    // distinct suffixes, but the incumbent and official score still gate changes.
+    const int trialLimit = budgetMs > 1200 ? 64 : 32;
+    for (int trial = 0; trial < trialLimit && inTime(); ++trial) {
         int op = 0;
         for (int i = 1; i < 4; ++i)
             if ((!attempts[i] && attempts[op]) ||
@@ -336,7 +337,8 @@ std::vector<int> SupplyPlanner::planDay(
 
 void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
     const Map& inputMap, std::vector<std::vector<int>>& actions,
-    const std::set<int>& matchBrands, long long deadlineMs, bool rewardRoutes) {
+    const std::set<int>& matchBrands, long long deadlineMs, bool rewardRoutes,
+    std::vector<std::vector<std::vector<int>>>* alternatives) {
     Map map = inputMap;
     map.updateTraffic(state.traffics);
     const int steps = config.getDaySteps(state.day);
@@ -348,6 +350,8 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
     const bool allowMovingRendezvous = supplyCount <= 2;
     auto result = MoveSimulator::simulateDay(config, state, actions, map);
     if (!result.valid) return;
+    const auto originalBrands = result.brands;
+    std::set<std::vector<int>> endpoints;
     PathCache cache(map);
     auto rank = [&](const DaySimulation& day) -> std::tuple<int, int, int, int, int, int> {
         int fresh = 0, fuel = 0, minimumFuel = INT_MAX, readyPatrols = 0;
@@ -375,7 +379,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
         return std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count() < deadlineMs;
     };
-    struct Wait { int agent, begin, end, pos; };
+    struct Wait { int agent, begin, end, pos; bool continuationOnly = false; };
     // Only split at action boundaries or inside a wait, never in transit.
     auto prefix = [&](int agent, int until) {
         std::vector<int> out;
@@ -402,6 +406,12 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
             if (state.agents[i].kind == 1)
                 waits.push_back({i, 0, steps, state.agents[i].pos});
         }
+        // A Supply can leave immediately after a moving rendezvous even when
+        // its incumbent route has no wait there. Preserve that completed refill.
+        if (alternatives)
+            for (const auto& refill : result.refuelEvents)
+                if (refill.step < steps)
+                    waits.push_back({refill.supply, refill.step, steps, refill.pos, true});
         for (int i = 0; i < n; ++i) {
             int time = 0;
             auto pos = map.posToCoordinate(state.agents[i].pos);
@@ -426,6 +436,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
             PathResult path;
             std::tuple<int,int,int,int,int> priority;
             bool protectedRescue = false;
+            bool continuationOnly = false;
         };
         std::vector<Meeting> meetings;
         for (const auto& sw : waits) {
@@ -445,7 +456,8 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                 if (!path.found) continue;
                 for (int depart : departures) {
                     int meet = std::max({1, pw.begin, depart + path.totalSteps});
-                    if (meet >= steps || meet > pw.end || result.fuelAtTime[pw.agent][meet] >= config.fuelLimit)
+                    if (meet > steps || (meet == steps && !alternatives) ||
+                        meet > pw.end || result.fuelAtTime[pw.agent][meet] >= config.fuelLimit)
                         continue;
                     std::set<int> visited;
                     for (const auto& e : result.collections)
@@ -461,7 +473,8 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                         ++potential;
                     }
                     meetings.push_back({sw.agent, pw.agent, depart, meet, pw.pos, path,
-                        {fresh, daily, potential, pw.end - meet, -path.totalSteps}});
+                        {fresh, daily, potential, pw.end - meet, -path.totalSteps},
+                        false, sw.continuationOnly || meet == steps});
                 }
             }
         }
@@ -469,6 +482,17 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
             return a.priority > b.priority;
         });
         const size_t meetingLimit = allowMovingRendezvous ? 64 : 24;
+        std::vector<Meeting> boundaryMeetings;
+        if (alternatives) {
+            std::set<std::pair<int, int>> pairs;
+            for (const auto& meeting : meetings)
+                if (meeting.continuationOnly &&
+                    pairs.insert({meeting.supply, meeting.patrol}).second)
+                    boundaryMeetings.push_back(meeting);
+            meetings.erase(std::remove_if(meetings.begin(), meetings.end(), [](const auto& meeting) {
+                return meeting.continuationOnly;
+            }), meetings.end());
+        }
         if (meetings.size() > meetingLimit) {
             // Preserve the proven global beam, then append one otherwise
             // omitted rendezvous for each Patrol that began the day stranded.
@@ -495,6 +519,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                 }
             }
         }
+        meetings.insert(meetings.begin(), boundaryMeetings.begin(), boundaryMeetings.end());
         auto bestRank = rank(result);
         auto bestActions = actions;
         auto bestResult = result;
@@ -524,6 +549,17 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                 stepSpots, stepPositions, claims, true, false, &cache, -2, {}, rewardRoutes);
             candidate[m.patrol].insert(candidate[m.patrol].end(), suffix.begin(), suffix.end());
             auto simulated = MoveSimulator::simulateDay(config, state, candidate, map);
+            if (alternatives && simulated.valid && simulated.brands.size() >= originalBrands.size()) {
+                std::vector<int> endpoint;
+                for (const auto& agent : simulated.agents) {
+                    endpoint.push_back(agent.pos);
+                    endpoint.push_back(agent.fuel);
+                }
+                // ponytail: cap the endpoint beam; whole-match rollouts are the
+                // expensive stage, not duplicate rendezvous at the same state.
+                if (alternatives->size() < 64 && endpoints.insert(endpoint).second)
+                    alternatives->push_back(candidate);
+            }
             auto simulatedRank = simulated.valid ? rank(simulated) : decltype(bestRank){};
             const auto simulatedPrimary = std::make_pair(
                 std::get<0>(simulatedRank), std::get<1>(simulatedRank));
@@ -533,7 +569,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                 simulatedPrimary == bestPrimary &&
                 simulated.agents[m.patrol].fuel > bestResult.agents[m.patrol].fuel &&
                 simulated.agents[m.patrol].fuel >= std::max(1, config.fuelLimit / 4);
-            if (simulated.valid &&
+            if (simulated.valid && !m.continuationOnly &&
                 ((simulatedRank > bestRank &&
                   (!m.protectedRescue || simulatedPrimary > bestPrimary)) ||
                  continuityRescue)) {

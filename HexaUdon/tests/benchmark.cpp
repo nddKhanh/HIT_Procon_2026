@@ -90,14 +90,21 @@ int main(int argc, char** argv) {
         bool profiles = true;
         bool mirroredTraffic = false;
         bool autoFormation = false;
+        std::string fixedTypes;
+        bool multiDayEndpoints = false;
         long long formationBudgetMs = 57000;
         std::vector<int> minimumScore;
         long long liveBudgetMs = 0;
         int supply = static_cast<int>(config.initialAgentPositions.size()) - 1;
         for (int i = 3; i < argc; ++i) {
             if (std::string(argv[i]) == "--legacy") profiles = false;
+            else if (std::string(argv[i]) == "--multi-day-endpoints") multiDayEndpoints = true;
             else if (std::string(argv[i]) == "--mirrored-traffic") mirroredTraffic = true;
             else if (std::string(argv[i]) == "--auto-formation") autoFormation = true;
+            else if (std::string(argv[i]) == "--types") {
+                if (++i >= argc) return 1;
+                fixedTypes = argv[i];
+            }
             else if (std::string(argv[i]) == "--formation-budget-ms") {
                 if (++i >= argc) return 1;
                 formationBudgetMs = std::stoll(argv[i]);
@@ -114,11 +121,16 @@ int main(int argc, char** argv) {
             else supply = std::stoi(argv[i]);
         }
         if (supply < 0 || supply >= static_cast<int>(config.initialAgentPositions.size())) return 1;
-        Solver solver(true, profiles);
+        Solver solver(true, profiles, multiDayEndpoints);
         Map map(config.map.height, config.map.width, config.map.cells);
         GameState state{};
         std::vector<int> types(config.initialAgentPositions.size(), 0);
         types[supply] = 1;
+        if (!fixedTypes.empty()) {
+            if (fixedTypes.size() != types.size() ||
+                fixedTypes.find_first_not_of("01") != std::string::npos) return 1;
+            for (size_t i = 0; i < types.size(); ++i) types[i] = fixedTypes[i] - '0';
+        }
         auto formationStart = std::chrono::steady_clock::now();
         if (autoFormation) types = solver.decideAgentTypes(config, formationBudgetMs);
         auto formationMs = std::chrono::duration<double, std::milli>(
@@ -166,6 +178,7 @@ int main(int argc, char** argv) {
         }
         std::cout << json({{"profile", profiles ? MapStrategy::select(config).name : "legacy"},
             {"supplyIndex",autoFormation ? -1 : supply}, {"types",types}, {"autoFormation",autoFormation},
+            {"multiDayEndpoints",multiDayEndpoints},
             {"formationMs",formationMs}, {"traffic",mirroredTraffic ? "mirrored-dynamic" : "neutral"},
             {"score",{total.brands.size(), total.dailyTypes, total.servings}}, {"days",days}}).dump(2) << '\n';
         const std::vector<int> actual{static_cast<int>(total.brands.size()),

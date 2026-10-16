@@ -304,5 +304,66 @@ PathResult PathFinder::findPathViaSpots(Position start, Position goal, const Map
             best = std::move(first);
         }
     }
+    // Two collected spots on the same efficient route can beat either one
+    // alone. Use this extra search only on compact/regional maps with the
+    // final-day speed policy; large-map lookahead lost Daily with this branch.
+    if (fuelWeight > 0.0 || map.getWidth() * map.getHeight() > 24 * 24)
+        return best;
+    // ponytail: six promising cells bound the additional SSSP work.
+    struct RewardCell { int cell; double reward; };
+    std::vector<RewardCell> candidates;
+    for (int cell = 0; cell < map.getHeight() * map.getWidth() &&
+                       cell < static_cast<int>(rewards.size()); ++cell) {
+        if (rewards[cell] > 0 && cell != map.coordinateToPos(start) && cell != goalCell)
+            candidates.push_back({cell, rewards[cell]});
+    }
+    std::stable_sort(candidates.begin(), candidates.end(),
+        [](const RewardCell& a, const RewardCell& b) { return a.reward > b.reward; });
+    if (candidates.size() < 2) return best;
+    if (candidates.size() > 6) candidates.resize(6);
+    for (const auto& firstCell : candidates) {
+        auto first = fromStart.extractPath(firstCell.cell,
+            timeBounded ? maxSteps : INT_MAX);
+        if (!first.found || first.totalSteps >= maxSteps || first.totalFuel >= maxFuel)
+            continue;
+        const auto firstPos = map.posToCoordinate(firstCell.cell);
+        const int minHome = std::max(std::abs(firstPos.x - goal.x),
+                                     std::abs(firstPos.y - goal.y));
+        if (first.totalSteps + minHome > maxSteps ||
+            first.totalFuel + minHome > maxFuel ||
+            first.totalSteps + fuelWeight * first.totalFuel +
+                minHome * (1.0 + fuelWeight) > baseCost + maxReward)
+            continue;
+        const auto& fromFirst = paths.get(firstPos,
+                                          maxFuel - first.totalFuel, fuelWeight);
+        for (const auto& secondCell : candidates) {
+            if (secondCell.cell == firstCell.cell) continue;
+            auto middle = fromFirst.extractPath(secondCell.cell,
+                timeBounded ? maxSteps - first.totalSteps : INT_MAX);
+            if (!middle.found || first.totalSteps + middle.totalSteps >= maxSteps ||
+                first.totalFuel + middle.totalFuel >= maxFuel) continue;
+            const auto& fromSecond = paths.get(map.posToCoordinate(secondCell.cell),
+                maxFuel - first.totalFuel - middle.totalFuel, fuelWeight);
+            auto last = fromSecond.extractPath(goalCell,
+                timeBounded ? maxSteps - first.totalSteps - middle.totalSteps : INT_MAX);
+            if (!last.found) continue;
+            PathResult route = first;
+            route.totalSteps += middle.totalSteps + last.totalSteps;
+            route.totalFuel += middle.totalFuel + last.totalFuel;
+            if (route.totalSteps > maxSteps || route.totalFuel > maxFuel ||
+                route.totalSteps + fuelWeight * route.totalFuel > baseCost + maxReward ||
+                route.totalSteps + fuelWeight * route.totalFuel > baseCost * 1.35)
+                continue;
+            route.directions.insert(route.directions.end(),
+                                    middle.directions.begin(), middle.directions.end());
+            route.directions.insert(route.directions.end(),
+                                    last.directions.begin(), last.directions.end());
+            auto candidateRank = rank(route);
+            if (candidateRank < bestRank) {
+                bestRank = candidateRank;
+                best = std::move(route);
+            }
+        }
+    }
     return best;
 }

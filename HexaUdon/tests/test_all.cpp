@@ -20,6 +20,33 @@
 #include "api/LiveMatchGuard.hpp"
 #include "solver/SpotScorer.hpp"
 
+void test_next_day_rendezvous_alternatives() {
+    GameConfig config{};
+    config.players = 7;
+    config.daySteps = {2, 4};
+    config.fuelLimit = 5;
+    config.spots = {{7, 0, 1}};
+    Map map(1, 2, {{0, 0}});
+    GameState state{};
+    state.agents = {{0, 0, 0}, {1, 1, 5}};
+    const std::vector<std::vector<int>> incumbent{{-2}, {-2}};
+    auto actions = incumbent;
+    std::vector<std::vector<std::vector<int>>> alternatives;
+    SupplyPlanner::improveDay(config, state, map, actions, {}, LLONG_MAX, true, &alternatives);
+    assert(actions == incumbent); // Future-only gain needs whole-match validation.
+    bool rescued = false;
+    for (const auto& alternate : alternatives) {
+        auto result = MoveSimulator::simulateDay(config, state, alternate, map);
+        assert(result.valid && result.brands == std::set<int>{7});
+        rescued |= result.agents[0].fuel == config.fuelLimit;
+    }
+    assert(rescued); // Supply arrives exactly at the last boundary, not earlier.
+    alternatives.clear();
+    SupplyPlanner::improveDay(config, state, map, actions, {}, 0, true, &alternatives);
+    assert(actions == incumbent && alternatives.empty());
+    std::cout << "[PASS] Last-boundary rescue is retained for bounded multi-day validation!" << std::endl;
+}
+
 void test_live_match_start_and_snapshot_guards() {
     GameState original{};
     original.day = 0;
@@ -1199,6 +1226,33 @@ void test_agent_strategy_simulates_supply_counts() {
     assert(log.find("types=[0,0,0,0,0,0,0,1]") != std::string::npos);
     assert(log.find("types=[1,0,0,0,0,0,0,0]") != std::string::npos);
 
+    // A seven-agent, non-fuel-tight team needs at least five Patrol slots.
+    // The formation search must evaluate two Supplies but never a third.
+    config.players = 7;
+    config.initialAgentPositions.assign(7, 0);
+    config.fuelLimit = 10;
+    std::ostringstream cappedLog;
+    oldLog = std::cerr.rdbuf(cappedLog.rdbuf());
+    const auto cappedTypes = AgentStrategy::decideAgentTypes(config);
+    std::cerr.rdbuf(oldLog);
+    assert(std::count(cappedTypes.begin(), cappedTypes.end(), 1) <= 2);
+    assert(cappedLog.str().find("[FORMATION] supply=2 ") != std::string::npos);
+    assert(cappedLog.str().find("[FORMATION] supply=3 ") == std::string::npos);
+
+    // A large, long match must not promote a single-Supply rollout simply
+    // because its short daily solves postpone the fuel deficit.
+    config.map = {25, 25, std::vector<std::vector<int>>(25, std::vector<int>(25, 0))};
+    config.daySteps = {60, 60, 60, 60, 60};
+    config.fuelLimit = 120;
+    std::ostringstream enduringLog;
+    oldLog = std::cerr.rdbuf(enduringLog.rdbuf());
+    const auto enduringTypes = AgentStrategy::decideAgentTypes(config, nullptr, 1000);
+    std::cerr.rdbuf(oldLog);
+    assert(std::count(enduringTypes.begin(), enduringTypes.end(), 1) == 2);
+    assert(enduringLog.str().find("[FORMATION] supply=1 ") == std::string::npos);
+    assert(enduringLog.str().find("[FORMATION] supply=3 ") == std::string::npos);
+
+    config.players = 2;
     config.daySeconds = {60, 60, 60, 60, 60};
     config.daySteps = {8, 10, 12, 14, 16};
     config.map.height = 6;
@@ -1429,6 +1483,44 @@ void test_spot_reward_paths() {
     std::cout << "[PASS] Spot rewards preserve destination and physical budgets!" << std::endl;
 }
 
+void test_two_reward_waypoints() {
+    Map map(3, 3, {{0,0,0}, {0,0,0}, {0,0,0}});
+    const auto start = map.posToCoordinate(3);
+    const auto goal = map.posToCoordinate(2);
+    const auto direct = PathFinder::findPath(start, goal, map, 50, 0.0);
+    std::vector<double> rewards(9);
+    rewards[1] = rewards[4] = 1.0;
+    const auto route = PathFinder::findPathViaSpots(
+        start, goal, map, 50, direct.totalSteps + 1, rewards,
+        nullptr, true, 0.0);
+    bool first = false, second = false;
+    auto pos = start;
+    for (int dir : route.directions) {
+        pos = map.nextPosition(pos, dir);
+        first |= map.coordinateToPos(pos) == 1;
+        second |= map.coordinateToPos(pos) == 4;
+    }
+    assert(route.found && pos == goal && first && second);
+    assert(route.totalSteps <= direct.totalSteps + 1 && route.totalFuel <= 50);
+    std::cout << "[PASS] Bounded route collects two rewarded waypoints!\n";
+}
+
+void test_supply_serves_two_patrols() {
+    GameConfig config{};
+    config.map = {1, 7, {{0,0,0,0,0,0,0}}};
+    config.daySteps = {24, 24};
+    config.fuelLimit = 10;
+    config.spots = {{0,0,1}, {1,6,1}};
+    GameState state{};
+    state.agents = {{0,0,0}, {0,6,0}, {1,3,10}};
+    Map map(1, 7, config.map.cells);
+    std::vector<std::vector<int>> actions{{-24}, {-24}, {-24}};
+    SupplyPlanner::improveDay(config, state, map, actions, {});
+    const auto day = MoveSimulator::simulateDay(config, state, actions, map);
+    assert(day.valid && day.agents[0].fuel > 0 && day.agents[1].fuel > 0);
+    std::cout << "[PASS] One Supply rescues two Patrols in one day!\n";
+}
+
 void test_lookahead_scores_one_second_spot() {
     GameConfig config{};
     config.players = 10; // Exercise both the two-stop baseline and reward search.
@@ -1619,6 +1711,7 @@ void test_reward_detour_lower_bound() {
 }
 
 int main() {
+    test_next_day_rendezvous_alternatives();
     test_reward_detour_lower_bound();
     test_long_daily_bridge_preserves_next_day();
     test_expired_live_solver_deadline();
@@ -1630,6 +1723,8 @@ int main() {
     test_live_match_start_and_snapshot_guards();
     test_lookahead_scores_one_second_spot();
     test_spot_reward_paths();
+    test_two_reward_waypoints();
+    test_supply_serves_two_patrols();
     test_server_replay();
     test_simulator_step_boundaries();
     test_diary_uses_canonical_simulation();
