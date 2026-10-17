@@ -177,7 +177,8 @@ std::vector<int> SupplyPlanner::planDay(
 
 void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
     const Map& inputMap, std::vector<std::vector<int>>& actions,
-    const std::set<int>& matchBrands, long long deadlineMs, bool rewardRoutes) {
+    const std::set<int>& matchBrands, long long deadlineMs, bool rewardRoutes,
+    std::vector<std::vector<std::vector<int>>>* alternatives) {
     Map map = inputMap;
     map.updateTraffic(state.traffics);
     const int steps = config.getDaySteps(state.day);
@@ -189,6 +190,8 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
     const bool allowArrivalMeetings = supplyCount <= 2;
     auto result = MoveSimulator::simulateDay(config, state, actions, map);
     if (!result.valid) return;
+    const auto originalBrands = result.brands;
+    std::set<std::vector<int>> seenEndpoints;
     PathCache cache(map);
     auto rank = [&](const DaySimulation& day) {
         int fresh = 0, fuel = 0;
@@ -203,7 +206,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
         return std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count() < deadlineMs;
     };
-    struct Wait { int agent, begin, end, pos; };
+    struct Wait { int agent, begin, end, pos; bool continuationOnly = false; };
     // Only split at action boundaries or inside a wait, never in transit.
     auto prefix = [&](int agent, int until) {
         std::vector<int> out;
@@ -230,6 +233,10 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
             if (state.agents[i].kind == 1)
                 waits.push_back({i, 0, steps, state.agents[i].pos});
         }
+        if (alternatives)
+            for (const auto& refill : result.refuelEvents)
+                if (refill.step < steps)
+                    waits.push_back({refill.supply, refill.step, steps, refill.pos, true});
         for (int i = 0; i < n; ++i) {
             int time = 0;
             auto pos = map.posToCoordinate(state.agents[i].pos);
@@ -251,6 +258,7 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
             int supply, patrol, depart, meet, pos;
             PathResult path;
             std::tuple<int,int,int,int,int> priority;
+            bool continuationOnly = false;
         };
         std::vector<Meeting> meetings;
         for (const auto& sw : waits) {
@@ -268,7 +276,8 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                 if (!path.found) continue;
                 for (int depart : departures) {
                     int meet = std::max({1, pw.begin, depart + path.totalSteps});
-                    if (meet >= steps || meet > pw.end || result.fuelAtTime[pw.agent][meet] >= config.fuelLimit)
+                    if (meet > steps || (meet == steps && !alternatives) || meet > pw.end ||
+                        result.fuelAtTime[pw.agent][meet] >= config.fuelLimit)
                         continue;
                     std::set<int> visited;
                     for (const auto& e : result.collections)
@@ -284,14 +293,27 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                         ++potential;
                     }
                     meetings.push_back({sw.agent, pw.agent, depart, meet, pw.pos, path,
-                        {fresh, daily, potential, pw.end - meet, -path.totalSteps}});
+                        {fresh, daily, potential, pw.end - meet, -path.totalSteps},
+                        sw.continuationOnly || meet == steps});
                 }
             }
         }
         std::stable_sort(meetings.begin(), meetings.end(), [](const Meeting& a, const Meeting& b) {
             return a.priority > b.priority;
         });
+        std::vector<Meeting> boundaryMeetings;
+        if (alternatives) {
+            std::set<std::pair<int, int>> pairs;
+            for (const auto& meeting : meetings)
+                if (meeting.continuationOnly &&
+                    pairs.insert({meeting.supply, meeting.patrol}).second)
+                    boundaryMeetings.push_back(meeting);
+            meetings.erase(std::remove_if(meetings.begin(), meetings.end(), [](const auto& meeting) {
+                return meeting.continuationOnly;
+            }), meetings.end());
+        }
         if (meetings.size() > 48) meetings.resize(48);
+        meetings.insert(meetings.begin(), boundaryMeetings.begin(), boundaryMeetings.end());
         auto bestRank = rank(result);
         auto bestActions = actions;
         auto bestResult = result;
@@ -321,7 +343,16 @@ void SupplyPlanner::improveDay(const GameConfig& config, const GameState& state,
                 stepSpots, stepPositions, claims, true, false, &cache, -2, {}, rewardRoutes);
             candidate[m.patrol].insert(candidate[m.patrol].end(), suffix.begin(), suffix.end());
             auto simulated = MoveSimulator::simulateDay(config, state, candidate, map);
-            if (simulated.valid && rank(simulated) > bestRank) {
+            if (alternatives && simulated.valid && simulated.brands.size() >= originalBrands.size()) {
+                std::vector<int> endpoint;
+                for (const auto& agent : simulated.agents) {
+                    endpoint.push_back(agent.pos);
+                    endpoint.push_back(agent.fuel);
+                }
+                if (alternatives->size() < 64 && seenEndpoints.insert(endpoint).second)
+                    alternatives->push_back(candidate);
+            }
+            if (simulated.valid && !m.continuationOnly && rank(simulated) > bestRank) {
                 bestRank = rank(simulated);
                 bestActions = std::move(candidate);
                 bestResult = std::move(simulated);

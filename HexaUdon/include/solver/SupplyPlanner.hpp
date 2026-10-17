@@ -21,7 +21,8 @@ public:
     static void improveDay(const GameConfig& config, const GameState& state,
         const Map& map, std::vector<std::vector<int>>& actions,
         const std::set<int>& matchBrands, long long deadlineMs = LLONG_MAX,
-        bool rewardRoutes = true);
+        bool rewardRoutes = true,
+        std::vector<std::vector<std::vector<int>>>* alternatives = nullptr);
     /**
      * @brief Tìm xe Patrol đang cần xăng nhất.
      *

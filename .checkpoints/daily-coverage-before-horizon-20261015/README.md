@@ -1,0 +1,1 @@
+Snapshot before isolated full-horizon route-candidate experiment (2026-10-15). Restore these three files to remove the prototype. No production behavior should change unless the experiment is explicitly enabled.

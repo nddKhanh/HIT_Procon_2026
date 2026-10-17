@@ -1,0 +1,119 @@
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <tuple>
+#include <nlohmann/json.hpp>
+#include "api/HttpClient.hpp"
+#include "solver/Solver.hpp"
+#include "solver/MoveSimulator.hpp"
+
+// Same inputs for every revision; never submits actions to a server.
+int main(int argc, char** argv) {
+    using nlohmann::json;
+    std::ifstream input(argc > 1 ? argv[1] : "HexaUdon/tests/replay_5cc3b9ea.json");
+    if (!input) { std::cerr << "Replay file not found\n"; return 1; }
+    json replay; input >> replay;
+    const auto& c = replay["config"];
+    GameConfig config{};
+    config.map = {c["map"]["height"], c["map"]["width"],
+        c["map"]["cells"].get<std::vector<std::vector<int>>>()};
+    config.daySteps = c["daySteps"].get<std::vector<int>>();
+    config.initialAgentPositions = c["agents"].get<std::vector<int>>();
+    config.fuelLimit = c["fuelLimits"];
+    config.players = c["players"];
+    config.busyThreshold = c["busyThreshold"];
+    config.jammedThreshold = c["jammedThreshold"];
+    for (const auto& s : c["spots"]) config.spots.push_back({s["brand"], s["pos"], s["stocks"]});
+    json output = json::array();
+    const std::vector<std::tuple<int, int, int>> scoreFloors = {
+        {20, 139, 204}, {20, 140, 256}, {20, 139, 204}, {20, 140, 249},
+        {20, 139, 200}, {20, 140, 251}, {20, 139, 212}, {20, 140, 261}
+    };
+    const bool regressionReplay = argc <= 1;
+    const bool selectFormation = argc > 2 && std::string(argv[2]) == "formation";
+    const std::string mode = argc > 2 ? argv[2] : "";
+    const bool quickReplay = mode == "quick" || mode == "quick_dynamic";
+    const int selectionBudgetSeconds = selectFormation && argc > 3 ? std::stoi(argv[3]) : 10;
+    size_t scenarioIndex = 0;
+    const std::vector<int> supplyCounts = selectFormation ? std::vector<int>{-1} : regressionReplay
+        ? std::vector<int>{3, 2} : std::vector<int>{3, 2, 1, 0};
+    const std::vector<int> shifts = quickReplay ? std::vector<int>{0} : std::vector<int>{0, 2};
+    const std::vector<bool> trafficModes = quickReplay
+        ? std::vector<bool>{mode == "quick"} : std::vector<bool>{true, false};
+    const std::vector<int> evaluatedSupplies = quickReplay ? std::vector<int>{2} : supplyCounts;
+    for (int shift : shifts) for (bool fixed : trafficModes) for (int supplies : evaluatedSupplies) {
+        auto scenario = config;
+        std::rotate(scenario.initialAgentPositions.begin(), scenario.initialAgentPositions.begin() + shift,
+                    scenario.initialAgentPositions.end());
+        Map map(scenario.map.height, scenario.map.width, scenario.map.cells);
+        GameState state{};
+        int n = static_cast<int>(scenario.initialAgentPositions.size());
+        Solver solver;
+        std::vector<int> types(n, 0);
+        double formationMs = 0;
+        if (selectFormation) {
+            const auto nowSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            const auto postReserveSeconds =
+                (api_deadline::agentSelectionReserveMs + 999) / 1000;
+            scenario.startsAt = nowSeconds + selectionBudgetSeconds + postReserveSeconds;
+            auto start = std::chrono::steady_clock::now();
+            types = solver.decideAgentTypes(scenario);
+            formationMs = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - start).count();
+        } else {
+            for (int i = 0; i < n; ++i) types[i] = i >= n - supplies ? 1 : 0;
+        }
+        for (int i = 0; i < n; ++i)
+            state.agents.push_back({types[i], scenario.initialAgentPositions[i], scenario.fuelLimit});
+        MatchScore score;
+        std::vector<long long> previous;
+        json days = json::array();
+        double totalMs = 0;
+        for (int day = 0; day < static_cast<int>(scenario.daySteps.size()); ++day) {
+            state.day = day;
+            if (fixed) {
+                state.traffics.clear();
+                for (const auto& t : replay["traffic"][day]) state.traffics.push_back({t[0],t[1]});
+            }
+            auto start = std::chrono::steady_clock::now();
+            auto actions = solver.solve(scenario, state, map);
+            double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now()-start).count();
+            totalMs += ms;
+            auto result = MoveSimulator::simulateDay(scenario, state, actions, map);
+            if (!result.valid) { std::cerr << "Invalid day " << day << ": " << result.error << '\n'; return 2; }
+            int patrolWait = 0, supplyWait = 0;
+            for (int i = 0; i < n; ++i) for (int a : actions[i]) if (a < 0)
+                (state.agents[i].kind ? supplyWait : patrolWait) -= a;
+            std::set<int> missing;
+            for (const auto& s : scenario.spots) if (!result.brands.count(s.brand)) missing.insert(s.brand);
+            days.push_back({{"brands", result.brands.size()}, {"servings", result.collections.size()},
+                {"missing", missing}, {"patrol_wait",patrolWait}, {"supply_wait",supplyWait}, {"ms",ms}});
+            score.add(result);
+            state.agents = result.agents;
+            if (!fixed) {
+                for (auto& x : result.roadOccupancy) x *= scenario.players;
+                state.traffics = MoveSimulator::nextTraffic(scenario, previous, result.roadOccupancy);
+                previous = result.roadOccupancy;
+            }
+            solver.commitLastPlan();
+        }
+        if (regressionReplay && score.rank() < scoreFloors[scenarioIndex]) {
+            const auto scoreFloor = scoreFloors[scenarioIndex];
+            std::cerr << "Replay score regressed: " << score.brands.size() << '/'
+                      << score.dailyTypes << '/' << score.servings << " < "
+                      << std::get<0>(scoreFloor) << '/' << std::get<1>(scoreFloor)
+                      << '/' << std::get<2>(scoreFloor) << '\n';
+            return 3;
+        }
+        ++scenarioIndex;
+        output.push_back({{"shift",shift},{"traffic",fixed?"recorded-fixed":"mirrored-dynamic"},
+            {"supplies",supplies},{"score",{score.brands.size(),score.dailyTypes,score.servings}},
+            {"selection_budget_seconds",selectionBudgetSeconds},
+            {"ms",totalMs},{"formation_ms",formationMs},{"types",types},{"days",days}});
+        std::cerr << "shift=" << shift << " fixed=" << fixed << " supply=" << supplies
+                  << " score=" << score.brands.size() << '/' << score.dailyTypes << '/' << score.servings
+                  << " ms=" << totalMs << '\n';
+    }
+    std::cout << output.dump(2) << '\n';
+}
