@@ -3,6 +3,8 @@ CXX=g++
 CXXFLAGS="-std=c++17 -Iinclude -Ithird_party"
 CORE_SRC="src/io/JsonReader.cpp src/io/JsonWriter.cpp src/io/DiaryWriter.cpp src/map/Map.cpp src/solver/ActionValidator.cpp src/solver/PathFinder.cpp src/solver/SpotScorer.cpp src/solver/PatrolPlanner.cpp src/solver/SupplyPlanner.cpp src/solver/MoveSimulator.cpp src/solver/Solver.cpp src/api/GameApiClient.cpp src/api/HttpClient.cpp"
 
+CORE_SRC="$CORE_SRC src/solver/khanh/Solver.cpp src/solver/khanh/PatrolPlanner.cpp src/solver/khanh/SupplyPlanner.cpp src/solver/khanh/PathFinder.cpp"
+
 if [ "$1" == "test" ]; then
     echo "[BUILDING & RUNNING UNIT TESTS]..."
     $CXX $CXXFLAGS tests/test_all.cpp $CORE_SRC -o test_all

@@ -1,4 +1,5 @@
 #include "solver/Solver.hpp"
+#include "solver/khanh/Solver.hpp"
 #include "solver/MapStrategy.hpp"
 #include "solver/PatrolPlanner.hpp"
 #include "solver/SupplyPlanner.hpp"
@@ -143,7 +144,7 @@ std::vector<int> assignFirstSpots(
     const std::vector<std::set<int>>& visitedToday, PathCache& pathCache,
     const std::vector<std::set<int>>& regions,
     const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
-    bool prioritizeMatchTypes, bool boundedPaths) {
+    bool prioritizeMatchTypes, bool boundedPaths, bool stableTraceback = false) {
     std::vector<int> assigned(state.agents.size(), -2);
     if (patrols.size() < 2 || config.spots.empty()) return assigned;
     for (int patrol : patrols) assigned[patrol] = -1;
@@ -206,8 +207,16 @@ std::vector<int> assignFirstSpots(
         cost[0] = 0;
         for (size_t brand = 0; brand < brands.size(); ++brand) {
             auto next = cost;
+            // As in origin/khanh's brand matching, initialize carry parents
+            // before transitions: a later mask must not erase a cheaper match.
             for (int mask = 0; mask < stateCount; ++mask) {
-                if (cost[mask] < unreachable)
+                if (stableTraceback && cost[mask] < unreachable)
+                    parent[brand + 1][mask] = {mask, -1, -1};
+            }
+            for (int mask = 0; mask < stateCount; ++mask) {
+                // ponytail: retain the legacy route policy as an incumbent;
+                // replacing it globally regressed multi-day sample16 coverage.
+                if (!stableTraceback && cost[mask] < unreachable)
                     parent[brand + 1][mask] = {mask, -1, -1};
                 for (int p = 0; p < patrolCount; ++p) {
                     if ((mask & (1 << p)) || brandTravel[p][brand] >= unreachable)
@@ -304,6 +313,11 @@ std::vector<int> assignFirstSpots(
 std::vector<int> AgentStrategy::decideAgentTypes(
     const GameConfig& config, bool* selectedUseRegions,
     long long simulationBudgetMs) {
+    if (simulationBudgetMs > 0 && config.players > 2 &&
+        config.map.width * config.map.height > 600) {
+        KhanhSolver planner;
+        return planner.decideAgentTypes(config, simulationBudgetMs, selectedUseRegions);
+    }
     const int agentCount = static_cast<int>(config.initialAgentPositions.size());
     std::vector<int> bestTypes(agentCount, 0);
     using FormationRank = std::tuple<int, int, int, int, int, int>;
@@ -472,6 +486,102 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         return selected;
     };
 
+    // ponytail: a one-day screen retains the conventional placement and one
+    // challenger. Four-day compact and five-day medium replays compare them;
+    // more finalists would need a larger pre-start window.
+    const bool raceFinalists = timedFormation && simulationBudgetMs >= 20'000 &&
+        config.players > 2 && rolloutDays > 1 &&
+        agentCount >= 4 && agentCount <= 5 && maxSupplyCount == 1;
+    auto replayFormation = [&](const std::vector<int>& types, int days,
+                               long long dayBudgetMs, bool fullSolver) {
+        GameState state{};
+        for (int i = 0; i < agentCount; ++i)
+            state.agents.push_back({types[i], config.initialAgentPositions[i], config.fuelLimit});
+        Map map(config.map.height, config.map.width, config.map.cells);
+        Solver solver;
+        solver.enableTwoDayLookahead_ = fullSolver;
+        solver.expandExactSplits_ = fullSolver;
+        MatchScore score;
+        std::vector<long long> previousOccupancy;
+        for (int day = 0; day < days; ++day) {
+            if (formationTimeUp()) return std::make_pair(false, score.rank());
+            state.day = day;
+            const auto remaining = std::max<long long>(0,
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    formationDeadline - std::chrono::steady_clock::now()).count());
+            const auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            state.endsAt = (epoch + std::min(remaining, dayBudgetMs) + 750) / 1000;
+            auto actions = solver.solve(config, state, map);
+            if (formationTimeUp()) return std::make_pair(false, score.rank());
+            auto result = MoveSimulator::simulateDay(config, state, actions, map);
+            if (!result.valid) return std::make_pair(false, score.rank());
+            score.add(result);
+            state.agents = std::move(result.agents);
+            if (day + 1 < days) {
+                state.traffics = MoveSimulator::nextTraffic(
+                    config, previousOccupancy, result.roadOccupancy);
+                previousOccupancy = std::move(result.roadOccupancy);
+            }
+            solver.commitLastPlan();
+        }
+        return std::make_pair(true, score.rank());
+    };
+    if (raceFinalists) {
+        const int supplyCount = 1;
+        const auto candidates = assignmentCandidates(supplyCount);
+        if (!candidates.empty()) {
+            bestTypes = candidates.front();
+            bestSupplyCount = supplyCount;
+            int challenger = -1;
+            auto screenBest = std::make_tuple(-1, -1, -1);
+            for (size_t i = 1; i < candidates.size() && !formationTimeUp(); ++i) {
+                auto screen = replayFormation(candidates[i], 1, 1000, false);
+                std::cerr << "[FORMATION] screen types=" << formatTypes(candidates[i])
+                          << " score=" << std::get<0>(screen.second) << '/'
+                          << std::get<1>(screen.second) << '/'
+                          << std::get<2>(screen.second)
+                          << " complete=" << screen.first << '\n';
+                if (screen.first && screen.second > screenBest) {
+                    screenBest = screen.second;
+                    challenger = static_cast<int>(i);
+                }
+            }
+            if (challenger >= 0) {
+                const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    formationDeadline - std::chrono::steady_clock::now()).count();
+                const int deepDays = agentCount == 4 ? rolloutDays - 1 : rolloutDays;
+                const long long deepDayMs = std::min<long long>(
+                    agentCount == 4 ? 7000 : 4500,
+                    (remaining - 2500) / (2 * deepDays));
+                if (deepDayMs >= 1500) {
+                    auto incumbent = replayFormation(candidates.front(), deepDays,
+                                                     deepDayMs, true);
+                    auto alternative = incumbent.first && !formationTimeUp()
+                        ? replayFormation(candidates[challenger], deepDays,
+                                          deepDayMs, true)
+                        : decltype(incumbent){};
+                    std::cerr << "[FORMATION] verified incumbent="
+                              << std::get<0>(incumbent.second) << '/'
+                              << std::get<1>(incumbent.second) << '/'
+                              << std::get<2>(incumbent.second)
+                              << " challenger=" << std::get<0>(alternative.second) << '/'
+                              << std::get<1>(alternative.second) << '/'
+                              << std::get<2>(alternative.second)
+                              << " complete=" << incumbent.first << '/' << alternative.first
+                              << " days=" << deepDays << " dayBudgetMs=" << deepDayMs << '\n';
+                    if (incumbent.first) bestScore = incumbent.second;
+                    if (incumbent.first && alternative.first) {
+                        if (alternative.second > incumbent.second) {
+                            bestTypes = candidates[challenger];
+                            bestScore = alternative.second;
+                        } else bestScore = incumbent.second;
+                    }
+                }
+            }
+        }
+    }
+
     auto evaluate = [&](int supplyCount, bool writeLog = true) -> const Formation& {
         auto& formation = formations[supplyCount];
         const auto candidates = assignmentCandidates(supplyCount);
@@ -625,11 +735,12 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         if (center + distance <= maxSupplyCount)
             searchOrder.push_back(center + distance);
     }
-    for (int supplyCount : searchOrder) {
-        if (supplyCount < minSupplyCount) continue;
-        if (formationTimeUp()) break;
-        evaluate(supplyCount);
-    }
+    if (!raceFinalists)
+        for (int supplyCount : searchOrder) {
+            if (supplyCount < minSupplyCount) continue;
+            if (formationTimeUp()) break;
+            evaluate(supplyCount);
+        }
 
     std::cerr << "[FORMATION] selected score=" << std::get<0>(bestScore) << '/'
               << std::get<1>(bestScore) << '/' << std::get<2>(bestScore) << " types=[";
@@ -640,7 +751,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
     const auto formationMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - formationStarted).count();
     std::cerr << "] regions=" << (bestUseRegions ? "on" : "off")
-              << " mode=" << (timedFormation ? "timed" :
+              << " mode=" << (raceFinalists ? "finalist-race" : timedFormation ? "timed" :
                               (boundedFormation ? "bounded" : "exact"))
               << " rolloutDays=" << rolloutDays << " elapsedMs=" << formationMs << '\n';
 
@@ -754,6 +865,27 @@ std::vector<std::vector<int>> Solver::solve(
         const auto stop = state.endsAt * 1000LL - 750;
         if (stop > now - 60000 && now >= stop)
             return createFallbackActions(config, state);
+    }
+
+    // ponytail: preserve the proven khanh route policy as a whole on large
+    // multiplayer maps; partial imports changed its multi-day score. Reduced
+    // Quan forecasts retain their existing bounded policy.
+    if (mapStrategies_ && enableFleetRepair_ && expandExactSplits_ &&
+        config.players > 2 && config.map.width * config.map.height > 600) {
+        KhanhSolver planner;
+        planner.collectedBrandsTotal_ = collectedBrandsTotal_;
+        planner.useRegions_ = useRegions_;
+        planner.enableTwoDayLookahead_ = enableTwoDayLookahead_;
+        auto planned = planner.solve(config, state, map, rewardRoutes);
+        currentTargets_ = std::move(planner.currentTargets_);
+        currentTargetPositions_ = std::move(planner.currentTargetPositions_);
+        supportedPatrols_ = std::move(planner.supportedPatrols_);
+        plannedStepSpots_ = std::move(planner.plannedStepSpots_);
+        plannedStepPositions_ = std::move(planner.plannedStepPositions_);
+        pendingBrandsTotal_ = std::move(planner.pendingBrandsTotal_);
+        hasPendingPlan_ = planner.hasPendingPlan_;
+        currentDay_ = state.day;
+        return planned;
     }
 
     // Preserve a complete ordinary-route plan, including its supply repairs.
@@ -989,7 +1121,8 @@ std::vector<std::vector<int>> Solver::solve(
                              bool officialRanking, bool exclusiveClaims,
                              const std::vector<std::set<int>>& candidateRegions,
                              bool prioritizeMatchTypes,
-                             const std::vector<std::pair<int, int>>& forcedTargets = {}) {
+                             const std::vector<std::pair<int, int>>& forcedTargets = {},
+                             bool stableTraceback = false) {
         resetDailyState(config, numAgents);
         Candidate candidate;
         candidate.actions.resize(numAgents);
@@ -1010,7 +1143,10 @@ std::vector<std::vector<int>> Solver::solve(
         auto firstSpots = assignFirstSpots(
             config, state, map, patrols, daySteps, remainingStock_,
             visitedSpotsToday_, pathCache, candidateRegions, matchBrands, dailyBrands,
-            prioritizeMatchTypes, useTimeBoundedPaths_);
+            prioritizeMatchTypes, useTimeBoundedPaths_, stableTraceback ||
+                (mapStrategies_ && config.players > 2 &&
+                 config.map.width * config.map.height > 600 &&
+                 enableTwoDayLookahead_ && expandExactSplits_));
         for (const auto& [responsiblePatrol, requiredSpot] : forcedTargets) {
             for (int p : patrols)
                 if (p != responsiblePatrol && firstSpots[p] == requiredSpot)
@@ -1748,6 +1884,21 @@ std::vector<std::vector<int>> Solver::solve(
             std::cerr << "[CONTINUATION-BEAM] day=" << state.day << " variants="
                       << alternatives.size() << " estimate=" << std::get<1>(baseEstimate.second)
                       << '/' << std::get<1>(bestEstimate.second) << '\n';
+        }
+    }
+    // An exact first-wave traceback is an additional final-day proposal only.
+    // Score the whole fleet and keep the incumbent on ties or invalid routes.
+    if (rewardRoutes && enableTwoDayLookahead_ && enableFleetRepair_ && expandExactSplits_ &&
+        config.players > 2 &&
+        state.day + 1 == static_cast<int>(config.daySteps.size()) && hasSearchTime()) {
+        auto alternative = planCandidate(original, true, false, selectedRegions,
+                                         false, {}, true);
+        const auto before = MoveSimulator::simulateDay(config, state, best.actions, map);
+        const auto after = MoveSimulator::simulateDay(config, state, alternative.actions, map);
+        if (before.valid && after.valid &&
+            finalDayRank(after, collectedBrandsTotal_) > finalDayRank(before, collectedBrandsTotal_)) {
+            alternative.metadataStale = true;
+            best = std::move(alternative);
         }
     }
     actions = best.actions;

@@ -3,6 +3,7 @@ CXX=g++
 CXXFLAGS="-std=c++17 -IHexaUdon/include -IHexaUdon/third_party"
 CORE_SRC="HexaUdon/src/io/JsonReader.cpp HexaUdon/src/io/JsonWriter.cpp HexaUdon/src/io/DiaryWriter.cpp HexaUdon/src/map/Map.cpp HexaUdon/src/solver/ActionValidator.cpp HexaUdon/src/solver/PathFinder.cpp HexaUdon/src/solver/SpotScorer.cpp HexaUdon/src/solver/PatrolPlanner.cpp HexaUdon/src/solver/SupplyPlanner.cpp HexaUdon/src/solver/MoveSimulator.cpp HexaUdon/src/solver/Solver.cpp HexaUdon/src/api/GameApiClient.cpp HexaUdon/src/api/HttpClient.cpp"
 LDFLAGS="-lwininet"
+CORE_SRC="$CORE_SRC HexaUdon/src/solver/khanh/Solver.cpp HexaUdon/src/solver/khanh/PatrolPlanner.cpp HexaUdon/src/solver/khanh/SupplyPlanner.cpp HexaUdon/src/solver/khanh/PathFinder.cpp"
 
 if [ "$1" == "test" ]; then
     echo "[BUILDING & RUNNING UNIT TESTS]..."

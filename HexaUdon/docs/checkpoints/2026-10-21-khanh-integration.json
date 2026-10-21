@@ -1,0 +1,1284 @@
+﻿{
+    "reference":  "30c8e77b5c8ff219212e5d8a44c0650a6d8ca38e",
+    "runs":  {
+                 "khanh_after_16":  {
+                                        "autoFormation":  false,
+                                        "days":  [
+                                                     {
+                                                         "daily":  12,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  471.9432,
+                                                         "serving":  14
+                                                     },
+                                                     {
+                                                         "daily":  11,
+                                                         "missing":  [
+                                                                         8
+                                                                     ],
+                                                         "ms":  2424.9522,
+                                                         "serving":  12
+                                                     },
+                                                     {
+                                                         "daily":  10,
+                                                         "missing":  [
+                                                                         8,
+                                                                         10
+                                                                     ],
+                                                         "ms":  3207.9769,
+                                                         "serving":  10
+                                                     },
+                                                     {
+                                                         "daily":  11,
+                                                         "missing":  [
+                                                                         11
+                                                                     ],
+                                                         "ms":  2892.4348,
+                                                         "serving":  12
+                                                     },
+                                                     {
+                                                         "daily":  10,
+                                                         "missing":  [
+                                                                         8,
+                                                                         11
+                                                                     ],
+                                                         "ms":  3081.5475,
+                                                         "serving":  11
+                                                     }
+                                                 ],
+                                        "formationMs":  0.0003,
+                                        "multiDayEndpoints":  false,
+                                        "profile":  "compact-exact",
+                                        "score":  [
+                                                      12,
+                                                      54,
+                                                      59
+                                                  ],
+                                        "supplyIndex":  3,
+                                        "traffic":  "neutral",
+                                        "types":  [
+                                                      0,
+                                                      0,
+                                                      1,
+                                                      0
+                                                  ]
+                                    },
+                 "khanh_after_24":  {
+                                        "autoFormation":  false,
+                                        "days":  [
+                                                     {
+                                                         "daily":  18,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  3557.3122,
+                                                         "serving":  21
+                                                     },
+                                                     {
+                                                         "daily":  16,
+                                                         "missing":  [
+                                                                         0,
+                                                                         1
+                                                                     ],
+                                                         "ms":  7596.2223,
+                                                         "serving":  17
+                                                     },
+                                                     {
+                                                         "daily":  18,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  9845.108,
+                                                         "serving":  21
+                                                     },
+                                                     {
+                                                         "daily":  18,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  5913.0289,
+                                                         "serving":  21
+                                                     },
+                                                     {
+                                                         "daily":  16,
+                                                         "missing":  [
+                                                                         0,
+                                                                         14
+                                                                     ],
+                                                         "ms":  9070.4708,
+                                                         "serving":  20
+                                                     }
+                                                 ],
+                                        "formationMs":  0.0002,
+                                        "multiDayEndpoints":  false,
+                                        "profile":  "regional-repair",
+                                        "score":  [
+                                                      18,
+                                                      86,
+                                                      100
+                                                  ],
+                                        "supplyIndex":  4,
+                                        "traffic":  "neutral",
+                                        "types":  [
+                                                      0,
+                                                      0,
+                                                      0,
+                                                      0,
+                                                      1
+                                                  ]
+                                    },
+                 "khanh_after_32":  {
+                                        "autoFormation":  false,
+                                        "days":  [
+                                                     {
+                                                         "daily":  23,
+                                                         "missing":  [
+                                                                         17
+                                                                     ],
+                                                         "ms":  10167.3453,
+                                                         "serving":  25
+                                                     },
+                                                     {
+                                                         "daily":  24,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  7885.2803,
+                                                         "serving":  30
+                                                     },
+                                                     {
+                                                         "daily":  24,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  8584.8858,
+                                                         "serving":  26
+                                                     },
+                                                     {
+                                                         "daily":  23,
+                                                         "missing":  [
+                                                                         2
+                                                                     ],
+                                                         "ms":  9153.3694,
+                                                         "serving":  27
+                                                     },
+                                                     {
+                                                         "daily":  23,
+                                                         "missing":  [
+                                                                         22
+                                                                     ],
+                                                         "ms":  10072.8114,
+                                                         "serving":  28
+                                                     }
+                                                 ],
+                                        "formationMs":  0.0004,
+                                        "multiDayEndpoints":  false,
+                                        "profile":  "large-bounded",
+                                        "score":  [
+                                                      24,
+                                                      117,
+                                                      136
+                                                  ],
+                                        "supplyIndex":  6,
+                                        "traffic":  "neutral",
+                                        "types":  [
+                                                      0,
+                                                      0,
+                                                      0,
+                                                      1,
+                                                      0,
+                                                      0,
+                                                      1
+                                                  ]
+                                    },
+                 "khanh_after_32_57s":  {
+                                            "autoFormation":  false,
+                                            "days":  [
+                                                         {
+                                                             "daily":  23,
+                                                             "missing":  [
+                                                                             17
+                                                                         ],
+                                                             "ms":  18172.0126,
+                                                             "serving":  25
+                                                         },
+                                                         {
+                                                             "daily":  24,
+                                                             "missing":  [
+
+                                                                         ],
+                                                             "ms":  8380.4519,
+                                                             "serving":  30
+                                                         },
+                                                         {
+                                                             "daily":  24,
+                                                             "missing":  [
+
+                                                                         ],
+                                                             "ms":  8387.083,
+                                                             "serving":  26
+                                                         },
+                                                         {
+                                                             "daily":  23,
+                                                             "missing":  [
+                                                                             2
+                                                                         ],
+                                                             "ms":  18134.262,
+                                                             "serving":  28
+                                                         },
+                                                         {
+                                                             "daily":  24,
+                                                             "missing":  [
+
+                                                                         ],
+                                                             "ms":  17196.9532,
+                                                             "serving":  29
+                                                         }
+                                                     ],
+                                            "formationMs":  0.0003,
+                                            "multiDayEndpoints":  false,
+                                            "profile":  "large-bounded",
+                                            "score":  [
+                                                          24,
+                                                          118,
+                                                          138
+                                                      ],
+                                            "supplyIndex":  6,
+                                            "traffic":  "neutral",
+                                            "types":  [
+                                                          0,
+                                                          0,
+                                                          0,
+                                                          1,
+                                                          0,
+                                                          0,
+                                                          1
+                                                      ]
+                                        },
+                 "khanh_before_16":  {
+                                         "autoFormation":  false,
+                                         "days":  [
+                                                      {
+                                                          "daily":  12,
+                                                          "missing":  [
+
+                                                                      ],
+                                                          "ms":  482.4787,
+                                                          "serving":  14
+                                                      },
+                                                      {
+                                                          "daily":  11,
+                                                          "missing":  [
+                                                                          10
+                                                                      ],
+                                                          "ms":  2217.213,
+                                                          "serving":  12
+                                                      },
+                                                      {
+                                                          "daily":  10,
+                                                          "missing":  [
+                                                                          4,
+                                                                          10
+                                                                      ],
+                                                          "ms":  5581.3691,
+                                                          "serving":  10
+                                                      },
+                                                      {
+                                                          "daily":  11,
+                                                          "missing":  [
+                                                                          10
+                                                                      ],
+                                                          "ms":  3964.7446,
+                                                          "serving":  11
+                                                      },
+                                                      {
+                                                          "daily":  12,
+                                                          "missing":  [
+
+                                                                      ],
+                                                          "ms":  3807.2664,
+                                                          "serving":  15
+                                                      }
+                                                  ],
+                                         "formationMs":  0.0003,
+                                         "multiDayEndpoints":  false,
+                                         "profile":  "compact-exact",
+                                         "score":  [
+                                                       12,
+                                                       56,
+                                                       62
+                                                   ],
+                                         "supplyIndex":  3,
+                                         "traffic":  "neutral",
+                                         "types":  [
+                                                       0,
+                                                       0,
+                                                       1,
+                                                       0
+                                                   ]
+                                     },
+                 "khanh_before_24":  {
+                                         "autoFormation":  false,
+                                         "days":  [
+                                                      {
+                                                          "daily":  18,
+                                                          "missing":  [
+
+                                                                      ],
+                                                          "ms":  7145.0423,
+                                                          "serving":  22
+                                                      },
+                                                      {
+                                                          "daily":  17,
+                                                          "missing":  [
+                                                                          17
+                                                                      ],
+                                                          "ms":  7368.2891,
+                                                          "serving":  20
+                                                      },
+                                                      {
+                                                          "daily":  18,
+                                                          "missing":  [
+
+                                                                      ],
+                                                          "ms":  5599.9178,
+                                                          "serving":  26
+                                                      },
+                                                      {
+                                                          "daily":  16,
+                                                          "missing":  [
+                                                                          1,
+                                                                          10
+                                                                      ],
+                                                          "ms":  9641.2156,
+                                                          "serving":  19
+                                                      },
+                                                      {
+                                                          "daily":  17,
+                                                          "missing":  [
+                                                                          1
+                                                                      ],
+                                                          "ms":  8968.6752,
+                                                          "serving":  19
+                                                      }
+                                                  ],
+                                         "formationMs":  0.0002,
+                                         "multiDayEndpoints":  false,
+                                         "profile":  "regional-repair",
+                                         "score":  [
+                                                       18,
+                                                       86,
+                                                       106
+                                                   ],
+                                         "supplyIndex":  4,
+                                         "traffic":  "neutral",
+                                         "types":  [
+                                                       0,
+                                                       0,
+                                                       0,
+                                                       0,
+                                                       1
+                                                   ]
+                                     },
+                 "khanh_before_32":  {
+                                         "autoFormation":  false,
+                                         "days":  [
+                                                      {
+                                                          "daily":  20,
+                                                          "missing":  [
+                                                                          6,
+                                                                          8,
+                                                                          16,
+                                                                          17
+                                                                      ],
+                                                          "ms":  10089.7814,
+                                                          "serving":  22
+                                                      },
+                                                      {
+                                                          "daily":  24,
+                                                          "missing":  [
+
+                                                                      ],
+                                                          "ms":  10015.7297,
+                                                          "serving":  32
+                                                      },
+                                                      {
+                                                          "daily":  24,
+                                                          "missing":  [
+
+                                                                      ],
+                                                          "ms":  8364.0602,
+                                                          "serving":  28
+                                                      },
+                                                      {
+                                                          "daily":  24,
+                                                          "missing":  [
+
+                                                                      ],
+                                                          "ms":  9523.621,
+                                                          "serving":  33
+                                                      },
+                                                      {
+                                                          "daily":  23,
+                                                          "missing":  [
+                                                                          17
+                                                                      ],
+                                                          "ms":  10094.7313,
+                                                          "serving":  29
+                                                      }
+                                                  ],
+                                         "formationMs":  0.0004,
+                                         "multiDayEndpoints":  false,
+                                         "profile":  "large-bounded",
+                                         "score":  [
+                                                       24,
+                                                       115,
+                                                       144
+                                                   ],
+                                         "supplyIndex":  6,
+                                         "traffic":  "neutral",
+                                         "types":  [
+                                                       0,
+                                                       0,
+                                                       0,
+                                                       1,
+                                                       0,
+                                                       0,
+                                                       1
+                                                   ]
+                                     },
+                 "khanh_before_32_57s":  {
+                                             "autoFormation":  false,
+                                             "days":  [
+                                                          {
+                                                              "daily":  23,
+                                                              "missing":  [
+                                                                              17
+                                                                          ],
+                                                              "ms":  16721.1546,
+                                                              "serving":  25
+                                                          },
+                                                          {
+                                                              "daily":  24,
+                                                              "missing":  [
+
+                                                                          ],
+                                                              "ms":  17582.3023,
+                                                              "serving":  28
+                                                          },
+                                                          {
+                                                              "daily":  24,
+                                                              "missing":  [
+
+                                                                          ],
+                                                              "ms":  16751.098,
+                                                              "serving":  29
+                                                          },
+                                                          {
+                                                              "daily":  22,
+                                                              "missing":  [
+                                                                              2,
+                                                                              10
+                                                                          ],
+                                                              "ms":  18397.3027,
+                                                              "serving":  25
+                                                          },
+                                                          {
+                                                              "daily":  24,
+                                                              "missing":  [
+
+                                                                          ],
+                                                              "ms":  15774.8302,
+                                                              "serving":  33
+                                                          }
+                                                      ],
+                                             "formationMs":  0.0002,
+                                             "multiDayEndpoints":  false,
+                                             "profile":  "large-bounded",
+                                             "score":  [
+                                                           24,
+                                                           117,
+                                                           140
+                                                       ],
+                                             "supplyIndex":  6,
+                                             "traffic":  "neutral",
+                                             "types":  [
+                                                           0,
+                                                           0,
+                                                           0,
+                                                           1,
+                                                           0,
+                                                           0,
+                                                           1
+                                                       ]
+                                         },
+                 "khanh_coverage_20261021":  [
+                                                 {
+                                                     "baseline":  [
+                                                                      16,
+                                                                      77,
+                                                                      90
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      15,
+                                                                      16
+                                                                  ],
+                                                                  [
+                                                                      16,
+                                                                      18
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      17
+                                                                  ],
+                                                                  [
+                                                                      16,
+                                                                      19
+                                                                  ],
+                                                                  [
+                                                                      16,
+                                                                      20
+                                                                  ]
+                                                              ],
+                                                     "ms":  3966.6658,
+                                                     "score":  [
+                                                                   16,
+                                                                   77,
+                                                                   90
+                                                               ],
+                                                     "seed":  100
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      19,
+                                                                      37,
+                                                                      37
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      14,
+                                                                      14
+                                                                  ],
+                                                                  [
+                                                                      10,
+                                                                      11
+                                                                  ],
+                                                                  [
+                                                                      9,
+                                                                      9
+                                                                  ],
+                                                                  [
+                                                                      8,
+                                                                      8
+                                                                  ],
+                                                                  [
+                                                                      10,
+                                                                      10
+                                                                  ]
+                                                              ],
+                                                     "ms":  12104.7294,
+                                                     "score":  [
+                                                                   19,
+                                                                   51,
+                                                                   52
+                                                               ],
+                                                     "seed":  101
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      12,
+                                                                      60,
+                                                                      129
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      12,
+                                                                      29
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      31
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      19
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      20
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      30
+                                                                  ]
+                                                              ],
+                                                     "ms":  1331.8815,
+                                                     "score":  [
+                                                                   12,
+                                                                   60,
+                                                                   129
+                                                               ],
+                                                     "seed":  102
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      20,
+                                                                      56,
+                                                                      60
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      11,
+                                                                      13
+                                                                  ],
+                                                                  [
+                                                                      9,
+                                                                      9
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      12
+                                                                  ],
+                                                                  [
+                                                                      11,
+                                                                      11
+                                                                  ],
+                                                                  [
+                                                                      15,
+                                                                      15
+                                                                  ]
+                                                              ],
+                                                     "ms":  8632.4525,
+                                                     "score":  [
+                                                                   20,
+                                                                   58,
+                                                                   60
+                                                               ],
+                                                     "seed":  103
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      15,
+                                                                      67,
+                                                                      73
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      14,
+                                                                      14
+                                                                  ],
+                                                                  [
+                                                                      15,
+                                                                      17
+                                                                  ],
+                                                                  [
+                                                                      11,
+                                                                      12
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      15
+                                                                  ],
+                                                                  [
+                                                                      15,
+                                                                      16
+                                                                  ]
+                                                              ],
+                                                     "ms":  2030.7149,
+                                                     "score":  [
+                                                                   15,
+                                                                   69,
+                                                                   74
+                                                               ],
+                                                     "seed":  104
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      13,
+                                                                      48,
+                                                                      53
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      10,
+                                                                      10
+                                                                  ],
+                                                                  [
+                                                                      10,
+                                                                      11
+                                                                  ],
+                                                                  [
+                                                                      10,
+                                                                      11
+                                                                  ],
+                                                                  [
+                                                                      8,
+                                                                      9
+                                                                  ],
+                                                                  [
+                                                                      11,
+                                                                      15
+                                                                  ]
+                                                              ],
+                                                     "ms":  15228.5211,
+                                                     "score":  [
+                                                                   13,
+                                                                   49,
+                                                                   56
+                                                               ],
+                                                     "seed":  105
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      12,
+                                                                      50,
+                                                                      54
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      12,
+                                                                      13
+                                                                  ],
+                                                                  [
+                                                                      8,
+                                                                      8
+                                                                  ],
+                                                                  [
+                                                                      8,
+                                                                      9
+                                                                  ],
+                                                                  [
+                                                                      11,
+                                                                      15
+                                                                  ],
+                                                                  [
+                                                                      11,
+                                                                      13
+                                                                  ]
+                                                              ],
+                                                     "ms":  9133.5612,
+                                                     "score":  [
+                                                                   12,
+                                                                   50,
+                                                                   58
+                                                               ],
+                                                     "seed":  106
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      14,
+                                                                      70,
+                                                                      183
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      14,
+                                                                      31
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      41
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      43
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      31
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      37
+                                                                  ]
+                                                              ],
+                                                     "ms":  3185.0961,
+                                                     "score":  [
+                                                                   14,
+                                                                   70,
+                                                                   183
+                                                               ],
+                                                     "seed":  107
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      9,
+                                                                      45,
+                                                                      150
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      9,
+                                                                      22
+                                                                  ],
+                                                                  [
+                                                                      9,
+                                                                      33
+                                                                  ],
+                                                                  [
+                                                                      9,
+                                                                      31
+                                                                  ],
+                                                                  [
+                                                                      9,
+                                                                      32
+                                                                  ],
+                                                                  [
+                                                                      9,
+                                                                      32
+                                                                  ]
+                                                              ],
+                                                     "ms":  1598.1418,
+                                                     "score":  [
+                                                                   9,
+                                                                   45,
+                                                                   150
+                                                               ],
+                                                     "seed":  108
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      16,
+                                                                      52,
+                                                                      55
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      13,
+                                                                      14
+                                                                  ],
+                                                                  [
+                                                                      8,
+                                                                      8
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      12
+                                                                  ],
+                                                                  [
+                                                                      13,
+                                                                      14
+                                                                  ],
+                                                                  [
+                                                                      9,
+                                                                      10
+                                                                  ]
+                                                              ],
+                                                     "ms":  9218.4296,
+                                                     "score":  [
+                                                                   16,
+                                                                   55,
+                                                                   58
+                                                               ],
+                                                     "seed":  109
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      12,
+                                                                      60,
+                                                                      129
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      12,
+                                                                      29
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      27
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      25
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      28
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      20
+                                                                  ]
+                                                              ],
+                                                     "ms":  2547.8533,
+                                                     "score":  [
+                                                                   12,
+                                                                   60,
+                                                                   129
+                                                               ],
+                                                     "seed":  110
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      22,
+                                                                      107,
+                                                                      136
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      22,
+                                                                      28
+                                                                  ],
+                                                                  [
+                                                                      20,
+                                                                      22
+                                                                  ],
+                                                                  [
+                                                                      22,
+                                                                      33
+                                                                  ],
+                                                                  [
+                                                                      22,
+                                                                      29
+                                                                  ],
+                                                                  [
+                                                                      21,
+                                                                      24
+                                                                  ]
+                                                              ],
+                                                     "ms":  10677.2303,
+                                                     "score":  [
+                                                                   22,
+                                                                   107,
+                                                                   136
+                                                               ],
+                                                     "seed":  111
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      20,
+                                                                      92,
+                                                                      120
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      19,
+                                                                      22
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      16
+                                                                  ],
+                                                                  [
+                                                                      20,
+                                                                      28
+                                                                  ],
+                                                                  [
+                                                                      20,
+                                                                      30
+                                                                  ],
+                                                                  [
+                                                                      19,
+                                                                      24
+                                                                  ]
+                                                              ],
+                                                     "ms":  17896.0079,
+                                                     "score":  [
+                                                                   20,
+                                                                   92,
+                                                                   120
+                                                               ],
+                                                     "seed":  112
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      14,
+                                                                      70,
+                                                                      178
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      14,
+                                                                      35
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      36
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      40
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      38
+                                                                  ],
+                                                                  [
+                                                                      14,
+                                                                      29
+                                                                  ]
+                                                              ],
+                                                     "ms":  4068.2199,
+                                                     "score":  [
+                                                                   14,
+                                                                   70,
+                                                                   178
+                                                               ],
+                                                     "seed":  113
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      12,
+                                                                      60,
+                                                                      116
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      12,
+                                                                      31
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      26
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      23
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      18
+                                                                  ],
+                                                                  [
+                                                                      12,
+                                                                      18
+                                                                  ]
+                                                              ],
+                                                     "ms":  876.3842,
+                                                     "score":  [
+                                                                   12,
+                                                                   60,
+                                                                   116
+                                                               ],
+                                                     "seed":  114
+                                                 },
+                                                 {
+                                                     "baseline":  [
+                                                                      16,
+                                                                      37,
+                                                                      37
+                                                                  ],
+                                                     "days":  [
+                                                                  [
+                                                                      12,
+                                                                      12
+                                                                  ],
+                                                                  [
+                                                                      8,
+                                                                      8
+                                                                  ],
+                                                                  [
+                                                                      4,
+                                                                      4
+                                                                  ],
+                                                                  [
+                                                                      5,
+                                                                      5
+                                                                  ],
+                                                                  [
+                                                                      10,
+                                                                      10
+                                                                  ]
+                                                              ],
+                                                     "ms":  3276.6916,
+                                                     "score":  [
+                                                                   16,
+                                                                   39,
+                                                                   39
+                                                               ],
+                                                     "seed":  115
+                                                 }
+                                             ],
+                 "khanh_final_16":  {
+                                        "autoFormation":  false,
+                                        "days":  [
+                                                     {
+                                                         "daily":  12,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  511.7327,
+                                                         "serving":  14
+                                                     },
+                                                     {
+                                                         "daily":  11,
+                                                         "missing":  [
+                                                                         10
+                                                                     ],
+                                                         "ms":  2205.2276,
+                                                         "serving":  12
+                                                     },
+                                                     {
+                                                         "daily":  10,
+                                                         "missing":  [
+                                                                         4,
+                                                                         10
+                                                                     ],
+                                                         "ms":  5837.3199,
+                                                         "serving":  10
+                                                     },
+                                                     {
+                                                         "daily":  11,
+                                                         "missing":  [
+                                                                         10
+                                                                     ],
+                                                         "ms":  3612.4868,
+                                                         "serving":  11
+                                                     },
+                                                     {
+                                                         "daily":  12,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  3331.2169,
+                                                         "serving":  15
+                                                     }
+                                                 ],
+                                        "formationMs":  0.0003,
+                                        "multiDayEndpoints":  false,
+                                        "profile":  "compact-exact",
+                                        "score":  [
+                                                      12,
+                                                      56,
+                                                      62
+                                                  ],
+                                        "supplyIndex":  3,
+                                        "traffic":  "neutral",
+                                        "types":  [
+                                                      0,
+                                                      0,
+                                                      1,
+                                                      0
+                                                  ]
+                                    },
+                 "khanh_final_24":  {
+                                        "autoFormation":  false,
+                                        "days":  [
+                                                     {
+                                                         "daily":  18,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  6726.6688,
+                                                         "serving":  22
+                                                     },
+                                                     {
+                                                         "daily":  17,
+                                                         "missing":  [
+                                                                         17
+                                                                     ],
+                                                         "ms":  7092.8781,
+                                                         "serving":  20
+                                                     },
+                                                     {
+                                                         "daily":  18,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  5657.1427,
+                                                         "serving":  26
+                                                     },
+                                                     {
+                                                         "daily":  16,
+                                                         "missing":  [
+                                                                         1,
+                                                                         10
+                                                                     ],
+                                                         "ms":  9526.0656,
+                                                         "serving":  19
+                                                     },
+                                                     {
+                                                         "daily":  17,
+                                                         "missing":  [
+                                                                         1
+                                                                     ],
+                                                         "ms":  8944.065,
+                                                         "serving":  19
+                                                     }
+                                                 ],
+                                        "formationMs":  0.0003,
+                                        "multiDayEndpoints":  false,
+                                        "profile":  "regional-repair",
+                                        "score":  [
+                                                      18,
+                                                      86,
+                                                      106
+                                                  ],
+                                        "supplyIndex":  4,
+                                        "traffic":  "neutral",
+                                        "types":  [
+                                                      0,
+                                                      0,
+                                                      0,
+                                                      0,
+                                                      1
+                                                  ]
+                                    },
+                 "khanh_final_32":  {
+                                        "autoFormation":  false,
+                                        "days":  [
+                                                     {
+                                                         "daily":  23,
+                                                         "missing":  [
+                                                                         17
+                                                                     ],
+                                                         "ms":  21604.2502,
+                                                         "serving":  25
+                                                     },
+                                                     {
+                                                         "daily":  24,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  12078.7086,
+                                                         "serving":  30
+                                                     },
+                                                     {
+                                                         "daily":  24,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  14047.3932,
+                                                         "serving":  26
+                                                     },
+                                                     {
+                                                         "daily":  23,
+                                                         "missing":  [
+                                                                         2
+                                                                     ],
+                                                         "ms":  26382.1992,
+                                                         "serving":  27
+                                                     },
+                                                     {
+                                                         "daily":  24,
+                                                         "missing":  [
+
+                                                                     ],
+                                                         "ms":  21395.0937,
+                                                         "serving":  29
+                                                     }
+                                                 ],
+                                        "formationMs":  0.0002,
+                                        "multiDayEndpoints":  false,
+                                        "profile":  "large-bounded",
+                                        "score":  [
+                                                      24,
+                                                      118,
+                                                      137
+                                                  ],
+                                        "supplyIndex":  6,
+                                        "traffic":  "neutral",
+                                        "types":  [
+                                                      0,
+                                                      0,
+                                                      0,
+                                                      1,
+                                                      0,
+                                                      0,
+                                                      1
+                                                  ]
+                                    }
+             }
+}

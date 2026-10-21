@@ -6,6 +6,7 @@ set CXX=g++
 set CXXFLAGS=-std=c++17 -O2 -IHexaUdon/include -IHexaUdon/third_party
 set CORE_SRC=HexaUdon/src/io/JsonReader.cpp HexaUdon/src/io/JsonWriter.cpp HexaUdon/src/io/DiaryWriter.cpp HexaUdon/src/map/Map.cpp HexaUdon/src/solver/ActionValidator.cpp HexaUdon/src/solver/PathFinder.cpp HexaUdon/src/solver/SpotScorer.cpp HexaUdon/src/solver/PatrolPlanner.cpp HexaUdon/src/solver/SupplyPlanner.cpp HexaUdon/src/solver/MoveSimulator.cpp HexaUdon/src/solver/Solver.cpp HexaUdon/src/api/GameApiClient.cpp HexaUdon/src/api/HttpClient.cpp
 set LDFLAGS=-lwininet
+set CORE_SRC=%CORE_SRC% HexaUdon/src/solver/khanh/Solver.cpp HexaUdon/src/solver/khanh/PatrolPlanner.cpp HexaUdon/src/solver/khanh/SupplyPlanner.cpp HexaUdon/src/solver/khanh/PathFinder.cpp
 set APP_EXE=HexaUdon\HexaUdon.exe
 set TEMP_DIR=HexaUdon\.build
 

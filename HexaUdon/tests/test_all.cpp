@@ -13,6 +13,7 @@
 #include "solver/PathFinder.hpp"
 #include "solver/ActionValidator.hpp"
 #include "solver/Solver.hpp"
+#include "solver/khanh/Solver.hpp"
 #include "solver/MoveSimulator.hpp"
 #include "solver/PatrolPlanner.hpp"
 #include "solver/SupplyPlanner.hpp"
@@ -1203,6 +1204,22 @@ void test_agent_strategy_simulates_supply_counts() {
     assert(timedTypes == std::vector<int>(6, 0));
     assert(timedMs < 1'000); // Exhaustive small search must not wait for the cap.
 
+    // The timed selector screens placements, then compares two complete
+    // multi-day replays before changing the legacy placement.
+    config.players = 7;
+    config.map = {1, 1, {{0}}};
+    config.daySteps = {0, 0};
+    config.initialAgentPositions.assign(4, 0);
+    config.fuelLimit = 0;
+    std::ostringstream raceLog;
+    oldTimedLog = std::cerr.rdbuf(raceLog.rdbuf());
+    const auto raceTypes = AgentStrategy::decideAgentTypes(config, nullptr, 20'000);
+    std::cerr.rdbuf(oldTimedLog);
+    assert(raceTypes == std::vector<int>({0, 0, 0, 1}));
+    assert(raceLog.str().find("complete=1/1") != std::string::npos);
+    assert(raceLog.str().find("mode=finalist-race") != std::string::npos);
+    config.players = 2;
+
     // Start at the middle supply count, then exhaust every count by expanding
     // to both sides. Each non-trivial count also tries a second position
     // assignment instead of assuming the last agents are Supplies.
@@ -1710,7 +1727,47 @@ void test_reward_detour_lower_bound() {
     std::cout << "[PASS] Impossible reward detour skips an unnecessary Pareto tree!\n";
 }
 
+void test_large_map_reference_policy_bridge() {
+    GameConfig config{};
+    config.players = 7;
+    config.map = {25, 25, std::vector<std::vector<int>>(25, std::vector<int>(25, 0))};
+    config.daySteps = {3, 3};
+    config.fuelLimit = 12;
+    config.initialAgentPositions = {0, 4, 2};
+    config.spots = {{0, 1, 2}, {1, 3, 2}};
+    GameState state{};
+    state.agents = {{0, 0, 12}, {0, 4, 12}, {1, 2, 12}};
+    Solver integrated;
+    KhanhSolver reference;
+    Map map(25, 25, config.map.cells), referenceMap = map;
+    for (int day = 0; day < 2; ++day) {
+        state.day = day;
+        auto expected = reference.solve(config, state, referenceMap);
+        auto actual = integrated.solve(config, state, map);
+        assert(actual == expected);
+        integrated.discardLastPlan();
+        assert(integrated.solve(config, state, map) == expected);
+        for (int agent = 0; agent < 3; ++agent) {
+            assert(integrated.getPlannedTargetSpot(agent) == reference.getPlannedTargetSpot(agent));
+            assert(integrated.getSupportedPatrol(agent) == reference.getSupportedPatrol(agent));
+            for (int step = 0; step < 3; ++step)
+                assert(integrated.getPlannedStepSpot(agent, step) == reference.getPlannedStepSpot(agent, step));
+        }
+        auto result = MoveSimulator::simulateDay(config, state, actual, map);
+        assert(result.valid);
+        state.agents = result.agents;
+        integrated.commitLastPlan();
+        reference.commitLastPlan();
+    }
+    std::cout << "[PASS] Large-map reference policy preserves retry, commit and metadata!\n";
+    const auto selectionStart = std::chrono::steady_clock::now();
+    const auto types = AgentStrategy::decideAgentTypes(config, nullptr, 1);
+    assert(types.size() == 3 && std::count(types.begin(), types.end(), 1) == 1);
+    assert(std::chrono::steady_clock::now() - selectionStart < std::chrono::seconds(1));
+}
+
 int main() {
+    test_large_map_reference_policy_bridge();
     test_next_day_rendezvous_alternatives();
     test_reward_detour_lower_bound();
     test_long_daily_bridge_preserves_next_day();

@@ -89,17 +89,20 @@ int main(int argc, char** argv) {
         auto config = readConfig(data);
         bool profiles = true;
         bool mirroredTraffic = false;
+        bool ownTraffic = false;
         bool autoFormation = false;
         std::string fixedTypes;
         bool multiDayEndpoints = false;
         long long formationBudgetMs = 57000;
         std::vector<int> minimumScore;
+        bool componentMinimum = false;
         long long liveBudgetMs = 0;
         int supply = static_cast<int>(config.initialAgentPositions.size()) - 1;
         for (int i = 3; i < argc; ++i) {
             if (std::string(argv[i]) == "--legacy") profiles = false;
             else if (std::string(argv[i]) == "--multi-day-endpoints") multiDayEndpoints = true;
             else if (std::string(argv[i]) == "--mirrored-traffic") mirroredTraffic = true;
+            else if (std::string(argv[i]) == "--own-traffic") ownTraffic = true;
             else if (std::string(argv[i]) == "--auto-formation") autoFormation = true;
             else if (std::string(argv[i]) == "--types") {
                 if (++i >= argc) return 1;
@@ -109,7 +112,8 @@ int main(int argc, char** argv) {
                 if (++i >= argc) return 1;
                 formationBudgetMs = std::stoll(argv[i]);
             }
-            else if (std::string(argv[i]) == "--expect") {
+            else if (std::string(argv[i]) == "--expect" || std::string(argv[i]) == "--at-least") {
+                componentMinimum = std::string(argv[i]) == "--at-least";
                 if (i + 3 >= argc) return 1;
                 for (int field = 0; field < 3; ++field)
                     minimumScore.push_back(std::stoi(argv[++i]));
@@ -169,8 +173,9 @@ int main(int argc, char** argv) {
             std::cerr << "day=" << day << " daily=" << result.brands.size() << " ms=" << ms << '\n';
             total.add(result);
             state.agents = result.agents;
-            if (mirroredTraffic) {
-                for (auto& count : result.roadOccupancy) count *= config.players;
+            if (mirroredTraffic || ownTraffic) {
+                if (mirroredTraffic)
+                    for (auto& count : result.roadOccupancy) count *= config.players;
                 state.traffics = MoveSimulator::nextTraffic(config, previousOccupancy, result.roadOccupancy);
                 previousOccupancy = std::move(result.roadOccupancy);
             }
@@ -179,11 +184,15 @@ int main(int argc, char** argv) {
         std::cout << json({{"profile", profiles ? MapStrategy::select(config).name : "legacy"},
             {"supplyIndex",autoFormation ? -1 : supply}, {"types",types}, {"autoFormation",autoFormation},
             {"multiDayEndpoints",multiDayEndpoints},
-            {"formationMs",formationMs}, {"traffic",mirroredTraffic ? "mirrored-dynamic" : "neutral"},
+            {"formationMs",formationMs}, {"traffic",mirroredTraffic ? "mirrored-dynamic" : ownTraffic ? "own-dynamic" : "neutral"},
             {"score",{total.brands.size(), total.dailyTypes, total.servings}}, {"days",days}}).dump(2) << '\n';
         const std::vector<int> actual{static_cast<int>(total.brands.size()),
                                       total.dailyTypes, total.servings};
-        if (!minimumScore.empty() && actual < minimumScore) {
+        bool belowMinimum = !minimumScore.empty() && actual < minimumScore;
+        if (componentMinimum)
+            for (size_t field = 0; field < minimumScore.size(); ++field)
+                belowMinimum |= actual[field] < minimumScore[field];
+        if (belowMinimum) {
             std::cerr << "[REGRESSION] Sample score is below --expect\n";
             return 4;
         }
