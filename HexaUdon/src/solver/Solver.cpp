@@ -769,10 +769,14 @@ std::vector<int> Solver::decideAgentTypes(
 void Solver::commitLastPlan() {
     if (!hasPendingPlan_) return;
     collectedBrandsTotal_ = pendingBrandsTotal_;
+    continuation_ = std::move(pendingContinuation_);
+    continuationConfig_ = std::move(pendingContinuationConfig_);
     hasPendingPlan_ = false;
 }
 
 void Solver::discardLastPlan() {
+    pendingContinuation_.clear();
+    pendingContinuationConfig_.clear();
     pendingBrandsTotal_.clear();
     hasPendingPlan_ = false;
 }
@@ -849,6 +853,8 @@ std::vector<std::vector<int>> Solver::solve(
 ) {
     int daySteps = config.getDaySteps(state.day);
     const auto strategy = MapStrategy::select(config);
+    const bool compactDaily = mapStrategies_ && config.map.width == 16 &&
+        config.map.height == 16 && config.players > 2;
     const double patrolFuelWeight = config.players > 2 && useTimeBoundedPaths_ &&
         state.day + 1 == static_cast<int>(config.daySteps.size()) ? 0.0 : 1.0;
 
@@ -935,6 +941,7 @@ std::vector<std::vector<int>> Solver::solve(
     } best;
     std::vector<Candidate> shortlist;
     std::vector<Candidate> endpointBeam;
+    std::vector<Candidate> openingAlternatives;
 
     std::vector<int> original(numAgents);
     std::iota(original.begin(), original.end(), 0);
@@ -1062,6 +1069,9 @@ std::vector<std::vector<int>> Solver::solve(
     auto considerCandidate = [&](Candidate candidate) {
         if (std::get<0>(candidate.rank) < 0) return;
         if (candidate.rank > best.rank) best = candidate;
+        if (compactDaily && rewardRoutes && enableTwoDayLookahead_ &&
+            !useTimeBoundedPaths_ && enableFleetRepair_)
+            endpointBeam.push_back(candidate);
         if (std::any_of(shortlist.begin(), shortlist.end(), [&](const auto& existing) {
                 return existing.actions == candidate.actions;
             })) return;
@@ -1076,7 +1086,7 @@ std::vector<std::vector<int>> Solver::solve(
         if (!hasSearchTime() || std::get<0>(candidate.rank) < 0) return candidate;
         auto refined = candidate.actions;
         std::vector<std::vector<std::vector<int>>> endpoints;
-        const bool keepEndpoints = multiDayEndpoints_ && rewardRoutes && enableTwoDayLookahead_ &&
+        const bool keepEndpoints = (multiDayEndpoints_ || compactDaily) && rewardRoutes && enableTwoDayLookahead_ &&
             !useTimeBoundedPaths_ && enableFleetRepair_ && config.players > 2 &&
             config.map.width * config.map.height <= 256 &&
             state.day + 1 < static_cast<int>(config.daySteps.size());
@@ -1252,6 +1262,10 @@ std::vector<std::vector<int>> Solver::solve(
     for (const auto& order : orders) {
         if (!hasSearchTime()) break;
         considerCandidate(planCandidate(order, true, false, selectedRegions, false));
+        if (compactDaily && rewardRoutes && enableTwoDayLookahead_ &&
+            !useTimeBoundedPaths_ && state.day == 0 && hasSearchTime())
+            openingAlternatives.push_back(planCandidate(order, true, false,
+                selectedRegions, false, {}, true));
     }
     // Compare distinct first brands with free first targets: forcing a shortest
     // first-wave matching can prevent a better split of the whole day.
@@ -1268,6 +1282,22 @@ std::vector<std::vector<int>> Solver::solve(
         auto matchPriority = planCandidate(original, true, false, selectedRegions, true);
         if (std::get<0>(matchPriority.rank) > std::get<0>(best.rank))
             considerCandidate(std::move(matchPriority));
+    }
+    // ponytail: diversify the first destination, rather than enumerate every
+    // joint route. Complete multi-day verification below decides acceptance.
+    if (compactDaily && rewardRoutes && enableTwoDayLookahead_ &&
+        !useTimeBoundedPaths_ && enableFleetRepair_ && state.day == 0) {
+        const auto diversifyStop = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        for (size_t spot = 0; spot < config.spots.size(); ++spot) {
+            for (int patrol : patrols) {
+                if (!hasSearchTime() || std::chrono::steady_clock::now() >= diversifyStop) break;
+                auto order = patrols;
+                order.erase(std::find(order.begin(), order.end(), patrol));
+                order.insert(order.begin(), patrol);
+                openingAlternatives.push_back(planCandidate(order, true, false,
+                    selectedRegions, false, {{patrol, static_cast<int>(spot)}}, true));
+            }
+        }
     }
     // Also sample spatially balanced ownership. Regions are only a soft
     // preference, so the simulator can keep the ordinary plan whenever the
@@ -1287,6 +1317,7 @@ std::vector<std::vector<int>> Solver::solve(
     // planner coordinates one target at a time and can miss a full-day split
     // where a farther first target unlocks four or five distinct brands.
     if (config.players > 2 && patrols.size() >= 2 && patrols.size() <= 3 &&
+        (!compactDaily || rewardRoutes || expandExactSplits_) &&
         (!mapStrategies_ || strategy.exactRoutes) &&
         config.spots.size() <= 18 && mapBrands.size() <= 20 && hasSearchTime()) {
         std::map<int, int> brandIndex;
@@ -1334,7 +1365,8 @@ std::vector<std::vector<int>> Solver::solve(
                     if ((visited & (uint64_t{1} << spot)) || config.spots[spot].stocks <= 0)
                         continue;
                     auto path = pathCache.get(pos, state.agents[patrol].fuel - fuel, 1.0)
-                        .extractPath(config.spots[spot].pos);
+                        .extractPath(config.spots[spot].pos,
+                            compactDaily && useTimeBoundedPaths_ ? daySteps - steps : INT_MAX);
                     if (!path.found || steps + path.totalSteps > daySteps) continue;
                     route.push_back(static_cast<int>(spot));
                     searchRoute(map.posToCoordinate(config.spots[spot].pos),
@@ -1404,7 +1436,8 @@ std::vector<std::vector<int>> Solver::solve(
                 int fuel = state.agents[patrol].fuel;
                 exact.actions[patrol].clear();
                 for (int spot : selected.routes[routeIndex].spots) {
-                    auto path = pathCache.get(pos, fuel, 1.0).extractPath(config.spots[spot].pos);
+                    auto path = pathCache.get(pos, fuel, 1.0).extractPath(config.spots[spot].pos,
+                        compactDaily && useTimeBoundedPaths_ ? daySteps - usedSteps : INT_MAX);
                     if (!path.found || usedSteps + path.totalSteps > daySteps) break;
                     exact.actions[patrol].insert(exact.actions[patrol].end(),
                         path.directions.begin(), path.directions.end());
@@ -1421,7 +1454,8 @@ std::vector<std::vector<int>> Solver::solve(
         // The fuel-balanced second pass duplicated the full combination DP but
         // did not improve the tracked Daily score. Keep the lower-fuel pass;
         // projected low-fuel rescues below still protect day-to-day continuity.
-        for (bool balanceFuel : {false}) {
+        for (bool balanceFuel : {false, true}) {
+            if (balanceFuel && !(compactDaily && useTimeBoundedPaths_)) continue;
             const auto combinations = combineRoutes(balanceFuel);
             std::vector<std::pair<std::tuple<int, int, int, int, int, int>, const RouteCombination*>> alternatives;
             RouteCombination selected;
@@ -1658,14 +1692,24 @@ std::vector<std::vector<int>> Solver::solve(
     // A selected two-day forecast uses cumulative Daily in best.rank. Preserve
     // that continuation once it covers at least a full day of types; reopening
     // it for a single-day gain regressed later coverage in the synthetic suite.
-    const bool finalServingSearch = config.players > 2 &&
+    const bool finalServingSearch = !compactDaily && config.players > 2 &&
         state.day + 1 == static_cast<int>(config.daySteps.size());
+    const bool compactOpeningAlternative = compactDaily && enableTwoDayLookahead_ &&
+        state.day == 0 && (deadlineMs < nowEpochMs - 60000 || deadlineMs - nowEpochMs > 30000);
     if (rewardRoutes && !useTimeBoundedPaths_ && hasSearchTime() && baselineDay.valid &&
-        (std::get<1>(best.rank) < static_cast<int>(mapBrands.size()) || finalServingSearch)) {
+        (std::get<1>(best.rank) < static_cast<int>(mapBrands.size()) || finalServingSearch ||
+         compactOpeningAlternative)) {
         Solver coverageSolver = *this;
         coverageSolver.useTimeBoundedPaths_ = true;
         auto coverageActions = coverageSolver.solve(config, state, map, true);
         auto coverage = MoveSimulator::simulateDay(config, state, coverageActions, map);
+        if (compactOpeningAlternative && coverage.valid) {
+            Candidate opening;
+            opening.actions = coverageActions;
+            opening.metadataStale = true;
+            evaluateCandidate(opening);
+            endpointBeam.insert(endpointBeam.begin(), std::move(opening));
+        }
         if (coverage.valid && (finalServingSearch
             ? finalDayRank(coverage, collectedBrandsTotal_) > finalDayRank(baselineDay, collectedBrandsTotal_)
             : std::make_pair(std::get<0>(finalDayRank(coverage, collectedBrandsTotal_)),
@@ -1768,9 +1812,53 @@ std::vector<std::vector<int>> Solver::solve(
                 best = std::move(inserted);
         }
     }
+    std::vector<int> compactConfig;
+    const bool compactRoot = compactDaily && rewardRoutes && enableTwoDayLookahead_ &&
+        !useTimeBoundedPaths_ && enableFleetRepair_;
+    if (compactRoot) {
+        compactConfig = {config.map.width, config.map.height, config.fuelLimit,
+            config.players, config.busyThreshold, config.jammedThreshold};
+        compactConfig.push_back(static_cast<int>(config.daySteps.size()));
+        compactConfig.insert(compactConfig.end(), config.daySteps.begin(), config.daySteps.end());
+        for (const auto& row : config.map.cells)
+            compactConfig.insert(compactConfig.end(), row.begin(), row.end());
+        for (const auto& spot : config.spots)
+            compactConfig.insert(compactConfig.end(), {spot.brand, spot.pos, spot.stocks});
+        pendingContinuation_.clear();
+        pendingContinuationConfig_ = compactConfig;
+        if (compactConfig == continuationConfig_) {
+            for (size_t k = 0; k < continuation_.size(); ++k) {
+                const auto& saved = continuation_[k];
+                if (saved.state.day != state.day || saved.state.agents.size() != state.agents.size()) continue;
+                bool matches = true;
+                for (size_t i = 0; i < state.agents.size(); ++i)
+                    matches &= saved.state.agents[i].kind == state.agents[i].kind &&
+                        saved.state.agents[i].pos == state.agents[i].pos &&
+                        saved.state.agents[i].fuel == state.agents[i].fuel;
+                Map savedMap = map;
+                savedMap.updateTraffic(saved.state.traffics);
+                for (int p = 0; p < config.map.width * config.map.height; ++p)
+                    matches &= savedMap.getTrafficStatus(p) == map.getTrafficStatus(p);
+                if (!matches) continue;
+                Candidate retained;
+                retained.actions = saved.actions;
+                retained.metadataStale = true;
+                evaluateCandidate(retained);
+                // Keep a verified continuation on equal current coverage. A
+                // serving-only replan must not discard tomorrow's saved route.
+                if (std::make_pair(std::get<0>(retained.rank), std::get<1>(retained.rank)) >=
+                    std::make_pair(std::get<0>(best.rank), std::get<1>(best.rank))) {
+                    best = std::move(retained);
+                    pendingContinuation_.assign(continuation_.begin() + k, continuation_.end());
+                    std::cerr << "[COMPACT-DAILY] reuse day=" << state.day << '\n';
+                }
+                break;
+            }
+        }
+    }
     // Search across the day boundary: equal coverage today can leave a very
     // different refuelling problem tomorrow. Keep the old policy as incumbent.
-    if (multiDayEndpoints_ && rewardRoutes && enableTwoDayLookahead_ && !useTimeBoundedPaths_ &&
+    if ((multiDayEndpoints_ || compactDaily) && rewardRoutes && enableTwoDayLookahead_ && !useTimeBoundedPaths_ &&
         enableFleetRepair_ && config.players > 2 &&
         config.map.width * config.map.height <= 256 &&
         state.day + 1 < static_cast<int>(config.daySteps.size()) && hasSearchTime()) {
@@ -1780,25 +1868,38 @@ std::vector<std::vector<int>> Solver::solve(
         };
         // ponytail: a bounded endpoint beam, holding observed traffic constant.
         // Reserve the live submission margin and reject incomplete forecasts.
-        const auto requestedStop = std::min<long long>(epochMs() + 40000,
+        const auto requestedStop = std::min<long long>(epochMs() + (compactDaily ? 50000 : 40000),
             deadlineMs < nowEpochMs - 60000 ? LLONG_MAX : deadlineMs);
         const auto stop = ((requestedStop + 750) / 1000) * 1000 - 750;
         std::vector<std::vector<std::vector<int>>> alternatives;
+        endpointBeam.insert(endpointBeam.begin(), openingAlternatives.begin(), openingAlternatives.end());
+        std::set<std::vector<int>> seenEndpoints;
         for (const auto& endpoint : endpointBeam)
             if (std::get<0>(endpoint.rank) >= std::get<0>(best.rank) &&
-                std::get<1>(endpoint.rank) >= std::get<1>(best.rank))
+                std::get<1>(endpoint.rank) >= std::get<1>(best.rank)) {
+                auto day = MoveSimulator::simulateDay(config, state, endpoint.actions, map);
+                std::vector<int> key;
+                for (const auto& a : day.agents) { key.push_back(a.pos); key.push_back(a.fuel); }
+                if (!day.valid || !seenEndpoints.insert(key).second) continue;
                 alternatives.push_back(endpoint.actions);
+            }
         if (stop - epochMs() > 30000) {
             auto refined = best.actions;
             SupplyPlanner::improveDay(config, state, map, refined,
                 collectedBrandsTotal_, std::min(stop, epochMs() + 2000), true, &alternatives);
         }
-        auto forecast = [&](const std::vector<std::vector<int>>& first, bool full, bool repair = false) {
+        auto forecast = [&](const std::vector<std::vector<int>>& first, bool full, bool repair = false,
+                            std::vector<ContinuationDay>* saved = nullptr) {
             MatchScore score;
+            auto objective = [&] {
+                return std::make_tuple(static_cast<int>(score.brands.size()), score.dailyTypes,
+                    compactDaily ? 0 : score.servings);
+            };
             score.brands = collectedBrandsTotal_;
             auto today = MoveSimulator::simulateDay(config, state, first, map);
-            if (!today.valid) return std::make_pair(false, score.rank());
+            if (!today.valid) return std::make_pair(false, objective());
             score.add(today);
+            if (saved) { saved->clear(); saved->push_back({state, first}); }
             auto next = state;
             next.agents = today.agents;
             Solver continuation = *this;
@@ -1806,19 +1907,25 @@ std::vector<std::vector<int>> Solver::solve(
             continuation.hasPendingPlan_ = false;
             continuation.enableTwoDayLookahead_ = false;
             continuation.enableFleetRepair_ = repair;
+            if (compactDaily && !full) continuation.expandExactSplits_ = false;
             Map nextMap = map;
             for (next.day = state.day + 1;
                  next.day < static_cast<int>(config.daySteps.size()); ++next.day) {
-                if (epochMs() >= stop) return std::make_pair(false, score.rank());
-                next.endsAt = (stop + 750) / 1000;
+                if (epochMs() >= stop) return std::make_pair(false, objective());
+                const auto dayStop = compactDaily
+                    ? std::min(stop, epochMs() + (full ? 3000 : 500)) : stop;
+                next.endsAt = std::min((stop + 750) / 1000,
+                    (dayStop + (compactDaily ? 1749 : 750)) / 1000);
                 auto nextActions = continuation.solve(config, next, nextMap, full);
+                if (saved) saved->push_back({next, nextActions});
                 auto day = MoveSimulator::simulateDay(config, next, nextActions, nextMap);
-                if (!day.valid) return std::make_pair(false, score.rank());
+                if (!day.valid) return std::make_pair(false, objective());
                 score.add(day);
                 next.agents = day.agents;
                 continuation.commitLastPlan();
+                if (compactDaily && !full) break;
             }
-            return std::make_pair(epochMs() < stop, score.rank());
+            return std::make_pair(epochMs() < stop, objective());
         };
         if (!alternatives.empty() && stop - epochMs() > 30000) {
             auto baseEstimate = forecast(best.actions, false);
@@ -1827,7 +1934,8 @@ std::vector<std::vector<int>> Solver::solve(
             std::vector<std::vector<int>> selected;
             std::vector<std::pair<std::tuple<int, int, int>, std::vector<std::vector<int>>>> finalists;
             auto incumbentDay = MoveSimulator::simulateDay(config, state, best.actions, map);
-            const auto screeningStop = std::min(stop - 28000, epochMs() + 6000);
+            const auto screeningStop = std::min(stop - 28000,
+                epochMs() + (compactDaily ? 12000 : 6000));
             for (const auto& alternate : alternatives) {
                 if (!baseEstimate.first || epochMs() >= screeningStop) break;
                 if (alternate == best.actions) continue;
@@ -1845,7 +1953,23 @@ std::vector<std::vector<int>> Solver::solve(
                 }
             }
             if (!selected.empty() && stop - epochMs() > 12000) {
-                auto before = forecast(best.actions, true);
+                std::vector<ContinuationDay> baselinePlans, verifiedPlans;
+                auto before = [&] {
+                    if (!compactDaily || pendingContinuation_.empty())
+                        return forecast(best.actions, true, compactDaily, &baselinePlans);
+                    MatchScore savedScore;
+                    savedScore.brands = collectedBrandsTotal_;
+                    for (const auto& planned : pendingContinuation_) {
+                        auto day = MoveSimulator::simulateDay(config, planned.state, planned.actions, map);
+                        if (!day.valid) return std::make_pair(false, savedScore.rank());
+                        savedScore.add(day);
+                    }
+                    savedScore.servings = 0;
+                    baselinePlans = pendingContinuation_;
+                    return std::make_pair(true, savedScore.rank());
+                }();
+                if (compactDaily && before.first && pendingContinuation_.empty())
+                    pendingContinuation_ = baselinePlans;
                 std::stable_sort(finalists.begin(), finalists.end(), [](const auto& a, const auto& b) {
                     return a.first > b.first;
                 });
@@ -1854,19 +1978,30 @@ std::vector<std::vector<int>> Solver::solve(
                 std::vector<std::vector<int>> verifiedCandidate;
                 for (const auto& finalist : finalists) {
                     if (!before.first || stop - epochMs() < 2000) break;
-                    auto after = forecast(finalist.second, true);
+                    std::vector<ContinuationDay> plans;
+                    auto after = forecast(finalist.second, true, compactDaily, &plans);
                     std::cerr << "[CONTINUATION-CHECK] day=" << state.day
                               << " complete=" << before.first << '/' << after.first << " daily="
                               << std::get<1>(before.second) << '/' << std::get<1>(after.second) << '\n';
                     if (after.first && after.second > retained.second) {
                         retained = after;
                         verifiedCandidate = finalist.second;
-                        break; // Reserve time for the actual policy comparison.
+                        verifiedPlans = std::move(plans);
+                        if (!compactDaily || std::get<1>(retained.second) ==
+                            static_cast<int>(mapBrands.size() * (config.daySteps.size() - state.day)))
+                            break;
                     }
                 }
                 // The screening policy skips fleet repair. Verify a winner
                 // again with the actual policy before changing the incumbent.
-                if (!verifiedCandidate.empty() && stop - epochMs() > 4000) {
+                if (compactDaily && !verifiedCandidate.empty()) {
+                    pendingContinuation_ = std::move(verifiedPlans);
+                    best.actions = std::move(verifiedCandidate);
+                    best.metadataStale = true;
+                    evaluateCandidate(best);
+                    std::cerr << "[COMPACT-DAILY] day=" << state.day << " forecast="
+                              << std::get<1>(before.second) << "->" << std::get<1>(retained.second) << '\n';
+                } else if (!verifiedCandidate.empty() && stop - epochMs() > 4000) {
                     auto actualBefore = forecast(best.actions, true, true);
                     auto actualAfter = actualBefore.first
                         ? forecast(verifiedCandidate, true, true) : decltype(actualBefore){};
@@ -1944,6 +2079,9 @@ std::vector<std::vector<int>> Solver::solve(
     plannedStepSpots_ = std::move(best.stepSpots);
     plannedStepPositions_ = std::move(best.stepPositions);
     pendingBrandsTotal_ = std::move(best.brands);
+    if (compactRoot && !pendingContinuation_.empty() &&
+        pendingContinuation_.front().actions != actions)
+        pendingContinuation_.clear();
     currentDay_ = state.day;
     hasPendingPlan_ = true;
 

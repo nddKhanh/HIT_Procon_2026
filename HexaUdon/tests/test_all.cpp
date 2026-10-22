@@ -1082,7 +1082,7 @@ void test_many_player_daily_coverage_regression() {
     assert(std::get<0>(score.rank()) == 12);
     std::cout << "[DAILY REGRESSION] score=" << std::get<0>(score.rank()) << '/'
               << std::get<1>(score.rank()) << '/' << std::get<2>(score.rank()) << std::endl;
-    assert(std::get<1>(score.rank()) >= 56);
+    assert(std::get<1>(score.rank()) >= 57);
     std::cout << "[PASS] Many-player daily coverage regression passed!" << std::endl;
 }
 

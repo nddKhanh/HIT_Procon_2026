@@ -85,6 +85,12 @@ public:
 
 private:
     friend class AgentStrategy;
+    struct ContinuationDay {
+        GameState state;
+        std::vector<std::vector<int>> actions;
+    };
+    std::vector<ContinuationDay> continuation_, pendingContinuation_;
+    std::vector<int> continuationConfig_, pendingContinuationConfig_;
 
     // === Trạng thái xuyên trận ===
     std::set<int> collectedBrandsTotal_;   // Brand đã thu thập toàn trận

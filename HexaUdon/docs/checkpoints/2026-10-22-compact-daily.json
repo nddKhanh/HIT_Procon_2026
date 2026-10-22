@@ -1,0 +1,124 @@
+{
+  "kind": "offline own-traffic simulation, not server result",
+  "requested": [
+    12,
+    60,
+    0
+  ],
+  "achieved_full_daily": false,
+  "before": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 12,
+        "missing": [],
+        "ms": 1046.186,
+        "serving": 14
+      },
+      {
+        "daily": 11,
+        "missing": [
+          10
+        ],
+        "ms": 4801.551,
+        "serving": 12
+      },
+      {
+        "daily": 10,
+        "missing": [
+          4,
+          10
+        ],
+        "ms": 13206.2618,
+        "serving": 10
+      },
+      {
+        "daily": 11,
+        "missing": [
+          11
+        ],
+        "ms": 5604.4314,
+        "serving": 11
+      },
+      {
+        "daily": 12,
+        "missing": [],
+        "ms": 4317.7151,
+        "serving": 13
+      }
+    ],
+    "formationMs": 30779.4167,
+    "multiDayEndpoints": false,
+    "profile": "compact-exact",
+    "score": [
+      12,
+      56,
+      60
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0
+    ]
+  },
+  "after": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 12,
+        "missing": [],
+        "ms": 52985.7834,
+        "serving": 14
+      },
+      {
+        "daily": 11,
+        "missing": [
+          10
+        ],
+        "ms": 40990.0445,
+        "serving": 12
+      },
+      {
+        "daily": 11,
+        "missing": [
+          10
+        ],
+        "ms": 31996.7443,
+        "serving": 12
+      },
+      {
+        "daily": 12,
+        "missing": [],
+        "ms": 17010.7314,
+        "serving": 12
+      },
+      {
+        "daily": 11,
+        "missing": [
+          9
+        ],
+        "ms": 10337.7194,
+        "serving": 13
+      }
+    ],
+    "formationMs": 35769.3755,
+    "multiDayEndpoints": false,
+    "profile": "compact-exact",
+    "score": [
+      12,
+      57,
+      63
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0
+    ]
+  }
+}
