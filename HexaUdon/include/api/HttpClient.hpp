@@ -10,7 +10,9 @@ inline constexpr long long retryDelayMs = 200;
 inline constexpr long long requestIoBudgetMs = 2 * requestTimeoutMs; // send + receive; connection is established at startup
 inline constexpr long long retriedPostBudgetMs = 2 * requestIoBudgetMs + retryDelayMs;
 inline constexpr long long agentSelectionReserveMs = retriedPostBudgetMs;
-inline constexpr long long dailyAnswerReserveMs = requestIoBudgetMs + retriedPostBudgetMs;
+// ponytail: 10s favors search over worst-case GET + retried POST latency;
+// restore the full I/O budget if live logs show missed daily deadlines.
+inline constexpr long long dailyAnswerReserveMs = 10000;
 }
 
 #ifdef _WIN32

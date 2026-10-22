@@ -7,8 +7,11 @@
 #include <algorithm>
 #include <chrono>
 #include <climits>
+#include <cstdint>
+#include <functional>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <tuple>
 
@@ -267,15 +270,33 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         bool evaluated = false;
     };
     std::vector<Formation> formations(maxSupplyCount + 1);
+    const long long mapArea = 1LL * config.map.height * config.map.width;
+    const bool smallMapPlacements = agentCount <= 6 && mapArea <= 24LL * 24;
     auto placementCandidates = [&](int supplyCount) {
         std::vector<int> legacy(agentCount, 0);
         for (int i = 0; i < supplyCount; ++i)
             legacy[agentCount - 1 - i] = 1;
         std::vector<std::vector<int>> candidates{legacy};
-        if (agentCount < 7 || supplyCount == 0 ||
-            1LL * config.map.height * config.map.width <= 600 ||
-            config.map.cells.empty() || config.spots.empty())
+        if (supplyCount == 0 || config.map.cells.empty() || config.spots.empty())
             return candidates;
+        if (smallMapPlacements) {
+            std::vector<int> types(agentCount, 0);
+            auto enumerate = [&](auto&& self, int index, int supplies) -> void {
+                if (supplies > supplyCount || supplies + agentCount - index < supplyCount) return;
+                if (index == agentCount) {
+                    if (types != legacy) candidates.push_back(types);
+                    return;
+                }
+                types[index] = 0;
+                self(self, index + 1, supplies);
+                types[index] = 1;
+                self(self, index + 1, supplies + 1);
+                types[index] = 0;
+            };
+            enumerate(enumerate, 0, 0);
+            return candidates;
+        }
+        if (agentCount < 7 || mapArea <= 600) return candidates;
 
         Map placementMap(config.map.height, config.map.width, config.map.cells);
         const int maxDaySteps = config.daySteps.empty() ? 0
@@ -352,12 +373,117 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         if (bestTypes != legacy) candidates.push_back(std::move(bestTypes));
         return candidates;
     };
+    // ponytail: race one Supply against its placements only when a full match
+    // exceeds one tank; otherwise the generic search still tests zero Supply.
+    if (smallMapPlacements && agentCount >= 4 && agentCount <= 5 &&
+        maxSupplyCount == 1 && config.players > 2 && !config.daySteps.empty() &&
+        totalDaySteps > config.fuelLimit &&
+        !config.spots.empty() && !config.map.cells.empty()) {
+        const auto candidates = placementCandidates(1);
+        auto replay = [&](const std::vector<int>& types, int days, bool neutral,
+                          long long dayBudgetMs, bool fullSolver) {
+            GameState state{};
+            for (int i = 0; i < agentCount; ++i)
+                state.agents.push_back({types[i], config.initialAgentPositions[i], config.fuelLimit});
+            Map map(config.map.height, config.map.width, config.map.cells);
+            Solver solver;
+            solver.enableTwoDayLookahead_ = fullSolver;
+            MatchScore score;
+            std::vector<long long> previousOccupancy;
+            for (int day = 0; day < days; ++day) {
+                const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count();
+                if (now + 1000 >= selectionDeadlineMs)
+                    return std::make_pair(false, score.rank());
+                state.day = day;
+                state.endsAt = (std::min(selectionDeadlineMs - 1000,
+                    now + dayBudgetMs) + 750) / 1000;
+                const auto actions = solver.solve(config, state, map);
+                const auto result = MoveSimulator::simulateDay(config, state, actions, map);
+                if (!result.valid) return std::make_pair(false, score.rank());
+                score.add(result);
+                state.agents = result.agents;
+                solver.commitLastPlan();
+                if (!neutral && day + 1 < days) {
+                    auto occupancy = result.roadOccupancy;
+                    for (auto& count : occupancy) count *= config.players;
+                    state.traffics = MoveSimulator::nextTraffic(
+                        config, previousOccupancy, occupancy);
+                    previousOccupancy = std::move(occupancy);
+                }
+            }
+            return std::make_pair(hasSelectionTime(), score.rank());
+        };
+        // ponytail: screen every small-map placement, then spend the remaining
+        // pre-start window on one challenger; add more finalists only if replay
+        // shows a missed Types/Daily gain that fits the same submission deadline.
+        int challenger = -1;
+        auto screenBest = std::make_tuple(-1, -1, -1);
+        for (size_t i = 1; i < candidates.size() && hasSelectionTime(); ++i) {
+            auto screen = replay(candidates[i],
+                std::min<int>(2, config.daySteps.size()), false, 2000, false);
+            std::cerr << "[FORMATION] screen placement=" << i
+                      << " score=" << std::get<0>(screen.second) << '/'
+                      << std::get<1>(screen.second) << '/'
+                      << std::get<2>(screen.second)
+                      << " complete=" << screen.first << '\n';
+            if (screen.first && screen.second > screenBest) {
+                screenBest = screen.second;
+                challenger = static_cast<int>(i);
+            }
+        }
+        auto incumbent = candidates.front();
+        if (challenger >= 0) {
+            const int days = static_cast<int>(config.daySteps.size());
+            const auto neutralOld = replay(incumbent, days, true, 40000, true);
+            const auto neutralNew = neutralOld.first
+                ? replay(candidates[challenger], days, true, 40000, true)
+                : decltype(neutralOld){};
+            std::cerr << "[FORMATION] verify neutral=" << std::get<0>(neutralOld.second)
+                      << '/' << std::get<1>(neutralOld.second) << '/'
+                      << std::get<2>(neutralOld.second) << " vs "
+                      << std::get<0>(neutralNew.second) << '/'
+                      << std::get<1>(neutralNew.second) << '/'
+                      << std::get<2>(neutralNew.second)
+                      << " complete=" << neutralOld.first << '/' << neutralNew.first << '\n';
+            if (neutralOld.first && neutralNew.first &&
+                neutralNew.second >= neutralOld.second) {
+                const auto stressOld = replay(incumbent, days, false, 40000, true);
+                const auto stressNew = stressOld.first
+                    ? replay(candidates[challenger], days, false, 40000, true)
+                    : decltype(stressOld){};
+                if (stressOld.first && stressNew.first &&
+                    stressNew.second >= stressOld.second &&
+                    (neutralNew.second > neutralOld.second ||
+                     stressNew.second > stressOld.second))
+                    incumbent = candidates[challenger];
+                std::cerr << "[FORMATION] verified neutral=" << std::get<1>(neutralOld.second)
+                          << '/' << std::get<1>(neutralNew.second)
+                          << " stress=" << std::get<1>(stressOld.second)
+                          << '/' << std::get<1>(stressNew.second)
+                          << " complete=" << stressOld.first << '/' << stressNew.first << '\n';
+            }
+        }
+        if (selectedUseRegions) *selectedUseRegions = false;
+        std::cerr << "[FORMATION] selected robust types=[";
+        for (int i = 0; i < agentCount; ++i)
+            std::cerr << (i ? "," : "") << incumbent[i];
+        std::cerr << "] budget_remaining_ms=" << std::max(0LL,
+            selectionDeadlineMs - std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count()) << '\n';
+        return incumbent;
+    }
     auto evaluate = [&](int supplyCount) -> const Formation& {
         auto& formation = formations[supplyCount];
         if (formation.evaluated || !hasSelectionTime()) return formation;
         formation.evaluated = true;
         const auto candidates = placementCandidates(supplyCount);
-        for (const auto& types : candidates) {
+        size_t candidateLimit = candidates.size();
+        for (size_t candidateIndex = 0;
+             candidateIndex < candidateLimit && hasSelectionTime(); ++candidateIndex) {
+          const auto candidateStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::system_clock::now().time_since_epoch()).count();
+          const auto& types = candidates[candidateIndex];
           for (bool useRegions : {false, true}) {
             if (useRegions && !kEnablePatrolRegions) continue;
             GameState state{};
@@ -451,6 +577,19 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                 formation.useRegions = useRegions;
                 formation.valid = true;
             }
+          }
+          if (smallMapPlacements && candidateIndex == 0 && candidateLimit > 1) {
+              const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  std::chrono::system_clock::now().time_since_epoch()).count();
+              const auto elapsed = std::max(1LL, now - candidateStartedMs);
+              // ponytail: estimate each extra placement from the incumbent rollout;
+              // stop at the live deadline if a later placement costs more.
+              const auto estimatedMs = elapsed + elapsed / 5;
+              const auto remainingMs = std::max(0LL, selectionDeadlineMs - now);
+              candidateLimit = std::min(candidateLimit,
+                  static_cast<size_t>(1 + remainingMs / estimatedMs));
+              std::cerr << "[FORMATION] placement candidates=" << candidateLimit
+                        << '/' << candidates.size() << " map_area=" << mapArea << '\n';
           }
         }
 
@@ -1002,6 +1141,17 @@ std::vector<std::vector<int>> Solver::solve(
         auto candidate = planCandidate(order, true, false, selectedRegions);
         considerCandidate(std::move(candidate));
     }
+    // Medium maps can benefit from soft spatial ownership; keep the ordinary
+    // route as an incumbent and accept only a simulated official-score gain.
+    if (!useRegions_ && config.players > 2 &&
+        1LL * config.map.width * config.map.height > 256 &&
+        1LL * config.map.width * config.map.height <= 24LL * 24 &&
+        config.spots.size() > patrols.size() * 4) {
+        for (const auto& order : orders) {
+            if (!hasSearchTime()) break;
+            considerCandidate(planCandidate(order, true, false, regions));
+        }
+    }
     // ponytail: bounded joint first-target beam; expand only if it raises Daily
     // on replayed maps without consuming the server response budget.
     const auto current = MoveSimulator::simulateDay(config, state, best.actions, map);
@@ -1049,6 +1199,139 @@ std::vector<std::vector<int>> Solver::solve(
                 considerCandidate(std::move(candidate));
                 ++tested;
             }
+        }
+    }
+    // Reuse HexaUdon2's compact-map route-mask search: a greedy first target
+    // cannot always split all brands among two or three Patrols in one day.
+    std::set<int> mapBrands;
+    for (const auto& spot : config.spots) mapBrands.insert(spot.brand);
+    if (config.players > 2 && patrols.size() >= 2 && patrols.size() <= 3 &&
+        1LL * config.map.width * config.map.height <= 256 &&
+        config.spots.size() <= 18 && mapBrands.size() <= 20 && hasSearchTime()) {
+        std::map<int, int> brandIndex;
+        for (int brand : mapBrands)
+            brandIndex[brand] = static_cast<int>(brandIndex.size());
+        struct RouteOption {
+            std::vector<int> spots;
+            int steps = 0, fuel = 0, visits = 0;
+        };
+        std::vector<std::map<uint64_t, RouteOption>> patrolOptions;
+        for (int patrol : patrols) {
+            std::map<uint64_t, RouteOption> options;
+            std::map<std::pair<int, uint64_t>, std::vector<std::pair<int, int>>> seen;
+            std::vector<int> route;
+            size_t expansions = 0;
+            bool expired = false;
+            std::function<void(Position, int, int, uint64_t, uint64_t)> search;
+            search = [&](Position pos, int steps, int fuel,
+                         uint64_t visited, uint64_t brands) {
+                if (expired) return;
+                if ((++expansions % 128) == 0 && !hasSearchTime()) {
+                    expired = true;
+                    return;
+                }
+                auto& option = options[brands];
+                if (option.spots.empty() ||
+                    std::make_tuple(-fuel, -steps, static_cast<int>(route.size())) >
+                    std::make_tuple(-option.fuel, -option.steps, option.visits))
+                    option = {route, steps, fuel, static_cast<int>(route.size())};
+                const int last = route.empty() ? -1 : route.back();
+                auto& frontier = seen[{last, visited}];
+                if (std::any_of(frontier.begin(), frontier.end(), [&](const auto& prior) {
+                        return prior.first <= steps && prior.second <= fuel;
+                    })) return;
+                frontier.erase(std::remove_if(frontier.begin(), frontier.end(),
+                    [&](const auto& prior) {
+                        return steps <= prior.first && fuel <= prior.second;
+                    }), frontier.end());
+                frontier.push_back({steps, fuel});
+                for (size_t spot = 0; spot < config.spots.size(); ++spot) {
+                    if ((visited & (uint64_t{1} << spot)) || config.spots[spot].stocks <= 0)
+                        continue;
+                    auto path = pathCache.get(pos, state.agents[patrol].fuel - fuel, 1.0)
+                        .extractPath(config.spots[spot].pos);
+                    if (!path.found || steps + path.totalSteps > daySteps) continue;
+                    route.push_back(static_cast<int>(spot));
+                    search(map.posToCoordinate(config.spots[spot].pos),
+                        steps + path.totalSteps, fuel + path.totalFuel,
+                        visited | (uint64_t{1} << spot),
+                        brands | (uint64_t{1} << brandIndex[config.spots[spot].brand]));
+                    route.pop_back();
+                }
+            };
+            search(map.posToCoordinate(state.agents[patrol].pos), 0, 0, 0, 0);
+            patrolOptions.push_back(std::move(options));
+        }
+        struct RouteCombination {
+            std::vector<RouteOption> routes;
+            int visits = 0, steps = 0, fuel = 0;
+        };
+        std::map<uint64_t, RouteCombination> combinations{{0, {}}};
+        for (const auto& options : patrolOptions) {
+            std::map<uint64_t, RouteCombination> next;
+            for (const auto& [combinedBrands, combination] : combinations) {
+                if (!hasSearchTime()) break;
+                for (const auto& [routeBrands, option] : options) {
+                    const auto brands = combinedBrands | routeBrands;
+                    auto candidate = combination;
+                    candidate.routes.push_back(option);
+                    candidate.visits += option.visits;
+                    candidate.steps += option.steps;
+                    candidate.fuel += option.fuel;
+                    auto found = next.find(brands);
+                    if (found == next.end() ||
+                        std::make_tuple(-candidate.fuel, -candidate.steps, candidate.visits) >
+                        std::make_tuple(-found->second.fuel, -found->second.steps,
+                                        found->second.visits))
+                        next[brands] = std::move(candidate);
+                }
+            }
+            combinations = std::move(next);
+        }
+        using ExactRank = std::tuple<int, int, int, int, int>;
+        std::vector<std::pair<ExactRank, const RouteCombination*>> finalists;
+        for (const auto& [brands, combination] : combinations) {
+            int fresh = 0;
+            for (const auto& [brand, index] : brandIndex)
+                fresh += ((brands & (uint64_t{1} << index)) != 0) &&
+                         !collectedBrandsTotal_.count(brand);
+            const ExactRank rank{fresh, __builtin_popcountll(brands),
+                combination.visits, -combination.fuel, -combination.steps};
+            finalists.push_back({rank, &combination});
+        }
+        std::stable_sort(finalists.begin(), finalists.end(),
+            [](const auto& a, const auto& b) { return a.first > b.first; });
+        // ponytail: simulate only the leading split and three near-best masks;
+        // a larger exact beam needs a replay showing a missed Daily gain.
+        for (size_t choice = 0; choice < finalists.size() &&
+             choice < (rewardRoutes ? 4U : 1U) && hasSearchTime(); ++choice) {
+            if (choice > 0 &&
+                (std::get<0>(finalists[choice].first) < std::get<0>(finalists[0].first) ||
+                 std::get<1>(finalists[choice].first) + 1 <
+                     std::get<1>(finalists[0].first))) break;
+            const auto& selected = *finalists[choice].second;
+            if (selected.routes.size() != patrols.size()) continue;
+            Candidate exact;
+            exact.actions.assign(numAgents, std::vector<int>{-daySteps});
+            exact.metadataStale = true;
+            for (size_t routeIndex = 0; routeIndex < patrols.size(); ++routeIndex) {
+                const int patrol = patrols[routeIndex];
+                auto pos = map.posToCoordinate(state.agents[patrol].pos);
+                int usedSteps = 0, fuel = state.agents[patrol].fuel;
+                exact.actions[patrol].clear();
+                for (int spot : selected.routes[routeIndex].spots) {
+                    auto path = pathCache.get(pos, fuel, 1.0).extractPath(config.spots[spot].pos);
+                    if (!path.found || usedSteps + path.totalSteps > daySteps) break;
+                    exact.actions[patrol].insert(exact.actions[patrol].end(),
+                        path.directions.begin(), path.directions.end());
+                    usedSteps += path.totalSteps;
+                    fuel -= path.totalFuel;
+                    pos = map.posToCoordinate(config.spots[spot].pos);
+                }
+                MoveSimulator::padWithWait(exact.actions[patrol], usedSteps, daySteps);
+            }
+            evaluateCandidate(exact);
+            considerCandidate(refineCandidate(std::move(exact)));
         }
     }
     // Assign a named patrol to each still-missing brand; never hard-code a brand

@@ -17,7 +17,7 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
     const std::set<int>& matchBrands, const std::set<int>& dailyBrands,
     const std::set<int>& claimedSpots, bool officialRanking,
     bool exclusiveClaims, PathCache* pathCache,
-    const std::set<int>& preferredSpots) {
+    const std::set<int>& preferredSpots, bool deepLookahead) {
     auto localCurrent = pathCache ? SSSPResult{} :
         PathFinder::computeSSSP(currentPos, map, fuelRemaining, 1.0);
     const auto& fromCurrent = pathCache ? pathCache->get(currentPos, fuelRemaining, 1.0) :
@@ -105,6 +105,53 @@ static int findLookaheadSpot(Position currentPos, const GameConfig& config,
                     auto withSecond = candidate.rank;
                     for (size_t i = 0; i < withSecond.size(); ++i) withSecond[i] += secondRank[i];
                     if (withSecond > pairRank) pairRank = withSecond;
+
+                    const int thirdFuel = secondFuel - secondPath.totalFuel;
+                    const int usedSteps = firstPath.totalSteps + secondPath.totalSteps;
+                    // ponytail: three-stop lookahead is bounded to compact maps;
+                    // widen it only after replay shows a missed Daily gain.
+                    if (!deepLookahead || thirdFuel <= 0 || usedSteps >= stepsRemaining ||
+                        config.spots.size() > 18 ||
+                        1LL * config.map.width * config.map.height > 256) continue;
+                    auto afterSecondVisited = nextVisited;
+                    auto afterSecondStock = nextStock;
+                    auto afterSecondMatch = nextMatchBrands;
+                    auto afterSecondDaily = nextDailyBrands;
+                    afterSecondVisited.insert(static_cast<int>(second));
+                    --afterSecondStock[second];
+                    afterSecondMatch.insert(config.spots[second].brand);
+                    afterSecondDaily.insert(config.spots[second].brand);
+                    const Position secondPos = map.posToCoordinate(config.spots[second].pos);
+                    const auto& fromSecond = pathCache
+                        ? pathCache->get(secondPos, thirdFuel, 1.0)
+                        : PathFinder::computeSSSP(secondPos, map, thirdFuel, 1.0);
+                    for (size_t third = 0; third < config.spots.size(); ++third) {
+                        if ((exclusiveClaims && claimedSpots.count(static_cast<int>(third))) ||
+                            afterSecondVisited.count(static_cast<int>(third)) ||
+                            afterSecondStock[third] <= 0) continue;
+                        auto thirdPath = fromSecond.extractPath(config.spots[third].pos);
+                        if (!thirdPath.found || (enforceSameDay &&
+                            usedSteps + thirdPath.totalSteps > stepsRemaining)) continue;
+                        auto thirdRank = SpotScorer::rankSpot(config.spots[third].brand,
+                            thirdPath.totalSteps, afterSecondMatch, afterSecondDaily,
+                            afterSecondStock[third],
+                            brandSpotCount(config, config.spots[third].brand),
+                            thirdPath.totalFuel);
+                        if (!officialRanking) thirdRank = {
+                            SpotScorer::scoreSpot(config.spots[third].brand,
+                                thirdPath.totalSteps, afterSecondMatch,
+                                afterSecondStock[third],
+                                brandSpotCount(config, config.spots[third].brand),
+                                thirdPath.totalFuel, thirdFuel),
+                            afterSecondDaily.count(config.spots[third].brand) ? 0 : 1,
+                            0, 0, -thirdPath.totalSteps, -thirdPath.totalFuel};
+                        thirdRank[2] = preferredSpots.empty() ||
+                            preferredSpots.count(static_cast<int>(third)) ? 1 : 0;
+                        auto withThird = withSecond;
+                        for (size_t i = 0; i < withThird.size(); ++i)
+                            withThird[i] += thirdRank[i];
+                        if (withThird > pairRank) pairRank = withThird;
+                    }
                 }
             }
 
@@ -173,7 +220,8 @@ std::vector<int> PatrolPlanner::planDay(
                 currentPos, config, map,
                 fuelRemaining, stepsRemaining,
                 visitedToday, remainingStock, matchBrands, dailyBrands, claimedSpots,
-                officialRanking, exclusiveClaims, pathCache, preferredSpots
+                officialRanking, exclusiveClaims, pathCache, preferredSpots,
+                rewardRoutes
             );
         }
 

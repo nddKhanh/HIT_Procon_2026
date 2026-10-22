@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <sstream>
 #include <nlohmann/json.hpp>
+#include "api/HttpClient.hpp"
 #include "model/GameConfig.hpp"
 #include "GameState.hpp"
 #include "map/Map.hpp"
@@ -1033,9 +1034,25 @@ void test_agent_strategy_simulates_supply_counts() {
     };
     config.initialAgentPositions = {29, 0, 19, 28};
     config.fuelLimit = 7;
-    // Official ranking prefers one supply because it preserves more Daily.
-    assert(AgentStrategy::decideAgentTypes(config) ==
-           std::vector<int>({0, 0, 0, 1}));
+    // Small maps should spend spare formation time on every Supply position.
+    std::ostringstream smallMapLog;
+    oldLog = std::cerr.rdbuf(smallMapLog.rdbuf());
+    const auto smallMapTypes = AgentStrategy::decideAgentTypes(config);
+    std::cerr.rdbuf(oldLog);
+    assert(smallMapTypes.size() == 4);
+    assert(std::count(smallMapTypes.begin(), smallMapTypes.end(), 1) == 1);
+    assert(smallMapLog.str().find("placement candidates=4/4") != std::string::npos);
+    for (const char* types : {"[0,0,0,1]", "[0,0,1,0]", "[0,1,0,0]", "[1,0,0,0]"})
+        assert(smallMapLog.str().find(types) != std::string::npos);
+    // If the whole match fits in one tank, retain the zero-Supply comparison.
+    config.players = 3;
+    config.fuelLimit = 100;
+    std::ostringstream ampleFuelLog;
+    oldLog = std::cerr.rdbuf(ampleFuelLog.rdbuf());
+    AgentStrategy::decideAgentTypes(config);
+    std::cerr.rdbuf(oldLog);
+    assert(ampleFuelLog.str().find("[FORMATION] supply=0") != std::string::npos);
+    assert(api_deadline::dailyAnswerReserveMs == 10000);
     std::cout << "[PASS] Simulated supply-count strategy test passed!" << std::endl;
 }
 

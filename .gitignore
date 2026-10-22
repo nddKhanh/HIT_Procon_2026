@@ -13,7 +13,6 @@ out/
 .vs/
 .vscode/
 .idea/
-HexaUdon/build.bat
 HexaUdon/diary/*
 
 # Temporary & Log files
