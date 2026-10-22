@@ -17,8 +17,6 @@
 #include "solver/MapStrategy.hpp"
 
 namespace {
-constexpr long long kLargeFormationSimulationMs = 57'000;
-constexpr long long kBoundedDaySolveMs = 57'000;
 // Soft search deadlines; keep time for validation and the answer request.
 constexpr long long kAnswerReserveMs = 3'000;
 
@@ -96,9 +94,9 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         for (const auto& agent : selectionState.agents) agentTypes.push_back(agent.kind);
     } else {
         std::cout << "[2/4] CHUAN BI TRUOC START: tim doi hinh trong ngan sach;"
-                  << " gioi han tim kiem 57 giay"
+                  << " gioi han tim kiem " << strategy.solveBudgetMs(config, 0) / 1000 << " giay"
                   << " (chua gui action)...\n";
-        agentTypes = solver.decideAgentTypes(config, kLargeFormationSimulationMs);
+        agentTypes = solver.decideAgentTypes(config, MapStrategy::select(config).solveBudgetMs(config, 0));
     }
     std::cout << "  -> Loai xe: [";
     for (size_t i = 0; i < agentTypes.size(); ++i) {
@@ -240,9 +238,10 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
             } else {
                 // Keep the original snapshot for the day/revision check below.
                 planningState.endsAt = std::min(state.endsAt - kAnswerReserveMs / 1000,
-                    (now + kBoundedDaySolveMs + 750) / 1000);
+                    (now + MapStrategy::select(config).solveBudgetMs(config, state.day) + 750) / 1000);
             }
-            std::cout << "  -> Ngan sach solver: toi da 57 giay; dung som theo endsAt, du phong nop bai 3 giay.\n";
+            std::cout << "  -> Ngan sach solver: toi da " << strategy.solveBudgetMs(config, state.day) / 1000
+                      << " giay; dung som theo endsAt, du phong nop bai 3 giay.\n";
         }
         auto actions = usedFallback ? solver.createFallbackActions(config, state)
                                     : solver.solve(config, planningState, map);
@@ -342,7 +341,7 @@ int runStdinMode() {
     Map map(config.map.height, config.map.width, config.map.cells);
     Solver solver;
 
-    auto agentTypes = solver.decideAgentTypes(config, kLargeFormationSimulationMs);
+    auto agentTypes = solver.decideAgentTypes(config, MapStrategy::select(config).solveBudgetMs(config, 0));
     JsonWriter::writeAgentTypes(agentTypes);
 
     for (size_t day = 0; day < config.daySteps.size(); ++day) {
@@ -350,7 +349,7 @@ int runStdinMode() {
         GameState planningState = state;
         const auto now = currentEpochMs();
         // Local/replayed states can have stale epochs: still bound the CPU work.
-        const auto localEnd = (now + kBoundedDaySolveMs + 750) / 1000;
+        const auto localEnd = (now + MapStrategy::select(config).solveBudgetMs(config, state.day) + 750) / 1000;
         planningState.endsAt = state.endsAt * 1000LL > now
             ? std::min(state.endsAt, localEnd) : localEnd;
         auto actions = solver.solve(config, planningState, map);

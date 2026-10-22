@@ -313,6 +313,15 @@ std::vector<int> assignFirstSpots(
 std::vector<int> AgentStrategy::decideAgentTypes(
     const GameConfig& config, bool* selectedUseRegions,
     long long simulationBudgetMs) {
+    const auto strategy = MapStrategy::select(config);
+    if (strategy.tournament) {
+        const auto limit = strategy.solveBudgetMs(config, 0);
+        simulationBudgetMs = simulationBudgetMs > 0 ? std::min(simulationBudgetMs, limit) : limit;
+        if (simulationBudgetMs <= 0) {
+            if (selectedUseRegions) *selectedUseRegions = false;
+            return std::vector<int>(config.initialAgentPositions.size(), 0);
+        }
+    }
     if (simulationBudgetMs > 0 && config.players > 2 &&
         config.map.width * config.map.height > 600) {
         KhanhSolver planner;
@@ -550,7 +559,8 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             if (challenger >= 0) {
                 const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
                     formationDeadline - std::chrono::steady_clock::now()).count();
-                const bool regional = config.map.width == 24 && config.map.height == 24;
+                const bool regional = strategy.tournament ||
+                    (config.map.width == 24 && config.map.height == 24);
                 // Regional repair needs time to finish a coordinated day. Five
                 // severely truncated days misranked fleets on the regression map.
                 const int deepDays = regional ? std::min(2, rolloutDays) :
@@ -855,23 +865,38 @@ void Solver::resetDailyState(const GameConfig& config, int numAgents) {
 
 std::vector<std::vector<int>> Solver::solve(
     const GameConfig& config,
-    const GameState& state,
+    const GameState& receivedState,
     Map& map,
     bool rewardRoutes
 ) {
+    GameState state = receivedState;
     int daySteps = config.getDaySteps(state.day);
+    const auto selectedStrategy = MapStrategy::select(config);
+    // ponytail: extend the measured daily-repair policy to non-tournament
+    // 32x32 maps; replay the whole match before widening this size gate.
+    const bool largeDailyRepair = config.map.width == 32 && config.map.height == 32 &&
+        config.players > 2 && !selectedStrategy.tournament;
+    if (mapStrategies_ && selectedStrategy.tournament) {
+        const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        const auto localEnd = (now + selectedStrategy.solveBudgetMs(config, state.day) + 750) / 1000;
+        if (state.endsAt > 0 && state.endsAt * 1000LL >= now - 60000)
+            state.endsAt = std::min(state.endsAt, localEnd);
+        else state.endsAt = localEnd;
+    }
     if (mapStrategies_ && rewardRoutes && enableFleetRepair_ && expandExactSplits_ &&
         !regionalDailyPass_ && !useTimeBoundedPaths_ &&
-        config.map.width == 24 && config.map.height == 24) {
+        ((config.map.width == 24 && config.map.height == 24) || selectedStrategy.tournament || largeDailyRepair)) {
         Solver baseline = *this;
         baseline.regionalDailyPass_ = true;
+        if (selectedStrategy.tournament || largeDailyRepair) baseline.enableTwoDayLookahead_ = false;
         GameState initialState = state;
         const auto startedEpoch = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
         const auto remaining = state.endsAt * 1000LL - 750 - startedEpoch;
         // Reserve repair time during short formation rollouts too; otherwise
         // the base solver consumes the entire window and misrepresents this policy.
-        if (state.endsAt > 0 && remaining > 3000) {
+        if (!largeDailyRepair && state.endsAt > 0 && remaining > 3000) {
             const auto reserve = std::min<long long>(12000, remaining / 3);
             initialState.endsAt = (state.endsAt * 1000LL - reserve) / 1000;
         }
@@ -882,10 +907,11 @@ std::vector<std::vector<int>> Solver::solve(
             ? state.endsAt * 1000LL - 750 : LLONG_MAX;
         auto original = actions;
         SupplyPlanner::repairCoverage(config, state, map, actions, collectedBrandsTotal_,
-            deadline, 12000, true);
+            deadline, selectedStrategy.dailyRepairMs, true);
         PatrolPlanner::improveRoutes(config, state, map, actions, collectedBrandsTotal_,
-            deadline, 8000, true);
+            deadline, selectedStrategy.tourRepairMs, true);
         SupplyPlanner::prepareNextDay(config, state, map, actions, deadline);
+        baseline.enableTwoDayLookahead_ = enableTwoDayLookahead_;
         *this = std::move(baseline);
         regionalDailyPass_ = false;
         if (actions != original) {

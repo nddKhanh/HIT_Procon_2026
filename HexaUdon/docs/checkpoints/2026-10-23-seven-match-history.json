@@ -1,0 +1,746 @@
+{
+  "V0": {
+    "match": "4b837be2-289b-45a2-b576-7d529209b362",
+    "size": [
+      20,
+      20
+    ],
+    "brands": 10,
+    "dailyCeiling": 60,
+    "daily": 60,
+    "days": [
+      {
+        "day": 1,
+        "daily": 10,
+        "missing": [],
+        "servings": 13,
+        "patrolStartFuel": [
+          40,
+          40,
+          40
+        ],
+        "serverTimeMs": 610
+      },
+      {
+        "day": 2,
+        "daily": 10,
+        "missing": [],
+        "servings": 16,
+        "patrolStartFuel": [
+          11,
+          21,
+          40
+        ],
+        "serverTimeMs": 778
+      },
+      {
+        "day": 3,
+        "daily": 10,
+        "missing": [],
+        "servings": 22,
+        "patrolStartFuel": [
+          25,
+          40,
+          19
+        ],
+        "serverTimeMs": 1094
+      },
+      {
+        "day": 4,
+        "daily": 10,
+        "missing": [],
+        "servings": 19,
+        "patrolStartFuel": [
+          33,
+          35,
+          7
+        ],
+        "serverTimeMs": 1368
+      },
+      {
+        "day": 5,
+        "daily": 10,
+        "missing": [],
+        "servings": 17,
+        "patrolStartFuel": [
+          19,
+          32,
+          8
+        ],
+        "serverTimeMs": 783
+      },
+      {
+        "day": 6,
+        "daily": 10,
+        "missing": [],
+        "servings": 16,
+        "patrolStartFuel": [
+          24,
+          39,
+          10
+        ],
+        "serverTimeMs": 1136
+      }
+    ],
+    "source": "Diary reconstruction; Type, Daily and Servings confirmed against user-supplied server score table. Fuel remains diary-derived.",
+    "serverScore": {
+      "types": 10,
+      "daily": 60,
+      "servings": 103,
+      "timeMs": 5769,
+      "source": "Server score table supplied by user in chat, 2026-10-23"
+    }
+  },
+  "C1": {
+    "match": "1d089f67-c8f2-4d7c-a96b-b4b1f8a93263",
+    "size": [
+      24,
+      18
+    ],
+    "brands": 12,
+    "dailyCeiling": 72,
+    "daily": 72,
+    "days": [
+      {
+        "day": 1,
+        "daily": 12,
+        "missing": [],
+        "servings": 29,
+        "patrolStartFuel": [
+          80,
+          80,
+          80,
+          80
+        ],
+        "serverTimeMs": 5652
+      },
+      {
+        "day": 2,
+        "daily": 12,
+        "missing": [],
+        "servings": 28,
+        "patrolStartFuel": [
+          80,
+          49,
+          34,
+          32
+        ],
+        "serverTimeMs": 5658
+      },
+      {
+        "day": 3,
+        "daily": 12,
+        "missing": [],
+        "servings": 29,
+        "patrolStartFuel": [
+          13,
+          0,
+          80,
+          51
+        ],
+        "serverTimeMs": 9630
+      },
+      {
+        "day": 4,
+        "daily": 12,
+        "missing": [],
+        "servings": 25,
+        "patrolStartFuel": [
+          0,
+          77,
+          7,
+          32
+        ],
+        "serverTimeMs": 8804
+      },
+      {
+        "day": 5,
+        "daily": 12,
+        "missing": [],
+        "servings": 26,
+        "patrolStartFuel": [
+          75,
+          80,
+          0,
+          6
+        ],
+        "serverTimeMs": 8798
+      },
+      {
+        "day": 6,
+        "daily": 12,
+        "missing": [],
+        "servings": 30,
+        "patrolStartFuel": [
+          80,
+          34,
+          0,
+          52
+        ],
+        "serverTimeMs": 10636
+      }
+    ],
+    "source": "Diary reconstruction; Type, Daily and Servings confirmed against user-supplied server score table. Fuel remains diary-derived.",
+    "serverScore": {
+      "types": 12,
+      "daily": 72,
+      "servings": 167,
+      "timeMs": 49178,
+      "source": "Server score table supplied by user in chat, 2026-10-23"
+    }
+  },
+  "C2": {
+    "match": "a47427bd-250c-4cc0-838e-fd162b4f4abb",
+    "size": [
+      16,
+      16
+    ],
+    "brands": 10,
+    "dailyCeiling": 70,
+    "daily": 70,
+    "days": [
+      {
+        "day": 1,
+        "daily": 10,
+        "missing": [],
+        "servings": 20,
+        "patrolStartFuel": [
+          40,
+          40,
+          40
+        ],
+        "serverTimeMs": 1669
+      },
+      {
+        "day": 2,
+        "daily": 10,
+        "missing": [],
+        "servings": 24,
+        "patrolStartFuel": [
+          39,
+          39,
+          23
+        ],
+        "serverTimeMs": 3530
+      },
+      {
+        "day": 3,
+        "daily": 10,
+        "missing": [],
+        "servings": 23,
+        "patrolStartFuel": [
+          40,
+          27,
+          28
+        ],
+        "serverTimeMs": 4691
+      },
+      {
+        "day": 4,
+        "daily": 10,
+        "missing": [],
+        "servings": 18,
+        "patrolStartFuel": [
+          15,
+          28,
+          36
+        ],
+        "serverTimeMs": 4696
+      },
+      {
+        "day": 5,
+        "daily": 10,
+        "missing": [],
+        "servings": 27,
+        "patrolStartFuel": [
+          40,
+          31,
+          25
+        ],
+        "serverTimeMs": 3733
+      },
+      {
+        "day": 6,
+        "daily": 10,
+        "missing": [],
+        "servings": 14,
+        "patrolStartFuel": [
+          40,
+          29,
+          27
+        ],
+        "serverTimeMs": 3137
+      },
+      {
+        "day": 7,
+        "daily": 10,
+        "missing": [],
+        "servings": 21,
+        "patrolStartFuel": [
+          40,
+          31,
+          27
+        ],
+        "serverTimeMs": 1891
+      }
+    ],
+    "source": "Diary reconstruction; Type, Daily and Servings confirmed against user-supplied server score table. Fuel remains diary-derived.",
+    "serverScore": {
+      "types": 10,
+      "daily": 70,
+      "servings": 147,
+      "timeMs": 23347,
+      "source": "Server score table supplied by user in chat, 2026-10-23"
+    }
+  },
+  "C3": {
+    "match": "33b84f9d-fb29-439f-8167-20e623d490f3",
+    "size": [
+      20,
+      26
+    ],
+    "brands": 14,
+    "dailyCeiling": 84,
+    "daily": 84,
+    "days": [
+      {
+        "day": 1,
+        "daily": 14,
+        "missing": [],
+        "servings": 28,
+        "patrolStartFuel": [
+          80,
+          80,
+          80,
+          80
+        ],
+        "serverTimeMs": 5308
+      },
+      {
+        "day": 2,
+        "daily": 14,
+        "missing": [],
+        "servings": 45,
+        "patrolStartFuel": [
+          37,
+          54,
+          78,
+          52
+        ],
+        "serverTimeMs": 8067
+      },
+      {
+        "day": 3,
+        "daily": 14,
+        "missing": [],
+        "servings": 44,
+        "patrolStartFuel": [
+          71,
+          70,
+          38,
+          80
+        ],
+        "serverTimeMs": 9759
+      },
+      {
+        "day": 4,
+        "daily": 14,
+        "missing": [],
+        "servings": 52,
+        "patrolStartFuel": [
+          58,
+          65,
+          41,
+          80
+        ],
+        "serverTimeMs": 9806
+      },
+      {
+        "day": 5,
+        "daily": 14,
+        "missing": [],
+        "servings": 40,
+        "patrolStartFuel": [
+          71,
+          58,
+          25,
+          49
+        ],
+        "serverTimeMs": 8616
+      },
+      {
+        "day": 6,
+        "daily": 14,
+        "missing": [],
+        "servings": 35,
+        "patrolStartFuel": [
+          40,
+          69,
+          49,
+          65
+        ],
+        "serverTimeMs": 9778
+      }
+    ],
+    "source": "Diary reconstruction; Type, Daily and Servings confirmed against user-supplied server score table. Fuel remains diary-derived.",
+    "serverScore": {
+      "types": 14,
+      "daily": 84,
+      "servings": 244,
+      "timeMs": 51334,
+      "source": "Server score table supplied by user in chat, 2026-10-23"
+    }
+  },
+  "F1": {
+    "match": "5a504b48-3bb4-4576-8c86-76178389b501",
+    "size": [
+      25,
+      25
+    ],
+    "brands": 17,
+    "dailyCeiling": 136,
+    "daily": 136,
+    "days": [
+      {
+        "day": 1,
+        "daily": 17,
+        "missing": [],
+        "servings": 39,
+        "patrolStartFuel": [
+          80,
+          80,
+          80,
+          80
+        ],
+        "serverTimeMs": 2347
+      },
+      {
+        "day": 2,
+        "daily": 17,
+        "missing": [],
+        "servings": 41,
+        "patrolStartFuel": [
+          69,
+          77,
+          45,
+          22
+        ],
+        "serverTimeMs": 2666
+      },
+      {
+        "day": 3,
+        "daily": 17,
+        "missing": [],
+        "servings": 37,
+        "patrolStartFuel": [
+          64,
+          80,
+          4,
+          29
+        ],
+        "serverTimeMs": 2612
+      },
+      {
+        "day": 4,
+        "daily": 17,
+        "missing": [],
+        "servings": 41,
+        "patrolStartFuel": [
+          80,
+          4,
+          80,
+          32
+        ],
+        "serverTimeMs": 2519
+      },
+      {
+        "day": 5,
+        "daily": 17,
+        "missing": [],
+        "servings": 39,
+        "patrolStartFuel": [
+          10,
+          79,
+          54,
+          53
+        ],
+        "serverTimeMs": 2407
+      },
+      {
+        "day": 6,
+        "daily": 17,
+        "missing": [],
+        "servings": 39,
+        "patrolStartFuel": [
+          25,
+          51,
+          80,
+          28
+        ],
+        "serverTimeMs": 2585
+      },
+      {
+        "day": 7,
+        "daily": 17,
+        "missing": [],
+        "servings": 37,
+        "patrolStartFuel": [
+          36,
+          32,
+          80,
+          40
+        ],
+        "serverTimeMs": 2401
+      },
+      {
+        "day": 8,
+        "daily": 17,
+        "missing": [],
+        "servings": 37,
+        "patrolStartFuel": [
+          80,
+          43,
+          48,
+          47
+        ],
+        "serverTimeMs": 2461
+      }
+    ],
+    "source": "Diary reconstruction; Type, Daily and Servings confirmed against user-supplied server score table. Fuel remains diary-derived.",
+    "serverScore": {
+      "types": 17,
+      "daily": 136,
+      "servings": 310,
+      "timeMs": 19998,
+      "source": "Server score table supplied by user in chat, 2026-10-23"
+    }
+  },
+  "F2": {
+    "match": "f8dd7f81-e244-4a69-9754-efb5ffa44599",
+    "size": [
+      32,
+      32
+    ],
+    "brands": 27,
+    "dailyCeiling": 270,
+    "daily": 270,
+    "days": [
+      {
+        "day": 1,
+        "daily": 27,
+        "missing": [],
+        "servings": 55,
+        "patrolStartFuel": [
+          120,
+          120,
+          120,
+          120,
+          120
+        ],
+        "serverTimeMs": 17601
+      },
+      {
+        "day": 2,
+        "daily": 27,
+        "missing": [],
+        "servings": 60,
+        "patrolStartFuel": [
+          117,
+          55,
+          120,
+          33,
+          40
+        ],
+        "serverTimeMs": 19877
+      },
+      {
+        "day": 3,
+        "daily": 27,
+        "missing": [],
+        "servings": 60,
+        "patrolStartFuel": [
+          120,
+          2,
+          24,
+          50,
+          120
+        ],
+        "serverTimeMs": 14587
+      },
+      {
+        "day": 4,
+        "daily": 27,
+        "missing": [],
+        "servings": 47,
+        "patrolStartFuel": [
+          112,
+          65,
+          72,
+          120,
+          120
+        ],
+        "serverTimeMs": 18275
+      },
+      {
+        "day": 5,
+        "daily": 27,
+        "missing": [],
+        "servings": 41,
+        "patrolStartFuel": [
+          120,
+          106,
+          120,
+          57,
+          58
+        ],
+        "serverTimeMs": 17256
+      },
+      {
+        "day": 6,
+        "daily": 27,
+        "missing": [],
+        "servings": 41,
+        "patrolStartFuel": [
+          120,
+          47,
+          88,
+          2,
+          98
+        ],
+        "serverTimeMs": 13601
+      },
+      {
+        "day": 7,
+        "daily": 27,
+        "missing": [],
+        "servings": 49,
+        "patrolStartFuel": [
+          116,
+          118,
+          120,
+          120,
+          38
+        ],
+        "serverTimeMs": 15041
+      },
+      {
+        "day": 8,
+        "daily": 27,
+        "missing": [],
+        "servings": 67,
+        "patrolStartFuel": [
+          87,
+          120,
+          86,
+          120,
+          90
+        ],
+        "serverTimeMs": 16961
+      },
+      {
+        "day": 9,
+        "daily": 27,
+        "missing": [],
+        "servings": 59,
+        "patrolStartFuel": [
+          104,
+          77,
+          120,
+          120,
+          81
+        ],
+        "serverTimeMs": 14841
+      },
+      {
+        "day": 10,
+        "daily": 27,
+        "missing": [],
+        "servings": 56,
+        "patrolStartFuel": [
+          119,
+          103,
+          120,
+          120,
+          94
+        ],
+        "serverTimeMs": 15166
+      }
+    ],
+    "source": "Diary reconstruction; Type, Daily and Servings confirmed against user-supplied server score table. Fuel remains diary-derived.",
+    "serverScore": {
+      "types": 27,
+      "daily": 270,
+      "servings": 535,
+      "timeMs": 163206,
+      "source": "Server score table supplied by user in chat, 2026-10-23"
+    }
+  },
+  "F3": {
+    "match": "bca6923c-4231-4eec-aef2-cacadcd7826f",
+    "size": [
+      18,
+      18
+    ],
+    "brands": 10,
+    "dailyCeiling": 40,
+    "daily": 40,
+    "days": [
+      {
+        "day": 1,
+        "daily": 10,
+        "missing": [],
+        "servings": 20,
+        "patrolStartFuel": [
+          40,
+          40,
+          40
+        ],
+        "serverTimeMs": 655
+      },
+      {
+        "day": 2,
+        "daily": 10,
+        "missing": [],
+        "servings": 22,
+        "patrolStartFuel": [
+          28,
+          40,
+          1
+        ],
+        "serverTimeMs": 654
+      },
+      {
+        "day": 3,
+        "daily": 10,
+        "missing": [],
+        "servings": 20,
+        "patrolStartFuel": [
+          40,
+          31,
+          0
+        ],
+        "serverTimeMs": 945
+      },
+      {
+        "day": 4,
+        "daily": 10,
+        "missing": [],
+        "servings": 23,
+        "patrolStartFuel": [
+          11,
+          35,
+          40
+        ],
+        "serverTimeMs": 1375
+      }
+    ],
+    "source": "Diary reconstruction; Type, Daily and Servings confirmed against user-supplied server score table. Fuel remains diary-derived.",
+    "serverScore": {
+      "types": 10,
+      "daily": 40,
+      "servings": 85,
+      "timeMs": 3629,
+      "source": "Server score table supplied by user in chat, 2026-10-23"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "autoFormation": false,
+  "days": [
+    {
+      "daily": 23,
+      "missing": [
+        17
+      ],
+      "ms": 28162.7099,
+      "serving": 24
+    },
+    {
+      "daily": 24,
+      "missing": [],
+      "ms": 13255.4853,
+      "serving": 30
+    },
+    {
+      "daily": 24,
+      "missing": [],
+      "ms": 11245.5006,
+      "serving": 35
+    },
+    {
+      "daily": 24,
+      "missing": [],
+      "ms": 11751.6516,
+      "serving": 38
+    },
+    {
+      "daily": 24,
+      "missing": [],
+      "ms": 12011.1431,
+      "serving": 34
+    }
+  ],
+  "formationMs": 0.0002,
+  "multiDayEndpoints": false,
+  "profile": "large-bounded",
+  "score": [
+    24,
+    119,
+    161
+  ],
+  "supplyIndex": 6,
+  "traffic": "own-dynamic",
+  "types": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1
+  ]
+}

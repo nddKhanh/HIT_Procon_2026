@@ -1594,6 +1594,57 @@ void test_adaptive_fleet_repair() {
 }
 
 #include "solver/MapStrategy.hpp"
+void test_published_tournament_profiles() {
+    struct Case { int w,h,seconds; std::vector<int> steps; bool finals; const char* name; };
+    const Case cases[] = {
+        {20,20,45,{40,50,60,60,50,40},false,"V0-balanced"},
+        {24,18,45,{70,80,90,90,80,70},false,"C1-wide"},
+        {16,16,40,{40,48,56,64,56,48,40},false,"C2-compact"},
+        {20,26,50,{60,90,120,120,90,60},false,"C3-long-days"},
+        {25,25,50,{80,90,100,110,110,100,90,80},true,"F1-endurance"},
+        {32,32,60,{110,120,140,90,70,70,90,140,120,110},true,"F2-large-endurance"},
+        {18,18,45,{60,72,72,60},true,"F3-reserve"}
+    };
+    for (const auto& c : cases) {
+        for (int players : c.finals ? std::vector<int>{3,4} : std::vector<int>{7}) {
+            GameConfig config{};
+            config.map = {c.h,c.w,std::vector<std::vector<int>>(c.h,std::vector<int>(c.w,0))};
+            config.daySteps=c.steps; config.players=players; config.fuelLimit=200;
+            config.spots={{0,0,3},{1,1,3}}; config.initialAgentPositions={0,1};
+            auto profile=MapStrategy::select(config);
+            assert(profile.tournament && std::string(profile.name)==c.name);
+            assert(profile.dailyCeiling==2*static_cast<int>(c.steps.size()));
+            for(size_t d=0;d<c.steps.size();++d)
+                assert(profile.solveBudgetMs(config,d)==(c.seconds-3)*1000);
+            config.daySeconds={20,2};
+            assert(profile.solveBudgetMs(config,0)==17000);
+            assert(profile.solveBudgetMs(config,1)==0);
+            assert(profile.solveBudgetMs(config,2)==(c.seconds-3)*1000);
+            // Synthetic smoke test: exercise every day and tournament dispatch,
+            // not a performance/coverage claim about the hidden contest maps.
+            config.daySeconds.assign(c.steps.size(), 4);
+            config.spots = {{0,0,5}};
+            GameState state{}; state.agents={{0,0,200},{1,1,200}};
+            Solver solver; Map map(c.h,c.w,config.map.cells);
+            for(size_t day=0;day<c.steps.size();++day) {
+                state.day=static_cast<int>(day);
+                auto actions=solver.solve(config,state,map);
+                auto result=MoveSimulator::simulateDay(config,state,actions,map);
+                assert(result.valid && result.brands.count(0));
+                state.agents=result.agents; solver.commitLastPlan();
+            }
+            config.daySeconds.clear();
+            config.daySteps[0]++;
+            assert(!MapStrategy::select(config).tournament);
+            config.daySteps=c.steps; config.players=2;
+            assert(!MapStrategy::select(config).tournament);
+            if(c.w!=c.h){config.players=players;std::swap(config.map.width,config.map.height);
+                assert(!MapStrategy::select(config).tournament);}
+        }
+    }
+    std::cout << "[PASS] Seven published profiles, both finals team counts, dimensions and server budgets!\n";
+}
+
 void test_map_strategy_selection() {
     GameConfig config{};
     config.map.width = config.map.height = 16;
@@ -1859,6 +1910,7 @@ int main() {
     test_daily_focus_restarts_after_collection();
     test_daily_focus_trades_duplicate_servings_for_types();
     test_route_insertion_preserves_future_resources();
+    test_published_tournament_profiles();
     test_map_strategy_selection();
     test_adaptive_fleet_repair();
     test_path_respects_time_and_fuel_together();

@@ -1,0 +1,564 @@
+{
+  "match": "fa3b2b52-b19d-4dd6-8280-41b001247940",
+  "fixture": "tests/match_fa3b2b52_config.json",
+  "sha256": "3293a63681f7f248d39013bab903619968ba7832c0a5368162c508d5ec7fadaa",
+  "source": "User confirmed sample_32.json; offline simulation only, not server scores",
+  "types": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1
+  ],
+  "target": [
+    24,
+    120
+  ],
+  "experiments": {
+    "baseline": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 22,
+          "missing": [
+            19,
+            22
+          ],
+          "ms": 14907.7454,
+          "serving": 27
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 10116.3501,
+          "serving": 32
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 5707.357,
+          "serving": 32
+        },
+        {
+          "daily": 22,
+          "missing": [
+            2,
+            19
+          ],
+          "ms": 13438.1331,
+          "serving": 26
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 7517.6449,
+          "serving": 35
+        }
+      ],
+      "formationMs": 0.0003,
+      "multiDayEndpoints": false,
+      "profile": "large-bounded",
+      "score": [
+        24,
+        116,
+        152
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    "repair": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 23,
+          "missing": [
+            17
+          ],
+          "ms": 28184.5218,
+          "serving": 24
+        },
+        {
+          "daily": 22,
+          "missing": [
+            2,
+            7
+          ],
+          "ms": 23146.7162,
+          "serving": 26
+        },
+        {
+          "daily": 22,
+          "missing": [
+            0,
+            2
+          ],
+          "ms": 23021.3266,
+          "serving": 24
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 10471.8729,
+          "serving": 25
+        },
+        {
+          "daily": 22,
+          "missing": [
+            2,
+            7
+          ],
+          "ms": 19108.7315,
+          "serving": 27
+        }
+      ],
+      "formationMs": 0.0003,
+      "multiDayEndpoints": false,
+      "profile": "large-bounded",
+      "score": [
+        24,
+        113,
+        126
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    "guarded": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 22,
+          "missing": [
+            19,
+            22
+          ],
+          "ms": 30726.0231,
+          "serving": 27
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 18871.874,
+          "serving": 32
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 12621.2164,
+          "serving": 32
+        },
+        {
+          "daily": 22,
+          "missing": [
+            2,
+            19
+          ],
+          "ms": 13362.7783,
+          "serving": 26
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 9728.3095,
+          "serving": 35
+        }
+      ],
+      "formationMs": 0.0002,
+      "multiDayEndpoints": false,
+      "profile": "large-bounded",
+      "score": [
+        24,
+        116,
+        152
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    "quan": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 22,
+          "missing": [
+            19,
+            22
+          ],
+          "ms": 17754.6889,
+          "serving": 25
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 16859.2346,
+          "serving": 28
+        },
+        {
+          "daily": 23,
+          "missing": [
+            7
+          ],
+          "ms": 19150.3006,
+          "serving": 29
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 14957.7382,
+          "serving": 29
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 26476.8316,
+          "serving": 28
+        }
+      ],
+      "formationMs": 0.0002,
+      "multiDayEndpoints": false,
+      "profile": "legacy",
+      "score": [
+        24,
+        117,
+        139
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    "one_supply": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 7650.0511,
+          "serving": 31
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 6713.6593,
+          "serving": 35
+        },
+        {
+          "daily": 22,
+          "missing": [
+            7,
+            22
+          ],
+          "ms": 12133.4753,
+          "serving": 25
+        },
+        {
+          "daily": 17,
+          "missing": [
+            3,
+            5,
+            7,
+            12,
+            19,
+            21,
+            22
+          ],
+          "ms": 14966.2235,
+          "serving": 18
+        },
+        {
+          "daily": 22,
+          "missing": [
+            17,
+            22
+          ],
+          "ms": 16609.5836,
+          "serving": 26
+        }
+      ],
+      "formationMs": 0.0003,
+      "multiDayEndpoints": false,
+      "profile": "large-bounded",
+      "score": [
+        24,
+        109,
+        135
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "north_supply": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 22,
+          "missing": [
+            2,
+            7
+          ],
+          "ms": 32516.4013,
+          "serving": 27
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 23614.4041,
+          "serving": 35
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 11719.4063,
+          "serving": 34
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 14999.5335,
+          "serving": 36
+        },
+        {
+          "daily": 23,
+          "missing": [
+            2
+          ],
+          "ms": 6115.4638,
+          "serving": 30
+        }
+      ],
+      "formationMs": 0.0002,
+      "multiDayEndpoints": false,
+      "profile": "large-bounded",
+      "score": [
+        24,
+        117,
+        162
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    "endurance": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 23,
+          "missing": [
+            17
+          ],
+          "ms": 28162.7099,
+          "serving": 24
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 13255.4853,
+          "serving": 30
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 11245.5006,
+          "serving": 35
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 11751.6516,
+          "serving": 38
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 12011.1431,
+          "serving": 34
+        }
+      ],
+      "formationMs": 0.0002,
+      "multiDayEndpoints": false,
+      "profile": "large-bounded",
+      "score": [
+        24,
+        119,
+        161
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    "deep": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 23,
+          "missing": [
+            17
+          ],
+          "ms": 57651.192,
+          "serving": 24
+        },
+        {
+          "daily": 22,
+          "missing": [
+            2,
+            7
+          ],
+          "ms": 50617.0264,
+          "serving": 26
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 10296.9847,
+          "serving": 34
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 6562.6938,
+          "serving": 33
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 6463.4515,
+          "serving": 33
+        }
+      ],
+      "formationMs": 0.0004,
+      "multiDayEndpoints": false,
+      "profile": "large-bounded",
+      "score": [
+        24,
+        117,
+        150
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    "final_repeat": {
+      "autoFormation": false,
+      "days": [
+        {
+          "daily": 23,
+          "missing": [
+            17
+          ],
+          "ms": 28177.4421,
+          "serving": 24
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 9093.3454,
+          "serving": 30
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 8878.8722,
+          "serving": 35
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 8133.0507,
+          "serving": 38
+        },
+        {
+          "daily": 24,
+          "missing": [],
+          "ms": 6491.5635,
+          "serving": 34
+        }
+      ],
+      "formationMs": 0.0001,
+      "multiDayEndpoints": false,
+      "profile": "large-bounded",
+      "score": [
+        24,
+        119,
+        161
+      ],
+      "supplyIndex": 6,
+      "traffic": "own-dynamic",
+      "types": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    }
+  },
+  "fullDailyAchieved": false
+}

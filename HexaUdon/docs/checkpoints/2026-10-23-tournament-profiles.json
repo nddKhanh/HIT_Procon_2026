@@ -1,0 +1,14 @@
+{
+  "source": "User-provided tournament section 6 image",
+  "checksExit": 0,
+  "checks": [
+    "[PASS] Seven published profiles, both finals team counts, dimensions and server budgets!",
+    "[PASS] Map strategies use dimensions, workload and fuel budget!",
+    "[PASS] Expired live planning deadline avoids recursive search!",
+    "[PASS] Supply uses idle tail to refuel tomorrow's patrol without changing today's collections!",
+    "[PASS] Large-map reference policy preserves retry, commit and metadata!"
+  ],
+  "syntheticOnly": true,
+  "realTournamentMapsAvailable": false,
+  "fullTypeDailyOnRealTournamentMapsVerified": false
+}
