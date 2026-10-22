@@ -7,6 +7,89 @@
 #include <climits>
 #include <tuple>
 
+void SupplyPlanner::prepareNextDay(const GameConfig& config, const GameState& state,
+    const Map& inputMap, std::vector<std::vector<int>>& actions, long long deadlineMs) {
+    if (state.day + 1 >= static_cast<int>(config.daySteps.size())) return;
+    auto inTime = [&] {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count() < deadlineMs;
+    };
+    Map map = inputMap;
+    map.updateTraffic(state.traffics);
+    auto incumbent = MoveSimulator::simulateDay(config, state, actions, map);
+    if (!incumbent.valid) return;
+    for (size_t supply = 0; supply < state.agents.size() && inTime(); ++supply) {
+        if (state.agents[supply].kind != 1) continue;
+        for (int pass = 0; pass < 2 && inTime(); ++pass) {
+            int lastRefuel = 0;
+            for (const auto& event : incumbent.refuelEvents)
+                if (event.supply == static_cast<int>(supply)) lastRefuel = std::max(lastRefuel, event.step);
+            std::vector<int> prefix;
+            int elapsed = 0, start = state.agents[supply].pos;
+            for (int action : actions[supply]) {
+                if (elapsed >= lastRefuel) break;
+                const auto here = map.posToCoordinate(start);
+                if (action < 0) {
+                    const int duration = std::min(-action, lastRefuel - elapsed);
+                    prefix.push_back(-duration); elapsed += duration;
+                } else {
+                    prefix.push_back(action); elapsed += map.getTravelTime(here);
+                    start = map.coordinateToPos(map.nextPosition(here, action));
+                }
+            }
+            if (pass == 0) {
+                prefix = actions[supply];
+                int trailingWait = 0;
+                while (!prefix.empty() && prefix.back() < 0) {
+                    trailingWait -= prefix.back(); prefix.pop_back();
+                }
+                elapsed = config.getDaySteps(state.day) - trailingWait;
+                start = incumbent.agents[supply].pos;
+            }
+            const int idle = config.getDaySteps(state.day) - elapsed;
+            if (idle <= 0) continue;
+            const auto paths = PathFinder::computeSSSP(map.posToCoordinate(start), map, INT_MAX, 0.0);
+            int bestPriority = INT_MIN;
+            auto bestActions = actions;
+            auto best = incumbent;
+            for (size_t p = 0; p < state.agents.size() && inTime(); ++p) {
+                if (state.agents[p].kind != 0 || incumbent.agents[p].fuel >= config.fuelLimit) continue;
+                auto path = paths.extractPath(incumbent.agents[p].pos);
+                if (!path.found || path.directions.empty()) continue;
+                // ponytail: one end-position target per patrol; deficit minus travel
+                // time is a bounded next-day proxy, not a global optimality proof.
+                const int priority = config.fuelLimit - incumbent.agents[p].fuel - path.totalSteps;
+                if (priority <= bestPriority) continue;
+                auto route = prefix;
+                int pos = start, used = 0;
+                for (int direction : path.directions) {
+                    const auto here = map.posToCoordinate(pos);
+                    const int duration = map.getTravelTime(here);
+                    if (used + duration > idle) break;
+                    route.push_back(direction); used += duration;
+                    pos = map.coordinateToPos(map.nextPosition(here, direction));
+                }
+                if (used == 0) continue;
+                MoveSimulator::padWithWait(route, used, idle);
+                auto candidate = actions;
+                candidate[supply] = std::move(route);
+                auto result = MoveSimulator::simulateDay(config, state, candidate, map);
+                bool preserves = result.valid && result.brands == incumbent.brands;
+                for (size_t i = 0; preserves && i < state.agents.size(); ++i)
+                    if (state.agents[i].kind == 0)
+                        preserves = result.agents[i].pos == incumbent.agents[i].pos &&
+                            result.agents[i].fuel >= incumbent.agents[i].fuel;
+                if (!preserves) continue;
+                bestPriority = priority;
+                bestActions = std::move(candidate); best = std::move(result);
+            }
+            const bool changed = bestActions != actions;
+            actions = std::move(bestActions); incumbent = std::move(best);
+            if (changed) break; // Prefer the smaller idle-tail change when available.
+        }
+    }
+}
+
 void SupplyPlanner::repairCoverage(const GameConfig& config, const GameState& state,
     const Map& inputMap, std::vector<std::vector<int>>& actions,
     const std::set<int>& matchBrands, long long deadlineMs, int budgetMs, bool dailyFocus) {

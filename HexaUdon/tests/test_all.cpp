@@ -1682,6 +1682,60 @@ void test_final_day_suffix_rebuild() {
     std::cout << "[PASS] Final-day suffix rebuild replaces duplicate visits with missing brands!\n";
 }
 
+void test_supply_wait_prepares_next_day() {
+    GameConfig config{};
+    config.map = {1, 7, {std::vector<int>(7, 0)}};
+    config.daySteps = {6, 6}; config.fuelLimit = 20;
+    config.spots = {{0, 3, 1}};
+    GameState state{}; state.agents = {{0, 3, 1}, {1, 0, 20}};
+    Map map(1, 7, config.map.cells);
+    std::vector<std::vector<int>> actions{{-6}, {-6}};
+    auto before = MoveSimulator::simulateDay(config, state, actions, map);
+    SupplyPlanner::prepareNextDay(config, state, map, actions);
+    auto after = MoveSimulator::simulateDay(config, state, actions, map);
+    assert(after.valid && after.brands == before.brands);
+    assert(actions[0] == std::vector<int>{-6});
+    assert(after.agents[0].fuel == 20 && after.agents[1].pos == 3);
+    config.daySteps = {18, 18};
+    state.agents = {{0, 3, 1}, {0, 6, 1}, {1, 0, 20}};
+    auto outward = PathFinder::findPath(map.posToCoordinate(0), map.posToCoordinate(3), map).directions;
+    auto back = PathFinder::findPath(map.posToCoordinate(3), map.posToCoordinate(0), map).directions;
+    outward.insert(outward.end(), back.begin(), back.end());
+    auto returnToFirst = PathFinder::findPath(map.posToCoordinate(0), map.posToCoordinate(3), map).directions;
+    outward.insert(outward.end(), returnToFirst.begin(), returnToFirst.end());
+    actions = {{-18}, {-18}, outward};
+    SupplyPlanner::prepareNextDay(config, state, map, actions);
+    after = MoveSimulator::simulateDay(config, state, actions, map);
+    assert(after.valid && after.agents[0].fuel == 20 && after.agents[1].fuel == 20);
+    state.agents = {{0, 3, 1}, {1, 0, 20}};
+    config.daySteps = {6, 6};
+    state.day = 1; actions = {{-6}, {-6}};
+    auto original = actions;
+    SupplyPlanner::prepareNextDay(config, state, map, actions);
+    assert(actions == original); // No next-day positioning on the final day.
+    std::cout << "[PASS] Supply uses idle tail to refuel tomorrow's patrol without changing today's collections!\n";
+}
+
+void test_daily_focus_restarts_after_collection() {
+    GameConfig config{};
+    config.map = {1, 11, {std::vector<int>(11, 0)}};
+    config.daySteps = {20, 20};
+    config.fuelLimit = 20;
+    for (int i = 0; i < 10; ++i) config.spots.push_back({i, i, 1});
+    GameState state{};
+    state.agents = {{0, 0, 20}};
+    Map map(1, 11, config.map.cells);
+    auto route = PathFinder::findPath(map.posToCoordinate(0), map.posToCoordinate(8), map).directions;
+    MoveSimulator::padWithWait(route, 16, 20);
+    std::vector<std::vector<int>> actions{route};
+    auto before = MoveSimulator::simulateDay(config, state, actions, map);
+    assert(before.valid && before.brands.size() == 9);
+    PatrolPlanner::improveRoutes(config, state, map, actions, {}, LLONG_MAX, 1000, true);
+    auto after = MoveSimulator::simulateDay(config, state, actions, map);
+    assert(after.valid && after.brands.size() == 10);
+    std::cout << "[PASS] Daily repair resumes after collections, beyond the departure tour cap!\n";
+}
+
 void test_daily_focus_trades_duplicate_servings_for_types() {
     GameConfig config{};
     config.map = {1, 7, {std::vector<int>(7, 0)}};
@@ -1801,6 +1855,8 @@ int main() {
     test_long_daily_bridge_preserves_next_day();
     test_expired_live_solver_deadline();
     test_final_day_suffix_rebuild();
+    test_supply_wait_prepares_next_day();
+    test_daily_focus_restarts_after_collection();
     test_daily_focus_trades_duplicate_servings_for_types();
     test_route_insertion_preserves_future_resources();
     test_map_strategy_selection();

@@ -885,6 +885,7 @@ std::vector<std::vector<int>> Solver::solve(
             deadline, 12000, true);
         PatrolPlanner::improveRoutes(config, state, map, actions, collectedBrandsTotal_,
             deadline, 8000, true);
+        SupplyPlanner::prepareNextDay(config, state, map, actions, deadline);
         *this = std::move(baseline);
         regionalDailyPass_ = false;
         if (actions != original) {

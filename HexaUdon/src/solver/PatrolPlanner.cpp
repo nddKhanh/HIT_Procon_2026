@@ -78,14 +78,18 @@ void PatrolPlanner::improveRoutes(const GameConfig& config, const GameState& sta
                     if (visited.count(cell)) continue;
                     if (dailyFocus && phase == 0) {
                         // ponytail: reorder at most eight necessary brands after
-                        // departure or a recorded refill. More brands require a
-                        // larger bounded tour search; all proposals use the simulator.
-                        const auto tourStop = std::min(stop, Clock::now() + std::chrono::milliseconds(200));
-                        for (size_t cut = 0; cut < route.size() && Clock::now() < tourStop; ++cut) {
-                            bool refill = cut == 0;
+                        // departure, a refill or a collection. Try later boundaries
+                        // first; cap each at 100 ms so departure cannot starve them.
+                        const auto tourStop = std::min(stop, Clock::now() + std::chrono::milliseconds(2000));
+                        for (size_t boundary = route.size(); boundary > 0 && Clock::now() < tourStop; --boundary) {
+                            const size_t cut = boundary - 1;
+                            bool restart = cut == 0;
                             for (const auto& event : incumbent.refuelEvents)
-                                refill |= event.patrol == p && event.step == times[cut];
-                            if (!refill) continue;
+                                restart |= event.patrol == p && event.step == times[cut];
+                            for (const auto& event : incumbent.collections)
+                                restart |= event.agent == p && event.step == times[cut];
+                            if (!restart) continue;
+                            const auto cutStop = std::min(tourStop, Clock::now() + std::chrono::milliseconds(100));
                             std::set<int> retainedBrands;
                             for (const auto& event : incumbent.collections)
                                 if (event.agent != p || event.step <= times[cut]) retainedBrands.insert(event.brand);
@@ -97,7 +101,7 @@ void PatrolPlanner::improveRoutes(const GameConfig& config, const GameState& sta
                             std::vector<int> suffix;
                             std::function<void(int,int,int,unsigned)> tour;
                             tour = [&](int pos, int used, int fuel, unsigned mask) {
-                                if (!inTime() || Clock::now() >= tourStop) return;
+                                if (!inTime() || Clock::now() >= cutStop) return;
                                 if (mask == (1u << required.size()) - 1) {
                                     auto home = PathResult{{}, 0, 0, true};
                                     auto candidate = actions;
@@ -115,7 +119,7 @@ void PatrolPlanner::improveRoutes(const GameConfig& config, const GameState& sta
                                     if (mask & (1u << b)) continue;
                                     for (const auto& spot : config.spots) {
                                         if (spot.brand != required[b] || spot.stocks <= 0) continue;
-                                        auto path = cache.get(map.posToCoordinate(pos), fuel, 1.0)
+                                        auto path = cache.get(map.posToCoordinate(pos), fuel, 0.0)
                                             .extractPath(spot.pos, daySteps - times[cut] - used);
                                         if (!path.found) continue;
                                         const auto oldSize = suffix.size();

@@ -16,6 +16,10 @@
  */
 class SupplyPlanner {
 public:
+    // Reuse the Supply's suffix after its last refill; preserve patrol routes and fuel.
+    static void prepareNextDay(const GameConfig& config, const GameState& state,
+        const Map& map, std::vector<std::vector<int>>& actions,
+        long long deadlineMs = LLONG_MAX);
     // Bounded adaptive suffix repair of the whole fleet; accepts only official
     // Types/Daily/Serving improvements verified by the full-day simulator.
     static void repairCoverage(const GameConfig& config, const GameState& state,

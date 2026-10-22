@@ -1,0 +1,327 @@
+{
+  "fixture": "sample_24.json",
+  "sha256": "4081cbca170ad09e291015c10b76224bc0d960b4bc3baa72d9d96752c112d9a5",
+  "liveBudgetMs": 57000,
+  "baseline": {
+    "autoFormation": false,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 12158.2302,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 27317.2837,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 20989.0944,
+        "serving": 21
+      },
+      {
+        "daily": 17,
+        "missing": [
+          9
+        ],
+        "ms": 29176.7685,
+        "serving": 21
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 21750.6147,
+        "serving": 20
+      }
+    ],
+    "formationMs": 0.0002,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      89,
+      106
+    ],
+    "supplyIndex": 4,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  "initialIdleTailOnlyFixedFleet": {
+    "autoFormation": false,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 17763.154,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 9242.3089,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 9893.4967,
+        "serving": 24
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 12282.4717,
+        "serving": 23
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 22797.6169,
+        "serving": 27
+      }
+    ],
+    "formationMs": 0.0002,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      90,
+      118
+    ],
+    "supplyIndex": 4,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  "initialIdleTailOnlyAuto": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 21922.4984,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 10281.9669,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 11081.532,
+        "serving": 22
+      },
+      {
+        "daily": 17,
+        "missing": [
+          12
+        ],
+        "ms": 40431.4235,
+        "serving": 20
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 15850.3597,
+        "serving": 26
+      }
+    ],
+    "formationMs": 44028.2178,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      89,
+      112
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  "rejectedUnrestrictedSuffixAuto": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 21002.786,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 11412.9708,
+        "serving": 23
+      },
+      {
+        "daily": 17,
+        "missing": [
+          14
+        ],
+        "ms": 42802.1247,
+        "serving": 21
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 10859.6434,
+        "serving": 23
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 20852.0279,
+        "serving": 28
+      }
+    ],
+    "formationMs": 43928.1371,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      89,
+      117
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  "finalAuto": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 22435.582,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 10992.2387,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 9175.7104,
+        "serving": 24
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 12711.1909,
+        "serving": 23
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 21044.239,
+        "serving": 27
+      }
+    ],
+    "formationMs": 43641.6443,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      90,
+      118
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  "finalAutoExit": 0,
+  "serverValidated": false,
+  "unitTestsExit": 0,
+  "finalAutoRepeat": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 13565.21,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 6174.0224,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 6254.0923,
+        "serving": 24
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 8342.9441,
+        "serving": 23
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 11573.3207,
+        "serving": 27
+      }
+    ],
+    "formationMs": 35646.9645,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      90,
+      118
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  "finalAutoRepeatExit": 0
+}
