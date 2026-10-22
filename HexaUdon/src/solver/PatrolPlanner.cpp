@@ -5,10 +5,11 @@
 #include <algorithm>
 #include <climits>
 #include <chrono>
+#include <functional>
 
 void PatrolPlanner::improveRoutes(const GameConfig& config, const GameState& state,
     const Map& inputMap, std::vector<std::vector<int>>& actions,
-    const std::set<int>& matchBrands, long long deadlineMs, int budgetMs) {
+    const std::set<int>& matchBrands, long long deadlineMs, int budgetMs, bool dailyFocus) {
     using Clock = std::chrono::steady_clock;
     const auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
@@ -20,12 +21,17 @@ void PatrolPlanner::improveRoutes(const GameConfig& config, const GameState& sta
     map.updateTraffic(state.traffics);
     auto incumbent = MoveSimulator::simulateDay(config, state, actions, map);
     if (!incumbent.valid) return;
+    if (dailyFocus) {
+        std::set<int> available;
+        for (const auto& spot : config.spots) if (spot.stocks > 0) available.insert(spot.brand);
+        if (incumbent.brands.size() == available.size()) return;
+    }
     const int daySteps = config.getDaySteps(state.day);
     const bool finalDay = state.day + 1 == static_cast<int>(config.daySteps.size());
     auto rank = [&](const DaySimulation& day) {
         int fresh = 0;
         for (int b : day.brands) fresh += !matchBrands.count(b);
-        return std::make_tuple(fresh, day.brands.size(), day.collections.size());
+        return std::make_tuple(fresh, day.brands.size(), dailyFocus ? size_t{0} : day.collections.size());
     };
     PathCache cache(map);
     // ponytail: at most eight accepted insertion rounds; bridges span <=32
@@ -67,9 +73,62 @@ void PatrolPlanner::improveRoutes(const GameConfig& config, const GameState& sta
                 for (int target : targets) {
                     if (!inTime()) break;
                     const bool missing = !incumbent.brands.count(config.spots[target].brand);
-                    if (missing != (phase == 0)) continue;
+                    if (missing != (dailyFocus || phase == 0)) continue;
                     const int cell = config.spots[target].pos;
                     if (visited.count(cell)) continue;
+                    if (dailyFocus && phase == 0) {
+                        // ponytail: reorder at most eight necessary brands after
+                        // departure or a recorded refill. More brands require a
+                        // larger bounded tour search; all proposals use the simulator.
+                        const auto tourStop = std::min(stop, Clock::now() + std::chrono::milliseconds(200));
+                        for (size_t cut = 0; cut < route.size() && Clock::now() < tourStop; ++cut) {
+                            bool refill = cut == 0;
+                            for (const auto& event : incumbent.refuelEvents)
+                                refill |= event.patrol == p && event.step == times[cut];
+                            if (!refill) continue;
+                            std::set<int> retainedBrands;
+                            for (const auto& event : incumbent.collections)
+                                if (event.agent != p || event.step <= times[cut]) retainedBrands.insert(event.brand);
+                            std::vector<int> required;
+                            for (int brand : incumbent.brands)
+                                if (!retainedBrands.count(brand)) required.push_back(brand);
+                            required.push_back(config.spots[target].brand);
+                            if (required.size() > 8) continue;
+                            std::vector<int> suffix;
+                            std::function<void(int,int,int,unsigned)> tour;
+                            tour = [&](int pos, int used, int fuel, unsigned mask) {
+                                if (!inTime() || Clock::now() >= tourStop) return;
+                                if (mask == (1u << required.size()) - 1) {
+                                    auto home = PathResult{{}, 0, 0, true};
+                                    auto candidate = actions;
+                                    candidate[p].assign(route.begin(), route.begin() + cut);
+                                    candidate[p].insert(candidate[p].end(), suffix.begin(), suffix.end());
+                                    candidate[p].insert(candidate[p].end(), home.directions.begin(), home.directions.end());
+                                    MoveSimulator::padWithWait(candidate[p], times[cut] + used + home.totalSteps, daySteps);
+                                    auto result = MoveSimulator::simulateDay(config, state, candidate, map);
+                                    if (!result.valid || rank(result) <= rank(best)) return;
+                                    best = std::move(result);
+                                    bestActions = std::move(candidate);
+                                    return;
+                                }
+                                for (size_t b = 0; b < required.size(); ++b) {
+                                    if (mask & (1u << b)) continue;
+                                    for (const auto& spot : config.spots) {
+                                        if (spot.brand != required[b] || spot.stocks <= 0) continue;
+                                        auto path = cache.get(map.posToCoordinate(pos), fuel, 1.0)
+                                            .extractPath(spot.pos, daySteps - times[cut] - used);
+                                        if (!path.found) continue;
+                                        const auto oldSize = suffix.size();
+                                        suffix.insert(suffix.end(), path.directions.begin(), path.directions.end());
+                                        tour(spot.pos, used + path.totalSteps, fuel - path.totalFuel, mask | (1u << b));
+                                        suffix.resize(oldSize);
+                                    }
+                                }
+                            };
+                            tour(positions[cut], 0, incumbent.fuelAtTime[p][times[cut]], 0);
+                        }
+                        continue;
+                    }
                     for (size_t begin = 0; begin < route.size() && inTime(); ++begin) {
                         const int fuel = incumbent.fuelAtTime[p][times[begin]];
                         if (fuel <= 0) continue;
@@ -106,7 +165,8 @@ void PatrolPlanner::improveRoutes(const GameConfig& config, const GameState& sta
                             if (!finalDay) {
                                 for (size_t i = 0; i < state.agents.size(); ++i)
                                     preservesFuture &= result.agents[i].pos == incumbent.agents[i].pos &&
-                                        result.agents[i].fuel >= incumbent.agents[i].fuel;
+                                        (dailyFocus ? result.agents[i].fuel == incumbent.agents[i].fuel :
+                                         result.agents[i].fuel >= incumbent.agents[i].fuel);
                             }
                             if (!preservesFuture) continue;
                             best = std::move(result);

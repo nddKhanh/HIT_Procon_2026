@@ -1,0 +1,177 @@
+{
+  "fixture": "sample_24.json",
+  "fixtureSha256": "4081cbca170ad09e291015c10b76224bc0d960b4bc3baa72d9d96752c112d9a5",
+  "scope": "offline own-dynamic traffic, not a live server match",
+  "baseline": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 15834.2046,
+        "serving": 22
+      },
+      {
+        "daily": 17,
+        "missing": [
+          17
+        ],
+        "ms": 14530.8486,
+        "serving": 20
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 5687.8023,
+        "serving": 26
+      },
+      {
+        "daily": 16,
+        "missing": [
+          1,
+          10
+        ],
+        "ms": 17631.9548,
+        "serving": 20
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 20603.9809,
+        "serving": 24
+      }
+    ],
+    "formationMs": 43311.7012,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      87,
+      112
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "final": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 21690.4061,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 29640.8774,
+        "serving": 22
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 21982.8158,
+        "serving": 21
+      },
+      {
+        "daily": 17,
+        "missing": [
+          9
+        ],
+        "ms": 33027.7884,
+        "serving": 21
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 22182.1486,
+        "serving": 21
+      }
+    ],
+    "formationMs": 43113.062,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      89,
+      107
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      1,
+      0,
+      0
+    ]
+  },
+  "earlier_without_repair_reserve": {
+    "autoFormation": true,
+    "days": [
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 21032.6865,
+        "serving": 22
+      },
+      {
+        "daily": 17,
+        "missing": [
+          17
+        ],
+        "ms": 32198.8186,
+        "serving": 20
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 18663.9915,
+        "serving": 26
+      },
+      {
+        "daily": 16,
+        "missing": [
+          1,
+          10
+        ],
+        "ms": 42635.329,
+        "serving": 20
+      },
+      {
+        "daily": 18,
+        "missing": [],
+        "ms": 20246.4485,
+        "serving": 24
+      }
+    ],
+    "formationMs": 51203.2874,
+    "multiDayEndpoints": false,
+    "profile": "regional-repair",
+    "score": [
+      18,
+      87,
+      112
+    ],
+    "supplyIndex": -1,
+    "traffic": "own-dynamic",
+    "types": [
+      0,
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  "unitTestsExit": 0,
+  "finalBenchmarkExit": 0,
+  "goalDaily": 90,
+  "goalReached": false
+}

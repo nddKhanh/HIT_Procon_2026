@@ -1682,6 +1682,34 @@ void test_final_day_suffix_rebuild() {
     std::cout << "[PASS] Final-day suffix rebuild replaces duplicate visits with missing brands!\n";
 }
 
+void test_daily_focus_trades_duplicate_servings_for_types() {
+    GameConfig config{};
+    config.map = {1, 7, {std::vector<int>(7, 0)}};
+    config.daySteps = {6, 6};
+    config.fuelLimit = 10;
+    config.spots = {{7,0,1}, {8,1,1}, {9,3,1}, {9,4,1}, {9,5,1}, {9,6,1}};
+    GameState state{};
+    state.agents = {{0,3,10}};
+    Map map(1,7,config.map.cells);
+    auto route = PathFinder::findPath(map.posToCoordinate(3), map.posToCoordinate(6), map).directions;
+    std::vector<std::vector<int>> actions{route};
+    auto before = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(before.valid && before.brands.size() == 1 && before.collections.size() == 4);
+    PatrolPlanner::improveRoutes(config,state,map,actions,{},LLONG_MAX,1000,true);
+    auto after = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(after.valid && after.brands.size() == 3 && after.collections.size() == 3);
+    auto covered = actions;
+    SupplyPlanner::repairCoverage(config,state,map,actions,{},LLONG_MAX,1000,true);
+    assert(actions == covered); // Full Daily stops the extra search.
+    state.day = 1;
+    state.agents = after.agents;
+    actions = {{-6}};
+    PatrolPlanner::improveRoutes(config,state,map,actions,after.brands,LLONG_MAX,1000,true);
+    auto tomorrow = MoveSimulator::simulateDay(config,state,actions,map);
+    assert(tomorrow.valid && tomorrow.brands.size() == 3);
+    std::cout << "[PASS] Daily focus trades duplicate servings for full daily coverage!\n";
+}
+
 void test_long_daily_bridge_preserves_next_day() {
     GameConfig config{};
     config.map = {1, 21, {std::vector<int>(21, 0)}};
@@ -1773,6 +1801,7 @@ int main() {
     test_long_daily_bridge_preserves_next_day();
     test_expired_live_solver_deadline();
     test_final_day_suffix_rebuild();
+    test_daily_focus_trades_duplicate_servings_for_types();
     test_route_insertion_preserves_future_resources();
     test_map_strategy_selection();
     test_adaptive_fleet_repair();

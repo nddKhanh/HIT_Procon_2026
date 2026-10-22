@@ -550,9 +550,13 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             if (challenger >= 0) {
                 const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
                     formationDeadline - std::chrono::steady_clock::now()).count();
-                const int deepDays = agentCount == 4 ? rolloutDays - 1 : rolloutDays;
+                const bool regional = config.map.width == 24 && config.map.height == 24;
+                // Regional repair needs time to finish a coordinated day. Five
+                // severely truncated days misranked fleets on the regression map.
+                const int deepDays = regional ? std::min(2, rolloutDays) :
+                    agentCount == 4 ? rolloutDays - 1 : rolloutDays;
                 const long long deepDayMs = std::min<long long>(
-                    agentCount == 4 ? 7000 : 4500,
+                    regional ? 12000 : agentCount == 4 ? 7000 : 4500,
                     (remaining - 2500) / (2 * deepDays));
                 if (deepDayMs >= 1500) {
                     auto incumbent = replayFormation(candidates.front(), deepDays,
@@ -572,7 +576,11 @@ std::vector<int> AgentStrategy::decideAgentTypes(
                               << " days=" << deepDays << " dayBudgetMs=" << deepDayMs << '\n';
                     if (incumbent.first) bestScore = incumbent.second;
                     if (incumbent.first && alternative.first) {
-                        if (alternative.second > incumbent.second) {
+                        const bool better = regional
+                            ? std::make_pair(std::get<0>(alternative.second), std::get<1>(alternative.second)) >
+                              std::make_pair(std::get<0>(incumbent.second), std::get<1>(incumbent.second))
+                            : alternative.second > incumbent.second;
+                        if (better) {
                             bestTypes = candidates[challenger];
                             bestScore = alternative.second;
                         } else bestScore = incumbent.second;
@@ -852,6 +860,52 @@ std::vector<std::vector<int>> Solver::solve(
     bool rewardRoutes
 ) {
     int daySteps = config.getDaySteps(state.day);
+    if (mapStrategies_ && rewardRoutes && enableFleetRepair_ && expandExactSplits_ &&
+        !regionalDailyPass_ && !useTimeBoundedPaths_ &&
+        config.map.width == 24 && config.map.height == 24) {
+        Solver baseline = *this;
+        baseline.regionalDailyPass_ = true;
+        GameState initialState = state;
+        const auto startedEpoch = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        const auto remaining = state.endsAt * 1000LL - 750 - startedEpoch;
+        // Reserve repair time during short formation rollouts too; otherwise
+        // the base solver consumes the entire window and misrepresents this policy.
+        if (state.endsAt > 0 && remaining > 3000) {
+            const auto reserve = std::min<long long>(12000, remaining / 3);
+            initialState.endsAt = (state.endsAt * 1000LL - reserve) / 1000;
+        }
+        auto actions = baseline.solve(config, initialState, map, rewardRoutes);
+        const auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        const auto deadline = state.endsAt > 0 && state.endsAt * 1000LL >= epoch - 60000
+            ? state.endsAt * 1000LL - 750 : LLONG_MAX;
+        auto original = actions;
+        SupplyPlanner::repairCoverage(config, state, map, actions, collectedBrandsTotal_,
+            deadline, 12000, true);
+        PatrolPlanner::improveRoutes(config, state, map, actions, collectedBrandsTotal_,
+            deadline, 8000, true);
+        *this = std::move(baseline);
+        regionalDailyPass_ = false;
+        if (actions != original) {
+            const auto result = MoveSimulator::simulateDay(config, state, actions, map);
+            const auto before = MoveSimulator::simulateDay(config, state, original, map);
+            std::cerr << "[REGIONAL-DAILY] day=" << state.day << " daily="
+                      << before.brands.size() << "->" << result.brands.size() << '\n';
+            pendingBrandsTotal_ = collectedBrandsTotal_;
+            pendingBrandsTotal_.insert(result.brands.begin(), result.brands.end());
+            hasPendingPlan_ = true;
+            // Reordered tours no longer share the baseline's per-step targets.
+            currentTargets_.assign(state.agents.size(), -1);
+            supportedPatrols_.assign(state.agents.size(), -1);
+            plannedStepSpots_.assign(state.agents.size(), {});
+            plannedStepPositions_.assign(state.agents.size(), {});
+            currentTargetPositions_.clear();
+            for (const auto& agent : result.agents)
+                currentTargetPositions_.push_back(map.posToCoordinate(agent.pos));
+        }
+        return actions;
+    }
     const auto strategy = MapStrategy::select(config);
     const bool compactDaily = mapStrategies_ && config.map.width == 16 &&
         config.map.height == 16 && config.players > 2;

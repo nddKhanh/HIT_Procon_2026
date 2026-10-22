@@ -19,7 +19,7 @@ public:
     static void improveRoutes(const GameConfig& config, const GameState& state,
         const Map& map, std::vector<std::vector<int>>& actions,
         const std::set<int>& matchBrands, long long deadlineMs = LLONG_MAX,
-        int budgetMs = 600);
+        int budgetMs = 600, bool dailyFocus = false);
     /**
      * @brief Lập kế hoạch chuỗi Spot cho 1 xe Patrol trong 1 ngày.
      *

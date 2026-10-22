@@ -85,6 +85,7 @@ public:
 
 private:
     friend class AgentStrategy;
+    bool regionalDailyPass_ = false;
     struct ContinuationDay {
         GameState state;
         std::vector<std::vector<int>> actions;

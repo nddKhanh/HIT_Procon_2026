@@ -9,7 +9,7 @@
 
 void SupplyPlanner::repairCoverage(const GameConfig& config, const GameState& state,
     const Map& inputMap, std::vector<std::vector<int>>& actions,
-    const std::set<int>& matchBrands, long long deadlineMs, int budgetMs) {
+    const std::set<int>& matchBrands, long long deadlineMs, int budgetMs, bool dailyFocus) {
     using Clock = std::chrono::steady_clock;
     const auto started = Clock::now();
     const auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -22,27 +22,33 @@ void SupplyPlanner::repairCoverage(const GameConfig& config, const GameState& st
     map.updateTraffic(state.traffics);
     auto incumbent = MoveSimulator::simulateDay(config, state, actions, map);
     if (!incumbent.valid) return;
+    std::set<int> availableBrands;
+    for (const auto& spot : config.spots) if (spot.stocks > 0) availableBrands.insert(spot.brand);
+    if (dailyFocus && incumbent.brands.size() == availableBrands.size()) return;
     const int steps = config.getDaySteps(state.day);
     const int n = static_cast<int>(state.agents.size());
     auto score = [&](const DaySimulation& result) {
         int fresh = 0;
         for (int brand : result.brands) fresh += !matchBrands.count(brand);
-        return std::make_tuple(fresh, result.brands.size(), result.collections.size());
+        return std::make_tuple(fresh, result.brands.size(),
+            dailyFocus ? size_t{0} : result.collections.size());
     };
     PathCache cache(map);
     int attempts[4]{}, rewards[4]{1, 1, 1, 1};
     std::set<std::vector<std::vector<int>>> evaluated;
     // ponytail: bounded four-operator search; extra live time permits more
     // distinct suffixes, but the incumbent and official score still gate changes.
-    const int trialLimit = budgetMs > 1200 ? 64 : 32;
+    const int trialLimit = dailyFocus ? 256 : budgetMs > 1200 ? 64 : 32;
     for (int trial = 0; trial < trialLimit && inTime(); ++trial) {
+        if (dailyFocus && incumbent.brands.size() == availableBrands.size()) break;
         int op = 0;
         for (int i = 1; i < 4; ++i)
             if ((!attempts[i] && attempts[op]) ||
                 (attempts[i] && attempts[op] &&
                  rewards[i] * attempts[op] > rewards[op] * attempts[i])) op = i;
         const int variant = attempts[op]++;
-        const int cut = steps * op / 4;
+        const int cut = steps * (dailyFocus ? op * 2 + (variant / 8) % 2 : op) /
+            (dailyFocus ? 8 : 4);
         if (cut >= steps) continue;
         std::vector<std::vector<int>> candidate(n);
         std::vector<std::set<int>> visited(n);
@@ -119,7 +125,8 @@ void SupplyPlanner::repairCoverage(const GameConfig& config, const GameState& st
                 [](const Choice& a, const Choice& b) { return a.rank > b.rank; });
             int p = pending.front(), target = -2;
             if (!choices.empty()) {
-                const auto& choice = choices[first ? variant % std::min<size_t>(3, choices.size()) : 0];
+                const auto& choice = choices[first ? variant %
+                    (dailyFocus ? choices.size() : std::min<size_t>(3, choices.size())) : 0];
                 p = choice.patrol; target = choice.spot;
             }
             first = false;
@@ -128,7 +135,8 @@ void SupplyPlanner::repairCoverage(const GameConfig& config, const GameState& st
             tails[p] = PatrolPlanner::planDay(config, map,
                 map.posToCoordinate(prefix.agents[p].pos), steps - cut, prefix.agents[p].fuel,
                 stock, visited[p], brands, daily, targets[p], positions[p], stepSpots,
-                stepPositions, claims, true, false, &cache, target, {}, true, true);
+                stepPositions, claims, true, false, &cache, target, {}, true, true,
+                dailyFocus ? (variant % 3) * 0.5 : 1.0);
             pending.erase(std::find(pending.begin(), pending.end(), p));
         }
         if (!pending.empty() || !inTime()) break;
@@ -153,7 +161,7 @@ void SupplyPlanner::repairCoverage(const GameConfig& config, const GameState& st
         const auto currentEpoch = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
         improveDay(config, state, map, candidate, matchBrands,
-                   std::min(deadlineMs, currentEpoch + std::min<long long>(80, remainingMs)), true);
+                   std::min(deadlineMs, currentEpoch + std::min<long long>(dailyFocus ? 200 : 80, remainingMs)), true);
         auto result = MoveSimulator::simulateDay(config, state, candidate, map);
         if (result.valid && score(result) > score(incumbent)) {
             actions = std::move(candidate);
