@@ -193,6 +193,27 @@ void DiaryWriter::writeAgentTimeline(
     output << "\n";
 }
 
+bool DiaryWriter::archiveResetDiary(const std::string& diaryRoot,
+    const std::string& matchId, const GameState& state) {
+    if (state.finished || state.day != 0 || state.startsAt != 0 || state.endsAt != 0)
+        return true;
+    namespace fs = std::filesystem;
+    if (matchId.empty() || matchId == "." || matchId == ".." ||
+        matchId.find_first_of("/\\:") != std::string::npos) return false;
+    try {
+        const auto source = fs::path(diaryRoot) / matchId;
+        if (!fs::exists(source)) return true;
+        const auto archive = fs::path(diaryRoot) / "archive" / matchId;
+        fs::create_directories(archive);
+        int run = 1;
+        while (fs::exists(archive / ("run_" + std::to_string(run)))) ++run;
+        fs::rename(source, archive / ("run_" + std::to_string(run)));
+        return true;
+    } catch (const fs::filesystem_error&) {
+        return false;
+    }
+}
+
 int DiaryWriter::findLastWrittenDay(
     const std::string& diaryRoot,
     const std::string& matchId,

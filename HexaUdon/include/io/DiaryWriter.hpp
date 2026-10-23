@@ -18,6 +18,9 @@ struct DaySimulation;
  */
 class DiaryWriter {
 public:
+    // Archive an old run only when the server explicitly reports pre-start day 0.
+    static bool archiveResetDiary(const std::string& diaryRoot,
+        const std::string& matchId, const GameState& state);
     /** @brief Ngày lớn nhất đã ghi sau một lần POST /answer thành công, hoặc -1. */
     static int findLastWrittenDay(
         const std::string& diaryRoot,

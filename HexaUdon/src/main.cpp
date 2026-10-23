@@ -87,6 +87,18 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         std::cout << "[4/4] Tran dau da ket thuc du " << totalDays << " ngay.\n";
         return 0;
     }
+    // A server reset can reuse the match ID. Archive the previous diary before
+    // formation, while the pre-start snapshot is still unambiguous.
+    if (!freshRun && selectionState.day == 0 && !selectionState.finished &&
+        selectionState.startsAt == 0 && selectionState.endsAt == 0 &&
+        DiaryWriter::findLastWrittenDay("diary", matchId, totalDays) >= 0) {
+        if (!DiaryWriter::archiveResetDiary("diary", matchId, selectionState)) {
+            std::cerr << "[LOI] Khong luu tru duoc diary cu sau reset. Dung de bao toan nhat ky.\n";
+            return 1;
+        }
+        std::cout << "  -> Server da reset: luu diary cu vao diary/archive/"
+                  << matchId << "; bat dau luot moi.\n";
+    }
     // --- Step 2: Submit agent types ---
     std::vector<int> agentTypes;
     if (LiveMatchGuard::hasLiveStatus(selectionState, totalDays)) {
