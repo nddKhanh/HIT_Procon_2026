@@ -48,6 +48,9 @@ public:
     // 5. Submit action plan [[actions_agent0], [actions_agent1], ...]
     bool submitActions(const std::string& matchId, const std::vector<std::vector<int>>& actions);
 
+    void setDeadlineMs(long long epochMs) { http_.setDeadlineMs(epochMs); }
+    bool submissionRetryable() const { return submissionRetryable_; }
+
     // Get last error message
     std::string getLastError() const { return lastError_; }
 
@@ -55,6 +58,7 @@ public:
     std::string getLastResponse() const { return lastResponse_; }
 
 private:
+    bool submissionRetryable_ = false;
     HttpClient http_;
     std::string lastError_;
     std::string lastResponse_;

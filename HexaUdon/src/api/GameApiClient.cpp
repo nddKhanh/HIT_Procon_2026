@@ -1,6 +1,7 @@
 #include "api/GameApiClient.hpp"
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <stdexcept>
 
 using json = nlohmann::json;
 
@@ -71,7 +72,8 @@ std::string GameApiClient::getMatchPhase(const std::string& matchId) {
 // 2. Get match config
 // =============================================================================
 GameConfig GameApiClient::getMatchConfig(const std::string& matchId) {
-    GameConfig config;
+    GameConfig config{};
+    lastError_.clear();
 
     auto resp = http_.get("/api/game/matches/" + matchId + "/config");
     if (!resp.success) {
@@ -108,12 +110,37 @@ GameConfig GameApiClient::getMatchConfig(const std::string& matchId) {
         if (j.contains("agents"))
             config.initialAgentPositions = j["agents"].get<std::vector<int>>();
 
-        config.fuelLimit = j.value("fuelLimits", j.value("fuelLimit", 20));
-        config.players = j.value("players", 2);
-        config.busyThreshold = j.value("busyThreshold", 5);
-        config.jammedThreshold = j.value("jammedThreshold", 10);
+        config.fuelLimit = j.at(j.contains("fuelLimits") ? "fuelLimits" : "fuelLimit").get<int>();
+        config.players = j.at("players").get<int>();
+        config.busyThreshold = j.at("busyThreshold").get<int>();
+        config.jammedThreshold = j.at("jammedThreshold").get<int>();
+        if (config.map.width <= 0 || config.map.height <= 0 ||
+            config.map.cells.size() != static_cast<size_t>(config.map.height) ||
+            config.daySteps.empty() || config.initialAgentPositions.empty() ||
+            config.spots.empty() || config.fuelLimit <= 0 || config.players <= 0 ||
+            config.busyThreshold < 0 || config.jammedThreshold <= config.busyThreshold)
+            throw std::runtime_error("Invalid map/game configuration");
+        for (const auto& row : config.map.cells)
+            if (row.size() != static_cast<size_t>(config.map.width))
+                throw std::runtime_error("Invalid map row width");
+        for (int steps : config.daySteps)
+            if (steps <= 0) throw std::runtime_error("Invalid daySteps");
+        if (!config.daySeconds.empty() && config.daySeconds.size() != config.daySteps.size())
+            throw std::runtime_error("daySeconds/daySteps length mismatch");
+        for (int seconds : config.daySeconds)
+            if (seconds <= 0) throw std::runtime_error("Invalid daySeconds");
+        const auto validPos = [&](int pos) {
+            return pos >= 0 && static_cast<long long>(pos) <
+                static_cast<long long>(config.map.width) * config.map.height;
+        };
+        for (int pos : config.initialAgentPositions)
+            if (!validPos(pos)) throw std::runtime_error("Invalid agent position");
+        for (const auto& spot : config.spots)
+            if (!validPos(spot.pos) || spot.brand < 0 || spot.stocks < 0)
+                throw std::runtime_error("Invalid spot");
     } catch (const std::exception& e) {
         lastError_ = std::string("Config parse error: ") + e.what();
+        return GameConfig{};
     }
 
     return config;
@@ -138,6 +165,13 @@ bool GameApiClient::submitAgentTypes(const std::string& matchId, const std::vect
         return false;
     }
     lastResponse_ = resp.body;
+    const auto result = json::parse(resp.body, nullptr, false);
+    if (!result.is_object() || !result.contains("valid") ||
+        !result["valid"].is_boolean() || !result["valid"].get<bool>()) {
+        lastError_ = "POST agents: missing or rejected valid=true acknowledgement";
+        return false;
+    }
+    lastError_.clear();
     return true;
 }
 
@@ -220,6 +254,8 @@ GameState GameApiClient::getMatchStatus(const std::string& matchId) {
 // 5. Submit actions
 // =============================================================================
 bool GameApiClient::submitActions(const std::string& matchId, const std::vector<std::vector<int>>& actions) {
+    submissionRetryable_ = false;
+    lastError_.clear();
     json body = actions;
     std::string payload = body.dump();
 
@@ -231,26 +267,24 @@ bool GameApiClient::submitActions(const std::string& matchId, const std::vector<
               << resp.body.substr(0, 500) << std::endl;
 
     if (!resp.success) {
+        // Unknown transport outcome may already have been accepted. Do not
+        // blindly retry; only explicit transient HTTP failures are retryable.
+        submissionRetryable_ = resp.statusCode == 429 || resp.statusCode == 502 ||
+            resp.statusCode == 503 || resp.statusCode == 504;
         lastError_ = "POST answer failed: HTTP " + std::to_string(resp.statusCode) +
                      " body: " + resp.body.substr(0, 500);
         return false;
     }
 
-    // CRITICAL: Server returns HTTP 200 but may include {"valid": false, "error": "..."}
     lastResponse_ = resp.body;
-    try {
-        auto j = json::parse(resp.body);
-        if (j.contains("valid") && j["valid"].is_boolean() && !j["valid"].get<bool>()) {
-            std::string errMsg = j.value("error", "unknown");
-            int revision = j.value("revision", -1);
-            lastError_ = "Server REJECTED answer (revision=" + std::to_string(revision) +
-                         "): " + errMsg;
-            std::cerr << "[ERROR] " << lastError_ << std::endl;
-            return false;
-        }
-    } catch (...) {
-        // If body is not JSON or doesn't have 'valid', treat as success
+    const auto result = json::parse(resp.body, nullptr, false);
+    if (!result.is_object() || !result.contains("valid") || !result["valid"].is_boolean()) {
+        lastError_ = "POST answer: invalid acknowledgement; acceptance unknown, no automatic retry";
+        return false;
     }
-
+    if (!result["valid"].get<bool>()) {
+        lastError_ = "Server REJECTED answer: " + result.dump().substr(0, 500);
+        return false;
+    }
     return true;
 }

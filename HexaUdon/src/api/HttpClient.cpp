@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <chrono>
 
 // Helper: Convert std::string (UTF-8) to std::wstring
 static std::wstring toWide(const std::string& str) {
@@ -119,14 +120,28 @@ HttpResponse HttpClient::request(const std::string& method, const std::string& p
         return response;
     }
 
-    // Disable certificate validation for development/testing
-    if (useHttps_) {
-        DWORD dwFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA |
-                SECURITY_FLAG_IGNORE_WRONG_USAGE |
-                        SECURITY_FLAG_IGNORE_CERT_CN_INVALID |
-                        SECURITY_FLAG_IGNORE_CERT_DATE_INVALID;
-        InternetSetOptionW(hRequest, INTERNET_OPTION_SECURITY_FLAGS,
-                   &dwFlags, sizeof(dwFlags));
+    const auto nowMs = [] {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+    };
+    const long long deadline = deadlineMs_ ? deadlineMs_ : nowMs() + 5000;
+    auto setTimeouts = [&]() {
+        const auto remaining = deadline - nowMs();
+        if (remaining <= 0) return false;
+        // ponytail: synchronous WinINet timeouts bound phases, not a hard total
+        // cancellation. Divide remaining time across connect/send/receive.
+        DWORD timeout = static_cast<DWORD>(std::max(1LL, std::min(5000LL, remaining / 3)));
+        for (DWORD option : {INTERNET_OPTION_CONNECT_TIMEOUT,
+                INTERNET_OPTION_SEND_TIMEOUT, INTERNET_OPTION_RECEIVE_TIMEOUT}) {
+            if (!InternetSetOptionW(hRequest, option, &timeout, sizeof(timeout)))
+                return false;
+        }
+        return true;
+    };
+    if (!setTimeouts()) {
+        response.error = "Request deadline expired or timeout setup failed";
+        InternetCloseHandle(hRequest);
+        return response;
     }
 
     // Set headers
@@ -152,13 +167,6 @@ HttpResponse HttpClient::request(const std::string& method, const std::string& p
         return response;
     }
 
-    if (!bResult) {
-        response.error = "HttpSendRequest failed, error: " +
-                         std::to_string(GetLastError());
-        InternetCloseHandle(hRequest);
-        return response;
-    }
-
     // Get status code
     DWORD statusCode = 0;
     DWORD dwSize = sizeof(statusCode);
@@ -170,6 +178,11 @@ HttpResponse HttpClient::request(const std::string& method, const std::string& p
     std::string responseBody;
     DWORD bytesAvailable = 0;
     do {
+        if (!setTimeouts()) {
+            response.error = "Response deadline expired or timeout setup failed";
+            InternetCloseHandle(hRequest);
+            return response;
+        }
         bytesAvailable = 0;
         if (!InternetQueryDataAvailable(hRequest, &bytesAvailable, 0, 0)) {
             response.error = "InternetQueryDataAvailable failed, error: " +

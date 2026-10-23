@@ -159,9 +159,13 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
     int newDayPollCount = 0;
     long long nextWaitLogMs = 0;
     const int MAX_RETRIES = 300;
-    const int POLL_MS = 100;
+    const int POLL_MS = 750;
+    int answerDay = -1, answerAttempts = 0;
+    long long answerStartsAt = 0, answerEndsAt = 0;
+    bool answerBlocked = false;
     const int ERROR_RETRY_MS = 500;
     while (true) {
+        api.setDeadlineMs(0);
         GameState state = api.getMatchStatus(matchId);
 
         if (state.day < 0) {
@@ -209,6 +213,17 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
             continue;
         }
 
+        if (answerDay != state.day || answerStartsAt != state.startsAt || answerEndsAt != state.endsAt) {
+            answerDay = state.day;
+            answerStartsAt = state.startsAt;
+            answerEndsAt = state.endsAt;
+            answerAttempts = 0;
+            answerBlocked = false;
+        }
+        if (answerBlocked || answerAttempts >= 3) {
+            Sleep(POLL_MS);
+            continue;
+        }
         newDayPollCount = 0;
         retryCount = 0;
 
@@ -292,6 +307,10 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
         // The answer endpoint does not carry a day number. Never let a plan
         // computed from an old snapshot be accepted for a newer day.
         std::cout << "  [API] Kiem tra ngay truoc khi nop...\n" << std::flush;
+        // Split remaining submission reserve between the final GET and POST.
+        const auto beforeCheckMs = currentEpochMs();
+        api.setDeadlineMs(beforeCheckMs + std::max(0LL,
+            (state.endsAt * 1000LL - beforeCheckMs) / 2));
         GameState latest = api.getMatchStatus(matchId);
         if (!LiveMatchGuard::canSubmit(
                 "", state, latest, totalDays, currentEpochMs())) {
@@ -305,6 +324,8 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
 
         // Submit
         std::cout << "  [API] Dang gui action...\n" << std::flush;
+        api.setDeadlineMs(state.endsAt * 1000LL);
+        ++answerAttempts;
         if (api.submitActions(matchId, actions)) {
             std::cout << "  -> DA GUI THANH CONG!\n\n";
             if (usedFallback) solver.discardLastPlan();
@@ -321,15 +342,13 @@ int runApiMode(const std::string& serverUrl, const std::string& token,
             std::string err = api.getLastError();
             std::cerr << "  [LOI] Gui that bai: " << err << "\n";
 
-            // A Next Day transition can briefly reject an answer. Poll again
-            // quickly instead of sleeping for several seconds.
-            if (err.find("not running") != std::string::npos) {
-                std::cerr << "  -> Match dang chuyen trang thai, thu lai sau "
-                          << POLL_MS << " ms...\n\n";
-                Sleep(POLL_MS);
+            if (!api.submissionRetryable() || answerAttempts >= 3) {
+                answerBlocked = true;
+                std::cerr << "  -> Dung retry ngay nay: bi tu choi, chua ro da nhan, hoac het 3 lan.\n";
             } else {
-                std::cerr << "  -> Thu lai sau " << ERROR_RETRY_MS << " ms...\n\n";
-                Sleep(ERROR_RETRY_MS);
+                const auto waitMs = std::min(2000LL, std::max(0LL,
+                    state.endsAt * 1000LL - currentEpochMs()));
+                Sleep(static_cast<DWORD>(std::min(waitMs, 500LL << (answerAttempts - 1))));
             }
             continue; // Retry this day
         }

@@ -28,6 +28,8 @@ public:
 
     void setHeader(const std::string& key, const std::string& value);
 
+    void setDeadlineMs(long long epochMs) { deadlineMs_ = epochMs; }
+
     HttpResponse get(const std::string& path);
     HttpResponse post(const std::string& path, const std::string& jsonBody);
     HttpResponse put(const std::string& path, const std::string& jsonBody = "");
@@ -40,6 +42,7 @@ private:
     std::string host_;
     int port_ = 443;
     bool useHttps_ = true;
+    long long deadlineMs_ = 0;
 
     std::vector<std::pair<std::string, std::string>> headers_;
 
