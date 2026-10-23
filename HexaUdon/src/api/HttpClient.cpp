@@ -122,7 +122,8 @@ HttpResponse HttpClient::request(const std::string& method, const std::string& p
     std::wstring wPath = toWide(path);
     std::wstring wMethod = toWide(method);
 
-    DWORD flags = useHttps_ ? INTERNET_FLAG_SECURE : 0;
+    DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE |
+        (useHttps_ ? INTERNET_FLAG_SECURE : 0);
     HINTERNET hRequest = HttpOpenRequestW(
         hConnect_, wMethod.c_str(), wPath.c_str(),
         NULL, NULL, NULL, flags, 0);

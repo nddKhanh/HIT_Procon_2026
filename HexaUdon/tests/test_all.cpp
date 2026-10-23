@@ -8,6 +8,9 @@
 #include <sstream>
 #include <nlohmann/json.hpp>
 #include "api/HttpClient.hpp"
+#include "api/GameApiClient.hpp"
+#include "api/LiveMatchGuard.hpp"
+#include "io/RuntimeState.hpp"
 #include "model/GameConfig.hpp"
 #include "GameState.hpp"
 #include "map/Map.hpp"
@@ -1001,7 +1004,7 @@ void test_agent_strategy_simulates_supply_counts() {
     std::cerr.rdbuf(oldLog);
     assert(expiredFormationTypes == std::vector<int>({0, 0, 0, 0, 0, 0, 0, 1}));
     assert(staleLog.str().find("startsAt is stale") != std::string::npos);
-    assert(staleLog.str().find("55s bounded search") != std::string::npos);
+    assert(staleLog.str().find("configured bounded search") != std::string::npos);
     assert(staleLog.str().find("[FORMATION] supply=1 ") != std::string::npos);
     config.initialAgentPositions.assign(10, 0);
     auto tenAgentFallback = AgentStrategy::decideAgentTypes(config);
@@ -1279,7 +1282,100 @@ void test_lookahead_scores_one_second_spot() {
     std::cout << "[PASS] Lookahead compares alternatives without accumulating them!" << std::endl;
 }
 
+void test_runtime_recovery_and_submission_guards() {
+    using namespace api_deadline;
+    assert(agentSelectionWindowMs(nullptr) == 40000);
+    assert(agentSelectionWindowMs("") == 40000);
+    assert(agentSelectionWindowMs(" \t") == 40000);
+    assert(agentSelectionWindowMs(" 60 ") - agentSelectionReserveMs == 50000);
+    assert(agentSelectionWindowMs("40") - agentSelectionReserveMs == 30000);
+    assert(agentSelectionWindowMs("10") - agentSelectionReserveMs == 0);
+    for (const char* value : {"9", "-1", "40s", "40.5", "99999999999999999999"}) {
+        bool rejected = false;
+        try { agentSelectionWindowMs(value); }
+        catch (const std::invalid_argument&) { rejected = true; }
+        assert(rejected);
+    }
+    GameState planned{};
+    planned.startsAt = 50;
+    planned.day = 2;
+    planned.endsAt = 100;
+    planned.totalDays = 5;
+    planned.agents = {{0, 0, 10}};
+    GameState latest = planned;
+    assert(live_match::canSubmitSnapshot(planned, latest, 5, 90000));
+    assert(!live_match::canSubmitSnapshot(planned, latest, 5, 92000));
+    latest.day++;
+    assert(!live_match::canSubmitSnapshot(planned, latest, 5, 90000));
+    latest = planned;
+    latest.endsAt++;
+    assert(!live_match::canSubmitSnapshot(planned, latest, 5, 90000));
+    latest = planned;
+    latest.startsAt++;
+    assert(!live_match::canSubmitSnapshot(planned, latest, 5, 90000));
+    latest = planned;
+    latest.totalDays++;
+    assert(!live_match::canSubmitSnapshot(planned, latest, 5, 90000));
+    latest = planned;
+    latest.finished = true;
+    assert(!live_match::canSubmitSnapshot(planned, latest, 5, 90000));
+    assert(live_match::hasSelectedFleet(planned, {0}));
+    assert(!live_match::hasSelectedFleet(planned, {1}));
+
+    const auto directory = std::filesystem::temp_directory_path() /
+        ("hexudon-runtime-test-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto path = directory / "state.json";
+    const nlohmann::json scope = {{"match", "test"}};
+    Solver original, restored;
+    original.restoreConfirmedState({2, 5}, true);
+    const std::vector<Agent> after = {{0, 1, 9}};
+    runtime_state::save(path, scope, original, 2, 100, planned.agents, after);
+    assert(runtime_state::restore(path, scope, planned, restored) == 2);
+    assert(restored.confirmedBrands() == original.confirmedBrands());
+    assert(restored.usesRegions());
+    latest = planned;
+    latest.day = 3;
+    latest.agents = after;
+    assert(runtime_state::restore(path, scope, latest, restored) == 2);
+    for (int badCase = 0; badCase < 4; ++badCase) {
+        auto wrong = latest;
+        auto wrongScope = scope;
+        if (badCase == 0) wrong.day = 4;
+        if (badCase == 1) wrong.agents[0].fuel--;
+        if (badCase == 2) wrongScope["match"] = "other";
+        if (badCase == 3) { wrong = planned; wrong.endsAt++; }
+        bool rejected = false;
+        try { runtime_state::restore(path, wrongScope, wrong, restored); }
+        catch (const std::exception&) { rejected = true; }
+        assert(rejected);
+        assert(restored.confirmedBrands() == original.confirmedBrands());
+    }
+    original.restoreConfirmedState({2, 5, 8}, false);
+    runtime_state::save(path, scope, original, 2, 100, planned.agents, after);
+    runtime_state::restore(path, scope, planned, restored);
+    assert(restored.confirmedBrands() == original.confirmedBrands());
+    assert(!restored.usesRegions());
+    runtime_state::save(path, scope, Solver{}, -1, 0, planned.agents, planned.agents);
+    latest = planned;
+    latest.agents.clear();
+    bool emptySelectionRejected = false;
+    try { runtime_state::restore(path, scope, latest, restored); }
+    catch (const std::exception&) { emptySelectionRejected = true; }
+    assert(emptySelectionRejected);
+    // Corrupt files must never partially mutate the solver.
+    { std::ofstream corrupt(path); corrupt << "{"; }
+    bool rejected = false;
+    try { runtime_state::restore(path, scope, planned, restored); }
+    catch (const std::exception&) { rejected = true; }
+    assert(rejected && restored.confirmedBrands() == original.confirmedBrands());
+    std::filesystem::remove(path);
+    std::filesystem::remove(directory);
+    std::cout << "[PASS] Selection window, same-day submission and checkpoint recovery!\n";
+}
+
 int main() {
+    test_runtime_recovery_and_submission_guards();
     test_lookahead_scores_one_second_spot();
     test_spot_reward_paths();
     test_server_replay();

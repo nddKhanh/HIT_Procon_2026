@@ -239,9 +239,9 @@ std::vector<int> AgentStrategy::decideAgentTypes(
 
     const auto selectionStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
-    // Ponytail: cap formation search at 55s. A past startsAt can be stale at agent_select, so do not
-    // let it disable simulations. For a future start, retain the POST/retry reserve.
-    constexpr long long formationSearchBudgetMs = 55000;
+    // The configured window includes 10 seconds reserved for submission.
+    const long long formationSearchBudgetMs = api_deadline::agentSelectionWindowMs(
+        std::getenv("HEXUDON_AGENT_SELECTION_SECONDS")) - api_deadline::agentSelectionReserveMs;
     const long long searchDeadlineMs = selectionStartedMs + formationSearchBudgetMs;
     const long long configuredStartMs = config.startsAt > 0
         ? config.startsAt * 1000LL : LLONG_MAX;
@@ -252,7 +252,7 @@ std::vector<int> AgentStrategy::decideAgentTypes(
         ? searchDeadlineMs
         : std::max(selectionStartedMs, std::min(searchDeadlineMs, officialDeadlineMs));
     if (config.startsAt > 0 && !startIsFuture) {
-        std::cerr << "[FORMATION] startsAt is stale; using 55s bounded search\n";
+        std::cerr << "[FORMATION] startsAt is stale; using configured bounded search\n";
     } else if (config.startsAt > 0 && officialDeadlineMs <= selectionStartedMs) {
         std::cerr << "[FORMATION] too little time before startsAt; keeping incumbent\n";
     }
@@ -261,6 +261,8 @@ std::vector<int> AgentStrategy::decideAgentTypes(
             std::chrono::system_clock::now().time_since_epoch()).count();
         return currentMs < selectionDeadlineMs;
     };
+    std::cerr << "[FORMATION] search budget <= " << formationSearchBudgetMs
+              << " ms; submission reserve = 10000 ms\n";
 
     struct Formation {
         std::vector<int> types;

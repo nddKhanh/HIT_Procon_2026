@@ -61,7 +61,7 @@ std::vector<MatchInfo> GameApiClient::listMatches() {
 // 2. Get match config
 // =============================================================================
 GameConfig GameApiClient::getMatchConfig(const std::string& matchId) {
-    GameConfig config;
+    GameConfig config{};
 
     auto resp = http_.get("/api/game/matches/" + matchId + "/config");
     if (!resp.success) {
@@ -99,13 +99,16 @@ GameConfig GameApiClient::getMatchConfig(const std::string& matchId) {
             config.initialAgentPositions = j["agents"].get<std::vector<int>>();
 
         config.fuelLimit = j.value("fuelLimits", j.value("fuelLimit", 20));
-        config.players = j.value("players", 2);
+        config.players = j.at("players").get<int>();
+        if (config.players <= 0) throw std::invalid_argument("players must be positive");
         config.busyThreshold = j.value("busyThreshold", 5);
         config.jammedThreshold = j.value("jammedThreshold", 10);
     } catch (const std::exception& e) {
         lastError_ = std::string("Config parse error: ") + e.what();
+        return GameConfig{};
     }
 
+    lastResponse_ = resp.body;
     return config;
 }
 
@@ -120,15 +123,7 @@ bool GameApiClient::submitAgentTypes(const std::string& matchId, const std::vect
 
     const std::string path = "/api/game/matches/" + matchId + "/agents";
     auto resp = http_.post(path, payload);
-    // Retrying the identical selection is safe and covers a transient transport
-    // failure or a lost response. Server rejections have a real HTTP status and
-    // must not be retried blindly.
-    if (!resp.success && resp.statusCode == 0) {
-        std::cerr << "[WARN] POST /agents transport error: " << resp.error
-                  << "; retry once..." << std::endl;
-        Sleep(static_cast<DWORD>(api_deadline::retryDelayMs));
-        resp = http_.post(path, payload);
-    }
+    // Leave time for status confirmation inside the 10s submission reserve.
     std::cerr << "[DEBUG] POST /agents response (HTTP " << resp.statusCode << "): "
               << resp.body.substr(0, 500)
               << (resp.error.empty() ? "" : " error: " + resp.error) << std::endl;
@@ -147,10 +142,12 @@ bool GameApiClient::submitAgentTypes(const std::string& matchId, const std::vect
 // 4. Get daily match status
 // =============================================================================
 GameState GameApiClient::getMatchStatus(const std::string& matchId) {
+    statusAvailable_ = false;
     GameState state;
     state.day = -1; // Sentinel: indicates error if not overwritten
 
     auto resp = http_.get("/api/game/matches/" + matchId + "/status");
+    lastStatusCode_ = resp.statusCode;
     if (!resp.success) {
         lastError_ = "GET status failed: HTTP " + std::to_string(resp.statusCode) +
                      " " + resp.error;
@@ -160,8 +157,12 @@ GameState GameApiClient::getMatchStatus(const std::string& matchId) {
     try {
         auto j = json::parse(resp.body);
 
+        state.startsAt = j.value("startsAt", 0LL);
         state.endsAt = j.value("endsAt", 0LL);
         state.day = j.value("day", -1);
+        state.currentDay = j.value("currentDay", state.day);
+        state.totalDays = j.value("totalDays", 0);
+        state.finished = j.value("finished", false);
 
         // Debug: log raw fields
         // std::cerr << "[DEBUG] GET /status: day=" << state.day
@@ -206,6 +207,7 @@ GameState GameApiClient::getMatchStatus(const std::string& matchId) {
                 state.traffics.push_back(traffic);
             }
         }
+        statusAvailable_ = true;
     } catch (const std::exception& e) {
         lastError_ = std::string("Status parse error: ") + e.what();
         state.day = -1;
@@ -218,6 +220,7 @@ GameState GameApiClient::getMatchStatus(const std::string& matchId) {
 // 5. Submit actions
 // =============================================================================
 bool GameApiClient::submitActions(const std::string& matchId, const std::vector<std::vector<int>>& actions) {
+    answerAcceptanceUnknown_ = false;
     json body = actions;
     std::string payload = body.dump();
 
@@ -226,19 +229,15 @@ bool GameApiClient::submitActions(const std::string& matchId, const std::vector<
 
     const std::string path = "/api/game/matches/" + matchId + "/answer";
     auto resp = http_.post(path, payload);
-    // The answer may already have reached the server even when its response is
-    // lost. Repeat the exact bytes once; never recompute a different plan here.
-    if (!resp.success && resp.statusCode == 0) {
-        std::cerr << "[WARN] POST /answer transport error: " << resp.error
-                  << "; retry same payload once..." << std::endl;
-        Sleep(static_cast<DWORD>(api_deadline::retryDelayMs));
-        resp = http_.post(path, payload);
-    }
+    // Only the caller knows the snapshot day/deadline. Never retry here.
+    lastStatusCode_ = resp.statusCode;
     std::cerr << "[DEBUG] POST /answer response (HTTP " << resp.statusCode << "): "
               << resp.body.substr(0, 500)
               << (resp.error.empty() ? "" : " error: " + resp.error) << std::endl;
 
     if (!resp.success) {
+        answerAcceptanceUnknown_ = resp.statusCode == 0 || resp.statusCode >= 500 ||
+            (resp.statusCode >= 200 && resp.statusCode < 300);
         lastError_ = "POST answer failed: HTTP " + std::to_string(resp.statusCode) +
                      " body: " + resp.body.substr(0, 500) +
                      (resp.error.empty() ? "" : " error: " + resp.error);
@@ -249,6 +248,11 @@ bool GameApiClient::submitActions(const std::string& matchId, const std::vector<
     lastResponse_ = resp.body;
     try {
         auto j = json::parse(resp.body);
+        if (!j.contains("valid") || !j["valid"].is_boolean()) {
+            answerAcceptanceUnknown_ = true;
+            lastError_ = "Answer acceptance unknown: missing boolean valid";
+            return false;
+        }
         if (j.contains("valid") && j["valid"].is_boolean() && !j["valid"].get<bool>()) {
             std::string errMsg = j.value("error", "unknown");
             int revision = j.value("revision", -1);
@@ -258,7 +262,9 @@ bool GameApiClient::submitActions(const std::string& matchId, const std::vector<
             return false;
         }
     } catch (...) {
-        // If body is not JSON or doesn't have 'valid', treat as success
+        answerAcceptanceUnknown_ = true;
+        lastError_ = "Answer acceptance unknown: malformed response";
+        return false;
     }
 
     return true;

@@ -45,6 +45,14 @@ public:
     /** Discard the most recently generated plan without changing confirmed state. */
     void discardLastPlan();
 
+    const std::set<int>& confirmedBrands() const { return collectedBrandsTotal_; }
+    bool usesRegions() const { return useRegions_; }
+    void restoreConfirmedState(const std::set<int>& brands, bool useRegions) {
+        collectedBrandsTotal_ = brands;
+        useRegions_ = useRegions;
+        discardLastPlan();
+    }
+
     /**
      * @brief Fallback: tất cả xe đứng yên cả ngày (kế hoạch an toàn)
      */

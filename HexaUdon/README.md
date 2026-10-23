@@ -1,5 +1,59 @@
 # Hướng Dẫn Sử Dụng Dự Án HexaUdon
 
+## Cấu hình thời gian chọn đội hình và khôi phục phiên thi đấu
+
+Biến môi trường `HEXUDON_AGENT_SELECTION_SECONDS` là **tổng thời gian chọn
+đội hình của trận**, tính bằng giây; không phải thời gian trả lời mỗi ngày.
+Không đặt, chuỗi rỗng hoặc chỉ có khoảng trắng: mặc định **40 giây**.
+Thuật toán tự chừa **10 giây để nộp**, nên mặc định có tối đa **30 giây tìm kiếm**.
+Chấp nhận số nguyên từ 10 trở lên; giá trị 10 dùng đội hình mặc định, không tìm kiếm.
+Giá trị sai bị từ chối trước khi kết nối server. Nếu `startsAt` còn ở tương lai,
+giới hạn sẵn có theo mốc đó vẫn có thể rút ngắn thời gian tìm kiếm thêm.
+Đây là ngân sách phía bot, không kéo dài hạn của server; hãy khởi động bot trước
+giai đoạn chọn xe. Khi server đã có xe, bot bỏ qua bước tìm và gửi đội hình.
+Bot kiểm tra lại status sau khi tìm để không POST đội hình nếu trận vừa chuyển pha,
+và chỉ lưu checkpoint khi loại xe đọc lại từ server khớp với payload đã gửi.
+
+PowerShell (áp dụng cho bot chạy từ cửa sổ hiện tại):
+
+```powershell
+$env:HEXUDON_AGENT_SELECTION_SECONDS = '40'
+.\HexaUdon\HexaUdon.exe --server https://procon26.haui.ac.vn --token TOKEN --match MATCH_ID
+```
+
+Ví dụ đặt `60` cho tối đa 50 giây tìm kiếm và 10 giây nộp. Để quay lại mặc định:
+
+```powershell
+$env:HEXUDON_AGENT_SELECTION_SECONDS = ''
+```
+
+Bot chờ BTC bắt đầu mà không tự thoát theo số lần polling. Lỗi kết nối được thử
+lại với khoảng nghỉ tăng dần; HTTP 401/403 được báo và dừng. Mỗi lần POST đáp án
+đều kiểm tra lại ngày, deadline và thời gian còn lại. Nếu chưa rõ server đã nhận
+hay chưa, chỉ thử lại cùng payload tối đa một lần sau kiểm tra mới; không liên tục
+tính lại và gửi đáp án khác. Chỉ `valid: true` mới được ghi nhận là đã chấp nhận.
+Không thay đổi ngân sách giải từng ngày, cách chấm điểm, tìm đường hoặc tiếp tế.
+
+Checkpoint lưu trong `.runtime/` tại thư mục chạy lệnh, sau khi server xác nhận
+lựa chọn xe/đáp án. File được thay thế bằng thao tác rename; token không được lưu
+nguyên văn. Khi restart, dùng cùng thư mục, URL, token và match. Bot kiểm tra config,
+ngày, vị trí/nhiên liệu trước khi khôi phục brand và chế độ chia vùng; nếu đã nộp
+ngày hiện tại thì không nộp lại. Chỉ chạy **một bot cho mỗi token/match** và tránh
+nộp đáp án từ công cụ khác cùng lúc.
+
+Giới hạn: checkpoint lưu trạng thái mô phỏng của đáp án được chấp nhận, không phải
+lịch sử kết quả chính thức. Nếu mất phản hồi, mất checkpoint, bỏ lỡ ngày, hoặc tắt
+ngay sau POST trước khi lưu, bot báo thiếu lịch sử và không tự suy đoán hay ghi
+checkpoint đầy đủ giả. API chưa ràng buộc POST với ngày nên kiểm tra GET trước POST
+vẫn không loại bỏ hoàn toàn việc server chuyển ngày trong lúc request đang gửi.
+
+Kiểm tra hồi quy và API giả lập cục bộ (không gửi tới server thi đấu):
+
+```powershell
+.\build.bat test
+python HexaUdon/tests/test_runtime_api.py HexaUdon/HexaUdon.exe
+```
+
 Tài liệu này hướng dẫn cách biên dịch, chạy chương trình, thực hiện kiểm thử tự động và mở rộng chiến thuật cho dự án **HexaUdon** (Chương trình thi đấu cuộc thi Procon - Lưới lục giác Hex Grid).
 
 ---

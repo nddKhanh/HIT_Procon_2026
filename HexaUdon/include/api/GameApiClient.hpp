@@ -50,9 +50,15 @@ public:
 
     // Get last response body (for debugging)
     std::string getLastResponse() const { return lastResponse_; }
+    bool authorizationFailed() const { return lastStatusCode_ == 401 || lastStatusCode_ == 403; }
+    bool answerAcceptanceUnknown() const { return answerAcceptanceUnknown_; }
+    bool statusAvailable() const { return statusAvailable_; }
 
 private:
     HttpClient http_;
     std::string lastError_;
     std::string lastResponse_;
+    int lastStatusCode_ = 0;
+    bool answerAcceptanceUnknown_ = false;
+    bool statusAvailable_ = false;
 };

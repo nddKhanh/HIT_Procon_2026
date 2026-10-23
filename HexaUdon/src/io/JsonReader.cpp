@@ -41,8 +41,12 @@ GameState JsonReader::readGameState() {
 
     GameState state;
 
+    state.startsAt = input.value("startsAt", 0LL);
     state.endsAt = input["endsAt"];
     state.day = input["day"];
+    state.currentDay = input.value("currentDay", state.day);
+    state.totalDays = input.value("totalDays", 0);
+    state.finished = input.value("finished", false);
 
     for (const auto& agentJson : input["agents"]) {
         Agent agent;
