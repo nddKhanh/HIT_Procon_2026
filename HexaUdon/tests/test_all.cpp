@@ -1613,6 +1613,9 @@ void test_published_tournament_profiles() {
             config.spots={{0,0,3},{1,1,3}}; config.initialAgentPositions={0,1};
             auto profile=MapStrategy::select(config);
             assert(profile.tournament && std::string(profile.name)==c.name);
+            assert(profile.dailyRepair);
+            assert(profile.compactForecast == (c.w == 16 && c.h == 16));
+            assert(!profile.preserveNativeBudget);
             assert(profile.dailyCeiling==2*static_cast<int>(c.steps.size()));
             for(size_t d=0;d<c.steps.size();++d)
                 assert(profile.solveBudgetMs(config,d)==(c.seconds-3)*1000);
@@ -1668,6 +1671,18 @@ void test_map_strategy_selection() {
     config.map.width = config.map.height = 8;
     config.initialAgentPositions.resize(8);
     assert(!MapStrategy::select(config).exactRoutes); // Small geometry, large team.
+    config.players = 10;
+    config.map.width = config.map.height = 16;
+    assert(MapStrategy::select(config).compactForecast);
+    assert(!MapStrategy::select(config).dailyRepair);
+    config.map.width = config.map.height = 24;
+    assert(MapStrategy::select(config).dailyRepair);
+    assert(!MapStrategy::select(config).compactForecast);
+    config.map.width = config.map.height = 32;
+    assert(MapStrategy::select(config).dailyRepair);
+    assert(MapStrategy::select(config).preserveNativeBudget);
+    config.players = 2;
+    assert(!MapStrategy::select(config).dailyRepair);
     std::cout << "[PASS] Map strategies use dimensions, workload and fuel budget!\n";
 }
 

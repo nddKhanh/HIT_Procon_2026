@@ -872,10 +872,6 @@ std::vector<std::vector<int>> Solver::solve(
     GameState state = receivedState;
     int daySteps = config.getDaySteps(state.day);
     const auto selectedStrategy = MapStrategy::select(config);
-    // ponytail: extend the measured daily-repair policy to non-tournament
-    // 32x32 maps; replay the whole match before widening this size gate.
-    const bool largeDailyRepair = config.map.width == 32 && config.map.height == 32 &&
-        config.players > 2 && !selectedStrategy.tournament;
     if (mapStrategies_ && selectedStrategy.tournament) {
         const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
@@ -886,17 +882,18 @@ std::vector<std::vector<int>> Solver::solve(
     }
     if (mapStrategies_ && rewardRoutes && enableFleetRepair_ && expandExactSplits_ &&
         !regionalDailyPass_ && !useTimeBoundedPaths_ &&
-        ((config.map.width == 24 && config.map.height == 24) || selectedStrategy.tournament || largeDailyRepair)) {
+        selectedStrategy.dailyRepair) {
         Solver baseline = *this;
         baseline.regionalDailyPass_ = true;
-        if (selectedStrategy.tournament || largeDailyRepair) baseline.enableTwoDayLookahead_ = false;
+        if ((selectedStrategy.tournament || selectedStrategy.preserveNativeBudget) &&
+            !selectedStrategy.compactForecast) baseline.enableTwoDayLookahead_ = false;
         GameState initialState = state;
         const auto startedEpoch = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
         const auto remaining = state.endsAt * 1000LL - 750 - startedEpoch;
         // Reserve repair time during short formation rollouts too; otherwise
         // the base solver consumes the entire window and misrepresents this policy.
-        if (!largeDailyRepair && state.endsAt > 0 && remaining > 3000) {
+        if (!selectedStrategy.preserveNativeBudget && state.endsAt > 0 && remaining > 3000) {
             const auto reserve = std::min<long long>(12000, remaining / 3);
             initialState.endsAt = (state.endsAt * 1000LL - reserve) / 1000;
         }
@@ -910,11 +907,25 @@ std::vector<std::vector<int>> Solver::solve(
             deadline, selectedStrategy.dailyRepairMs, true);
         PatrolPlanner::improveRoutes(config, state, map, actions, collectedBrandsTotal_,
             deadline, selectedStrategy.tourRepairMs, true);
+        if (selectedStrategy.tournament && state.day + 1 == static_cast<int>(config.daySteps.size())) {
+            const auto covered = MoveSimulator::simulateDay(config, state, actions, map);
+            if (covered.valid && covered.brands.size() < static_cast<size_t>(selectedStrategy.brands)) {
+                // The ordinary insertion neighborhood can bridge a missing brand
+                // that the daily tour neighborhood cannot reach. On the last day
+                // there is no future endpoint to sacrifice. Keep Type/Daily first.
+                PatrolPlanner::improveRoutes(config, state, map, actions, collectedBrandsTotal_,
+                    deadline, 4000, false);
+            }
+        }
         SupplyPlanner::prepareNextDay(config, state, map, actions, deadline);
         baseline.enableTwoDayLookahead_ = enableTwoDayLookahead_;
         *this = std::move(baseline);
         regionalDailyPass_ = false;
         if (actions != original) {
+            // Repairs can change tomorrow's start; the forecast belongs to
+            // the original first-day actions and must not be committed.
+            pendingContinuation_.clear();
+            pendingContinuationConfig_.clear();
             const auto result = MoveSimulator::simulateDay(config, state, actions, map);
             const auto before = MoveSimulator::simulateDay(config, state, original, map);
             std::cerr << "[REGIONAL-DAILY] day=" << state.day << " daily="
@@ -934,8 +945,7 @@ std::vector<std::vector<int>> Solver::solve(
         return actions;
     }
     const auto strategy = MapStrategy::select(config);
-    const bool compactDaily = mapStrategies_ && config.map.width == 16 &&
-        config.map.height == 16 && config.players > 2;
+    const bool compactDaily = mapStrategies_ && selectedStrategy.compactForecast;
     const double patrolFuelWeight = config.players > 2 && useTimeBoundedPaths_ &&
         state.day + 1 == static_cast<int>(config.daySteps.size()) ? 0.0 : 1.0;
 

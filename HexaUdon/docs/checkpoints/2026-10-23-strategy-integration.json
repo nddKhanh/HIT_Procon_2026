@@ -1,0 +1,2390 @@
+{
+  "date": "2026-10-23",
+  "baseCommit": "39a2709",
+  "mode": "Offline own-dynamic traffic, fixed fleets; not server results",
+  "allTargetsMetInSelectedRuns": true,
+  "singleFullSuitePassed": false,
+  "variability": [
+    "C3: 107 or 108 Daily",
+    "sample16: 57 or 58 Daily"
+  ],
+  "runs": {
+    "integration_before": {
+      "traffic": "own-dynamic",
+      "formation": "historical fixed fleet",
+      "cases": {
+        "V0": {
+          "minimum": [
+            16,
+            96,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "da7fb6297ad24dde111feeb9549955f720047c938b4687cb353d3b80434d90d3",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 1192.5464,
+                "serving": 20
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 6493.0478,
+                "serving": 22
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 4335.881,
+                "serving": 20
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 5726.9328,
+                "serving": 20
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 15918.7315,
+                "serving": 16
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 4999.6677,
+                "serving": 18
+              }
+            ],
+            "formationMs": 0.0005,
+            "multiDayEndpoints": false,
+            "profile": "V0-balanced",
+            "score": [
+              16,
+              96,
+              116
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "C1": {
+          "minimum": [
+            16,
+            96,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "57b9f3589d63fcaf2d5315c8db593fce0618e85550d06a9baa3c8db7b53b6ca7",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 2839.0996,
+                "serving": 27
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 10913.5517,
+                "serving": 31
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 9671.1138,
+                "serving": 34
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 14874.9303,
+                "serving": 33
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 11286.0441,
+                "serving": 22
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 16403.2352,
+                "serving": 29
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "C1-wide",
+            "score": [
+              16,
+              96,
+              176
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "C2": {
+          "minimum": [
+            13,
+            91,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "e6038563c2f66cba1843b95863ac4081da190d3d411504c8fe6811dc31fb1d94",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 2138.4141,
+                "serving": 15
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 15151.6213,
+                "serving": 13
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 4688.0965,
+                "serving": 20
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 15782.3687,
+                "serving": 18
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 3631.4318,
+                "serving": 17
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 3196.2371,
+                "serving": 16
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 3024.0517,
+                "serving": 15
+              }
+            ],
+            "formationMs": 0.0003,
+            "multiDayEndpoints": false,
+            "profile": "C2-compact",
+            "score": [
+              13,
+              91,
+              114
+            ],
+            "supplyIndex": 3,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "C3": {
+          "minimum": [
+            18,
+            108,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "dfffb4eb0a631ed2b6aee2ad9c31564bcd8d3c9b46e95757df527d110c33aba2",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 5489.1684,
+                "serving": 25
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 17440.2808,
+                "serving": 24
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 17530.013,
+                "serving": 28
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 29974.3552,
+                "serving": 39
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 10820.849,
+                "serving": 31
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 9396.6383,
+                "serving": 24
+              }
+            ],
+            "formationMs": 0.0007,
+            "multiDayEndpoints": false,
+            "profile": "C3-long-days",
+            "score": [
+              18,
+              108,
+              171
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "F1": {
+          "minimum": [
+            20,
+            160,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "dd2c774327044be8da205b1cd7627e1afe3000376e78632a64945850b7ce9b7d",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 2017.646,
+                "serving": 32
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 2221.6233,
+                "serving": 28
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 1875.1642,
+                "serving": 29
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 2356.719,
+                "serving": 24
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 12143.9895,
+                "serving": 23
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 2365.7511,
+                "serving": 23
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 1928.8687,
+                "serving": 30
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 9064.1887,
+                "serving": 21
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "F1-endurance",
+            "score": [
+              20,
+              160,
+              210
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "F2": {
+          "minimum": [
+            26,
+            260,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "36b67e70a3a7edad14ba0ec2b3525639ff1c7f88fc7ac2cc7b57d77440c28ab8",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 13632.1147,
+                "serving": 45
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 9364.2575,
+                "serving": 46
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 7170.7248,
+                "serving": 46
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 8270.1802,
+                "serving": 30
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 15286.5667,
+                "serving": 26
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 17383.2913,
+                "serving": 30
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 18486.48,
+                "serving": 38
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 12811.3389,
+                "serving": 53
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 7770.0477,
+                "serving": 46
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 7133.1647,
+                "serving": 43
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "F2-large-endurance",
+            "score": [
+              26,
+              260,
+              403
+            ],
+            "supplyIndex": 6,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "F3": {
+          "minimum": [
+            14,
+            56,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "b53004472ed32da4a8a303f6ed1ae531e9505623391c6bcd851d48ca374ec0bc",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 14,
+                "missing": [],
+                "ms": 2721.0466,
+                "serving": 28
+              },
+              {
+                "daily": 14,
+                "missing": [],
+                "ms": 7530.383,
+                "serving": 32
+              },
+              {
+                "daily": 14,
+                "missing": [],
+                "ms": 5999.2266,
+                "serving": 33
+              },
+              {
+                "daily": 14,
+                "missing": [],
+                "ms": 8754.7185,
+                "serving": 30
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "F3-reserve",
+            "score": [
+              14,
+              56,
+              123
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              1,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "sample16": {
+          "minimum": [
+            12,
+            58,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "15ba3fd41ca8a69a2e22f707092d23f569ca75350524c2a0ecf956cedcaf823a",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 12,
+                "missing": [],
+                "ms": 51239.2893,
+                "serving": 14
+              },
+              {
+                "daily": 11,
+                "missing": [
+                  9
+                ],
+                "ms": 38991.7813,
+                "serving": 12
+              },
+              {
+                "daily": 11,
+                "missing": [
+                  9
+                ],
+                "ms": 27892.202,
+                "serving": 12
+              },
+              {
+                "daily": 12,
+                "missing": [],
+                "ms": 10556.6526,
+                "serving": 12
+              },
+              {
+                "daily": 12,
+                "missing": [],
+                "ms": 3147.4235,
+                "serving": 14
+              }
+            ],
+            "formationMs": 0.0006,
+            "multiDayEndpoints": false,
+            "profile": "compact-exact",
+            "score": [
+              12,
+              58,
+              64
+            ],
+            "supplyIndex": 3,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "sample24": {
+          "minimum": [
+            18,
+            90,
+            118
+          ],
+          "returncode": 0,
+          "fixtureSha256": "4081cbca170ad09e291015c10b76224bc0d960b4bc3baa72d9d96752c112d9a5",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 7903.8537,
+                "serving": 22
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 3471.7631,
+                "serving": 22
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 3331.2467,
+                "serving": 24
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 5033.6453,
+                "serving": 23
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 7992.9027,
+                "serving": 27
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "regional-repair",
+            "score": [
+              18,
+              90,
+              118
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        "sample32": {
+          "minimum": [
+            24,
+            119,
+            161
+          ],
+          "returncode": 0,
+          "fixtureSha256": "3293a63681f7f248d39013bab903619968ba7832c0a5368162c508d5ec7fadaa",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 23,
+                "missing": [
+                  17
+                ],
+                "ms": 26991.7017,
+                "serving": 24
+              },
+              {
+                "daily": 24,
+                "missing": [],
+                "ms": 7817.4374,
+                "serving": 30
+              },
+              {
+                "daily": 24,
+                "missing": [],
+                "ms": 7471.8102,
+                "serving": 35
+              },
+              {
+                "daily": 24,
+                "missing": [],
+                "ms": 6979.0782,
+                "serving": 38
+              },
+              {
+                "daily": 24,
+                "missing": [],
+                "ms": 9111.0222,
+                "serving": 34
+              }
+            ],
+            "formationMs": 0.0005,
+            "multiDayEndpoints": false,
+            "profile": "large-bounded",
+            "score": [
+              24,
+              119,
+              161
+            ],
+            "supplyIndex": 6,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "integration_after": {
+      "traffic": "own-dynamic",
+      "formation": "historical fixed fleet",
+      "cases": {
+        "V0": {
+          "minimum": [
+            16,
+            96,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "da7fb6297ad24dde111feeb9549955f720047c938b4687cb353d3b80434d90d3",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 1135.2717,
+                "serving": 20
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 6060.0648,
+                "serving": 22
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 3961.8026,
+                "serving": 20
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 4739.1402,
+                "serving": 20
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 7741.307,
+                "serving": 16
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 1804.0589,
+                "serving": 18
+              }
+            ],
+            "formationMs": 0.0003,
+            "multiDayEndpoints": false,
+            "profile": "V0-balanced",
+            "score": [
+              16,
+              96,
+              116
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "C1": {
+          "minimum": [
+            16,
+            96,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "57b9f3589d63fcaf2d5315c8db593fce0618e85550d06a9baa3c8db7b53b6ca7",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 2542.7033,
+                "serving": 27
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 4244.229,
+                "serving": 31
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 3308.1683,
+                "serving": 34
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 4607.8443,
+                "serving": 33
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 4324.6651,
+                "serving": 22
+              },
+              {
+                "daily": 16,
+                "missing": [],
+                "ms": 6390.8228,
+                "serving": 29
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "C1-wide",
+            "score": [
+              16,
+              96,
+              176
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "C2": {
+          "minimum": [
+            13,
+            91,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "e6038563c2f66cba1843b95863ac4081da190d3d411504c8fe6811dc31fb1d94",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 2236.0643,
+                "serving": 15
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 6813.5186,
+                "serving": 13
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 1606.0765,
+                "serving": 20
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 13882.722,
+                "serving": 17
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 3887.3091,
+                "serving": 18
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 1697.83,
+                "serving": 15
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 1037.0712,
+                "serving": 18
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "C2-compact",
+            "score": [
+              13,
+              91,
+              116
+            ],
+            "supplyIndex": 3,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "C3": {
+          "minimum": [
+            18,
+            108,
+            0
+          ],
+          "returncode": 4,
+          "fixtureSha256": "dfffb4eb0a631ed2b6aee2ad9c31564bcd8d3c9b46e95757df527d110c33aba2",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 3671.1181,
+                "serving": 25
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 5875.3493,
+                "serving": 25
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 6272.7106,
+                "serving": 31
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 19605.9464,
+                "serving": 38
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 25781.4246,
+                "serving": 34
+              },
+              {
+                "daily": 17,
+                "missing": [
+                  8
+                ],
+                "ms": 30055.158,
+                "serving": 22
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "C3-long-days",
+            "score": [
+              18,
+              107,
+              175
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "F1": {
+          "minimum": [
+            20,
+            160,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "dd2c774327044be8da205b1cd7627e1afe3000376e78632a64945850b7ce9b7d",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 1982.7843,
+                "serving": 32
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 2114.529,
+                "serving": 28
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 1836.3379,
+                "serving": 29
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 4444.5538,
+                "serving": 24
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 14793.8047,
+                "serving": 23
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 5421.1589,
+                "serving": 23
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 4761.6221,
+                "serving": 30
+              },
+              {
+                "daily": 20,
+                "missing": [],
+                "ms": 12569.5313,
+                "serving": 21
+              }
+            ],
+            "formationMs": 0.0003,
+            "multiDayEndpoints": false,
+            "profile": "F1-endurance",
+            "score": [
+              20,
+              160,
+              210
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "F2": {
+          "minimum": [
+            26,
+            260,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "36b67e70a3a7edad14ba0ec2b3525639ff1c7f88fc7ac2cc7b57d77440c28ab8",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 13767.4831,
+                "serving": 45
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 16462.1911,
+                "serving": 46
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 16558.3431,
+                "serving": 46
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 12513.352,
+                "serving": 30
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 6942.1776,
+                "serving": 26
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 13627.6467,
+                "serving": 30
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 13687.9932,
+                "serving": 38
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 7925.0629,
+                "serving": 53
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 7642.8864,
+                "serving": 46
+              },
+              {
+                "daily": 26,
+                "missing": [],
+                "ms": 7066.8825,
+                "serving": 43
+              }
+            ],
+            "formationMs": 0.0004,
+            "multiDayEndpoints": false,
+            "profile": "F2-large-endurance",
+            "score": [
+              26,
+              260,
+              403
+            ],
+            "supplyIndex": 6,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              1,
+              0,
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "F3": {
+          "minimum": [
+            14,
+            56,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "b53004472ed32da4a8a303f6ed1ae531e9505623391c6bcd851d48ca374ec0bc",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 14,
+                "missing": [],
+                "ms": 2510.5184,
+                "serving": 28
+              },
+              {
+                "daily": 14,
+                "missing": [],
+                "ms": 3063.1223,
+                "serving": 32
+              },
+              {
+                "daily": 14,
+                "missing": [],
+                "ms": 2095.8125,
+                "serving": 33
+              },
+              {
+                "daily": 14,
+                "missing": [],
+                "ms": 3446.8246,
+                "serving": 30
+              }
+            ],
+            "formationMs": 0.0001,
+            "multiDayEndpoints": false,
+            "profile": "F3-reserve",
+            "score": [
+              14,
+              56,
+              123
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              1,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        "sample16": {
+          "minimum": [
+            12,
+            58,
+            0
+          ],
+          "returncode": 4,
+          "fixtureSha256": "15ba3fd41ca8a69a2e22f707092d23f569ca75350524c2a0ecf956cedcaf823a",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 12,
+                "missing": [],
+                "ms": 50770.7209,
+                "serving": 14
+              },
+              {
+                "daily": 11,
+                "missing": [
+                  10
+                ],
+                "ms": 33008.8222,
+                "serving": 12
+              },
+              {
+                "daily": 11,
+                "missing": [
+                  10
+                ],
+                "ms": 32007.1424,
+                "serving": 12
+              },
+              {
+                "daily": 12,
+                "missing": [],
+                "ms": 15980.5212,
+                "serving": 12
+              },
+              {
+                "daily": 11,
+                "missing": [
+                  9
+                ],
+                "ms": 8265.1401,
+                "serving": 13
+              }
+            ],
+            "formationMs": 0.0003,
+            "multiDayEndpoints": false,
+            "profile": "compact-exact",
+            "score": [
+              12,
+              57,
+              63
+            ],
+            "supplyIndex": 3,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              1,
+              0
+            ]
+          }
+        },
+        "sample24": {
+          "minimum": [
+            18,
+            90,
+            118
+          ],
+          "returncode": 0,
+          "fixtureSha256": "4081cbca170ad09e291015c10b76224bc0d960b4bc3baa72d9d96752c112d9a5",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 12818.812,
+                "serving": 22
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 7901.1585,
+                "serving": 22
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 7485.363,
+                "serving": 24
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 9897.1905,
+                "serving": 23
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 16736.3148,
+                "serving": 27
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "regional-repair",
+            "score": [
+              18,
+              90,
+              118
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        "sample32": {
+          "minimum": [
+            24,
+            119,
+            161
+          ],
+          "returncode": 0,
+          "fixtureSha256": "3293a63681f7f248d39013bab903619968ba7832c0a5368162c508d5ec7fadaa",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 23,
+                "missing": [
+                  17
+                ],
+                "ms": 37895.8057,
+                "serving": 24
+              },
+              {
+                "daily": 24,
+                "missing": [],
+                "ms": 15234.0002,
+                "serving": 30
+              },
+              {
+                "daily": 24,
+                "missing": [],
+                "ms": 14144.8747,
+                "serving": 35
+              },
+              {
+                "daily": 24,
+                "missing": [],
+                "ms": 12810.432,
+                "serving": 38
+              },
+              {
+                "daily": 24,
+                "missing": [],
+                "ms": 10850.8243,
+                "serving": 34
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "large-bounded",
+            "score": [
+              24,
+              119,
+              161
+            ],
+            "supplyIndex": 6,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "integration_C2_candidate": {
+      "traffic": "own-dynamic",
+      "formation": "historical fixed fleet",
+      "cases": {
+        "C2": {
+          "minimum": [
+            13,
+            91,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "e6038563c2f66cba1843b95863ac4081da190d3d411504c8fe6811dc31fb1d94",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 2349.5502,
+                "serving": 15
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 14438.3831,
+                "serving": 13
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 4102.44,
+                "serving": 20
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 14427.2469,
+                "serving": 18
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 3318.6532,
+                "serving": 17
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 3525.1931,
+                "serving": 16
+              },
+              {
+                "daily": 13,
+                "missing": [],
+                "ms": 2312.4057,
+                "serving": 15
+              }
+            ],
+            "formationMs": 0.0005,
+            "multiDayEndpoints": false,
+            "profile": "C2-compact",
+            "score": [
+              13,
+              91,
+              114
+            ],
+            "supplyIndex": 3,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "integration_C3_rescue": {
+      "traffic": "own-dynamic",
+      "formation": "historical fixed fleet",
+      "cases": {
+        "C3": {
+          "minimum": [
+            18,
+            108,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "dfffb4eb0a631ed2b6aee2ad9c31564bcd8d3c9b46e95757df527d110c33aba2",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 3591.9086,
+                "serving": 25
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 10139.7593,
+                "serving": 23
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 15185.442,
+                "serving": 28
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 10103.3834,
+                "serving": 40
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 5963.4013,
+                "serving": 31
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 9292.4355,
+                "serving": 24
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "C3-long-days",
+            "score": [
+              18,
+              108,
+              171
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    },
+    "integration_isolated": {
+      "traffic": "own-dynamic",
+      "formation": "historical fixed fleet",
+      "cases": {
+        "C3": {
+          "minimum": [
+            18,
+            108,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "dfffb4eb0a631ed2b6aee2ad9c31564bcd8d3c9b46e95757df527d110c33aba2",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 4366.2431,
+                "serving": 25
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 6188.3454,
+                "serving": 25
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 6487.7829,
+                "serving": 31
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 10062.2076,
+                "serving": 39
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 8165.9764,
+                "serving": 31
+              },
+              {
+                "daily": 18,
+                "missing": [],
+                "ms": 6660.3365,
+                "serving": 23
+              }
+            ],
+            "formationMs": 0.0003,
+            "multiDayEndpoints": false,
+            "profile": "C3-long-days",
+            "score": [
+              18,
+              108,
+              174
+            ],
+            "supplyIndex": 4,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "sample16": {
+          "minimum": [
+            12,
+            58,
+            0
+          ],
+          "returncode": 0,
+          "fixtureSha256": "15ba3fd41ca8a69a2e22f707092d23f569ca75350524c2a0ecf956cedcaf823a",
+          "result": {
+            "autoFormation": false,
+            "days": [
+              {
+                "daily": 12,
+                "missing": [],
+                "ms": 50991.1846,
+                "serving": 14
+              },
+              {
+                "daily": 11,
+                "missing": [
+                  9
+                ],
+                "ms": 29857.0354,
+                "serving": 12
+              },
+              {
+                "daily": 11,
+                "missing": [
+                  9
+                ],
+                "ms": 19126.8231,
+                "serving": 12
+              },
+              {
+                "daily": 12,
+                "missing": [],
+                "ms": 13020.9082,
+                "serving": 12
+              },
+              {
+                "daily": 12,
+                "missing": [],
+                "ms": 9244.5535,
+                "serving": 14
+              }
+            ],
+            "formationMs": 0.0002,
+            "multiDayEndpoints": false,
+            "profile": "compact-exact",
+            "score": [
+              12,
+              58,
+              64
+            ],
+            "supplyIndex": 3,
+            "traffic": "own-dynamic",
+            "types": [
+              0,
+              0,
+              1,
+              0
+            ]
+          }
+        }
+      }
+    }
+  },
+  "selectedResults": {
+    "V0": {
+      "minimum": [
+        16,
+        96,
+        0
+      ],
+      "returncode": 0,
+      "fixtureSha256": "da7fb6297ad24dde111feeb9549955f720047c938b4687cb353d3b80434d90d3",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 1135.2717,
+            "serving": 20
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 6060.0648,
+            "serving": 22
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 3961.8026,
+            "serving": 20
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 4739.1402,
+            "serving": 20
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 7741.307,
+            "serving": 16
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 1804.0589,
+            "serving": 18
+          }
+        ],
+        "formationMs": 0.0003,
+        "multiDayEndpoints": false,
+        "profile": "V0-balanced",
+        "score": [
+          16,
+          96,
+          116
+        ],
+        "supplyIndex": 4,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    "C1": {
+      "minimum": [
+        16,
+        96,
+        0
+      ],
+      "returncode": 0,
+      "fixtureSha256": "57b9f3589d63fcaf2d5315c8db593fce0618e85550d06a9baa3c8db7b53b6ca7",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 2542.7033,
+            "serving": 27
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 4244.229,
+            "serving": 31
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 3308.1683,
+            "serving": 34
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 4607.8443,
+            "serving": 33
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 4324.6651,
+            "serving": 22
+          },
+          {
+            "daily": 16,
+            "missing": [],
+            "ms": 6390.8228,
+            "serving": 29
+          }
+        ],
+        "formationMs": 0.0002,
+        "multiDayEndpoints": false,
+        "profile": "C1-wide",
+        "score": [
+          16,
+          96,
+          176
+        ],
+        "supplyIndex": 4,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    "C2": {
+      "minimum": [
+        13,
+        91,
+        0
+      ],
+      "returncode": 0,
+      "fixtureSha256": "e6038563c2f66cba1843b95863ac4081da190d3d411504c8fe6811dc31fb1d94",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 13,
+            "missing": [],
+            "ms": 2236.0643,
+            "serving": 15
+          },
+          {
+            "daily": 13,
+            "missing": [],
+            "ms": 6813.5186,
+            "serving": 13
+          },
+          {
+            "daily": 13,
+            "missing": [],
+            "ms": 1606.0765,
+            "serving": 20
+          },
+          {
+            "daily": 13,
+            "missing": [],
+            "ms": 13882.722,
+            "serving": 17
+          },
+          {
+            "daily": 13,
+            "missing": [],
+            "ms": 3887.3091,
+            "serving": 18
+          },
+          {
+            "daily": 13,
+            "missing": [],
+            "ms": 1697.83,
+            "serving": 15
+          },
+          {
+            "daily": 13,
+            "missing": [],
+            "ms": 1037.0712,
+            "serving": 18
+          }
+        ],
+        "formationMs": 0.0002,
+        "multiDayEndpoints": false,
+        "profile": "C2-compact",
+        "score": [
+          13,
+          91,
+          116
+        ],
+        "supplyIndex": 3,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    "C3": {
+      "minimum": [
+        18,
+        108,
+        0
+      ],
+      "returncode": 0,
+      "fixtureSha256": "dfffb4eb0a631ed2b6aee2ad9c31564bcd8d3c9b46e95757df527d110c33aba2",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 4366.2431,
+            "serving": 25
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 6188.3454,
+            "serving": 25
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 6487.7829,
+            "serving": 31
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 10062.2076,
+            "serving": 39
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 8165.9764,
+            "serving": 31
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 6660.3365,
+            "serving": 23
+          }
+        ],
+        "formationMs": 0.0003,
+        "multiDayEndpoints": false,
+        "profile": "C3-long-days",
+        "score": [
+          18,
+          108,
+          174
+        ],
+        "supplyIndex": 4,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    "F1": {
+      "minimum": [
+        20,
+        160,
+        0
+      ],
+      "returncode": 0,
+      "fixtureSha256": "dd2c774327044be8da205b1cd7627e1afe3000376e78632a64945850b7ce9b7d",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 20,
+            "missing": [],
+            "ms": 1982.7843,
+            "serving": 32
+          },
+          {
+            "daily": 20,
+            "missing": [],
+            "ms": 2114.529,
+            "serving": 28
+          },
+          {
+            "daily": 20,
+            "missing": [],
+            "ms": 1836.3379,
+            "serving": 29
+          },
+          {
+            "daily": 20,
+            "missing": [],
+            "ms": 4444.5538,
+            "serving": 24
+          },
+          {
+            "daily": 20,
+            "missing": [],
+            "ms": 14793.8047,
+            "serving": 23
+          },
+          {
+            "daily": 20,
+            "missing": [],
+            "ms": 5421.1589,
+            "serving": 23
+          },
+          {
+            "daily": 20,
+            "missing": [],
+            "ms": 4761.6221,
+            "serving": 30
+          },
+          {
+            "daily": 20,
+            "missing": [],
+            "ms": 12569.5313,
+            "serving": 21
+          }
+        ],
+        "formationMs": 0.0003,
+        "multiDayEndpoints": false,
+        "profile": "F1-endurance",
+        "score": [
+          20,
+          160,
+          210
+        ],
+        "supplyIndex": 4,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    "F2": {
+      "minimum": [
+        26,
+        260,
+        0
+      ],
+      "returncode": 0,
+      "fixtureSha256": "36b67e70a3a7edad14ba0ec2b3525639ff1c7f88fc7ac2cc7b57d77440c28ab8",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 13767.4831,
+            "serving": 45
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 16462.1911,
+            "serving": 46
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 16558.3431,
+            "serving": 46
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 12513.352,
+            "serving": 30
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 6942.1776,
+            "serving": 26
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 13627.6467,
+            "serving": 30
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 13687.9932,
+            "serving": 38
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 7925.0629,
+            "serving": 53
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 7642.8864,
+            "serving": 46
+          },
+          {
+            "daily": 26,
+            "missing": [],
+            "ms": 7066.8825,
+            "serving": 43
+          }
+        ],
+        "formationMs": 0.0004,
+        "multiDayEndpoints": false,
+        "profile": "F2-large-endurance",
+        "score": [
+          26,
+          260,
+          403
+        ],
+        "supplyIndex": 6,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    "F3": {
+      "minimum": [
+        14,
+        56,
+        0
+      ],
+      "returncode": 0,
+      "fixtureSha256": "b53004472ed32da4a8a303f6ed1ae531e9505623391c6bcd851d48ca374ec0bc",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 14,
+            "missing": [],
+            "ms": 2510.5184,
+            "serving": 28
+          },
+          {
+            "daily": 14,
+            "missing": [],
+            "ms": 3063.1223,
+            "serving": 32
+          },
+          {
+            "daily": 14,
+            "missing": [],
+            "ms": 2095.8125,
+            "serving": 33
+          },
+          {
+            "daily": 14,
+            "missing": [],
+            "ms": 3446.8246,
+            "serving": 30
+          }
+        ],
+        "formationMs": 0.0001,
+        "multiDayEndpoints": false,
+        "profile": "F3-reserve",
+        "score": [
+          14,
+          56,
+          123
+        ],
+        "supplyIndex": 4,
+        "traffic": "own-dynamic",
+        "types": [
+          1,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "sample16": {
+      "minimum": [
+        12,
+        58,
+        0
+      ],
+      "returncode": 0,
+      "fixtureSha256": "15ba3fd41ca8a69a2e22f707092d23f569ca75350524c2a0ecf956cedcaf823a",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 12,
+            "missing": [],
+            "ms": 50991.1846,
+            "serving": 14
+          },
+          {
+            "daily": 11,
+            "missing": [
+              9
+            ],
+            "ms": 29857.0354,
+            "serving": 12
+          },
+          {
+            "daily": 11,
+            "missing": [
+              9
+            ],
+            "ms": 19126.8231,
+            "serving": 12
+          },
+          {
+            "daily": 12,
+            "missing": [],
+            "ms": 13020.9082,
+            "serving": 12
+          },
+          {
+            "daily": 12,
+            "missing": [],
+            "ms": 9244.5535,
+            "serving": 14
+          }
+        ],
+        "formationMs": 0.0002,
+        "multiDayEndpoints": false,
+        "profile": "compact-exact",
+        "score": [
+          12,
+          58,
+          64
+        ],
+        "supplyIndex": 3,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          1,
+          0
+        ]
+      }
+    },
+    "sample24": {
+      "minimum": [
+        18,
+        90,
+        118
+      ],
+      "returncode": 0,
+      "fixtureSha256": "4081cbca170ad09e291015c10b76224bc0d960b4bc3baa72d9d96752c112d9a5",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 12818.812,
+            "serving": 22
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 7901.1585,
+            "serving": 22
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 7485.363,
+            "serving": 24
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 9897.1905,
+            "serving": 23
+          },
+          {
+            "daily": 18,
+            "missing": [],
+            "ms": 16736.3148,
+            "serving": 27
+          }
+        ],
+        "formationMs": 0.0002,
+        "multiDayEndpoints": false,
+        "profile": "regional-repair",
+        "score": [
+          18,
+          90,
+          118
+        ],
+        "supplyIndex": 4,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          1,
+          0,
+          0
+        ]
+      }
+    },
+    "sample32": {
+      "minimum": [
+        24,
+        119,
+        161
+      ],
+      "returncode": 0,
+      "fixtureSha256": "3293a63681f7f248d39013bab903619968ba7832c0a5368162c508d5ec7fadaa",
+      "result": {
+        "autoFormation": false,
+        "days": [
+          {
+            "daily": 23,
+            "missing": [
+              17
+            ],
+            "ms": 37895.8057,
+            "serving": 24
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 15234.0002,
+            "serving": 30
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 14144.8747,
+            "serving": 35
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 12810.432,
+            "serving": 38
+          },
+          {
+            "daily": 24,
+            "missing": [],
+            "ms": 10850.8243,
+            "serving": 34
+          }
+        ],
+        "formationMs": 0.0002,
+        "multiDayEndpoints": false,
+        "profile": "large-bounded",
+        "score": [
+          24,
+          119,
+          161
+        ],
+        "supplyIndex": 6,
+        "traffic": "own-dynamic",
+        "types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1
+        ]
+      }
+    }
+  },
+  "executableSha256": "e24a509604a2a77a3a69e967c40df6cfcb4482b1f2e402051b6305088bec7deb"
+}

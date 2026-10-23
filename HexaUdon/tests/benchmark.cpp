@@ -15,6 +15,7 @@ GameConfig readConfig(const nlohmann::json& c) {
     config.map = {c["map"]["height"], c["map"]["width"],
         c["map"]["cells"].get<std::vector<std::vector<int>>>()};
     config.daySteps = c["daySteps"].get<std::vector<int>>();
+    config.daySeconds = c.value("daySeconds", std::vector<int>{});
     config.initialAgentPositions = c["agents"].get<std::vector<int>>();
     config.fuelLimit = c["fuelLimits"];
     config.players = c["players"];
@@ -329,4 +330,5 @@ int main(int argc, char** argv) {
         }
         std::cerr << "[PASS] All benchmark scores meet the tracked baseline.\n";
     }
+    return 0;
 }

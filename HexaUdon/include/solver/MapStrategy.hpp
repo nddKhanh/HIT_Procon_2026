@@ -19,6 +19,12 @@ struct MapStrategy {
     int responseSeconds = 60;
     int dailyRepairMs = 12000;
     int tourRepairMs = 8000;
+    // Reuse the measured route policies across published and sample maps.
+    // ponytail: forecast eligibility is bounded to 16x16; larger fleets need
+    // measured continuation budgets before expanding the search.
+    bool dailyRepair = false;
+    bool compactForecast = false;
+    bool preserveNativeBudget = false;
 
     // Server durations override the published fallback; never enlarge its window.
     long long solveBudgetMs(const GameConfig& config, int day) const {
@@ -38,6 +44,9 @@ struct MapStrategy {
             static_cast<int>(brands.size()),
             static_cast<int>(brands.size() * config.daySteps.size()),
             minSteps, config.fuelLimit < minSteps};
+        out.compactForecast = config.players > 2 && config.map.width == 16 && config.map.height == 16;
+        out.preserveNativeBudget = config.players > 2 && config.map.width == 32 && config.map.height == 32;
+        out.dailyRepair = (config.map.width == 24 && config.map.height == 24) || out.preserveNativeBudget;
         // ponytail: size/workload tiers, not a trained classifier. Exact route
         // enumeration still requires <=3 Patrols and <=20 brands in Solver.
         if (side > 24 || config.spots.size() > 24 ||
@@ -78,6 +87,8 @@ struct MapStrategy {
                 config.daySteps != profile.steps) continue;
             out.name = profile.name;
             out.tournament = true;
+            out.dailyRepair = true;
+            out.preserveNativeBudget = false;
             out.responseSeconds = profile.seconds;
             out.dailyRepairMs = profile.repair;
             out.tourRepairMs = profile.tour;
